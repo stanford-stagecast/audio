@@ -10,7 +10,7 @@
 
 using namespace std;
 
-const uint64_t MAX_NUM_PACKETS = 100;
+const uint64_t MAX_NUM_PACKETS = 100000;
 const uint64_t DELAY { 1'000'000 };
 Address server {"171.67.76.46", 9090};
 
