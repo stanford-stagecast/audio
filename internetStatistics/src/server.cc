@@ -6,7 +6,7 @@
 
 #include "eventloop.hh"
 #include "exception.hh"
-#include "server_socket.hh"
+#include "socket.hh"
 #include "timer.hh"
 
 using namespace std;
@@ -32,7 +32,9 @@ void split_on_char( const string_view str, const char ch_to_find, vector<string_
 
 void program_body()
 {
+  EventLoop event_loop;
   UDPSocket server_sock;
+  uint64_t start_time = Timer::timestamp_ns();
   server_sock.bind({"0", 9090});
 
   uint64_t server_packet_counter = 1;
@@ -42,7 +44,7 @@ void program_body()
     Direction::In,
     [&] {
       auto recv = server_sock.recv();
-      cout << "Datagram received from " << rec.source_address.to_string() << ": " << rec.payload << "\n";
+      cout << "Datagram received from " << recv.source_address.to_string() << ": " << recv.payload << "\n";
     /*  vector<string_view> fields;
       split_on_char(rec.payload, ' ', fields);
       if (fields.size() > 0 && server_packet_counter < fields[0]) {
