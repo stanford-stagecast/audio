@@ -34,30 +34,46 @@ void program_body()
 {
   EventLoop event_loop;
   UDPSocket server_sock;
-  uint64_t start_time = Timer::timestamp_ns();
+  uint64_t prev_time = Timer::timestamp_ns();
   server_sock.bind({"0", 9090});
 
   uint64_t server_packet_counter = 1;
+  int64_t buffer = 0;
+  vector<int64_t> buffer_vals;
+
   event_loop.add_rule(
     "Server receive packets and keep track of buffer",
     server_sock,
     Direction::In,
     [&] {
       auto recv = server_sock.recv();
-      cout << "Datagram received from " << recv.source_address.to_string() << ": " << recv.payload << "\n";
-    /*  vector<string_view> fields;
-      split_on_char(rec.payload, ' ', fields);
-      if (fields.size() > 0 && server_packet_counter < fields[0]) {
-        server_packet_counter = fields[0];
-      }*/
+      string payload = recv.payload;
+      uint64_t packet_number = stoull(payload);
+      cout << "received packet " << packet_number << endl;
+
+      if (packet_number == server_packet_counter) {
+        buffer++;
+        server_packet_counter++;
+      }
+      else if (packet_number > server_packet_counter) {
+        cout << "skipping packets " << server_packet_counter << " to " << packet_number - 1 << endl;
+        buffer += (server_packet_counter - packet_number) + 1;
+        server_packet_counter = packet_number + 1;
+      }
+
     },
     [&] {return server_packet_counter;});
+
   while (event_loop.wait_next_event(1) != EventLoop::Result::Exit) {
-    if (Timer::timestamp_ns() - start_time > 5ULL * 1000 * 1000 * 1000) {
-      cout << "Timeout\n";
+    buffer--;
+    uint64_t cur_time = Timer::timestamp_ns();
+    if (cur_time - prev_time > 1ULL * 1000 * 1000 * 1000) {
+      cout << "buffer: " << buffer << endl;
+      prev_time = cur_time;
     }
   }
 }
+
 
 int main() {
   try {
