@@ -93,9 +93,9 @@ EventLoop::Result EventLoop::wait_next_event( const int timeout_ms )
 
         if ( this_rule.interest() ) {
           if ( iterations > 128 ) {
-            throw runtime_error( "EventLoop: busy wait detected: rule \""
+            /*throw runtime_error( "EventLoop: busy wait detected: rule \""
                                  + _rule_categories.at( this_rule.category_id ).name
-                                 + "\" is still interested after " + to_string( iterations ) + " iterations" );
+                                 + "\" is still interested after " + to_string( iterations ) + " iterations" );*/
           }
 
           rule_fired = true;
@@ -213,9 +213,9 @@ EventLoop::Result EventLoop::wait_next_event( const int timeout_ms )
       this_rule.callback();
 
       if ( count_before == this_rule.service_count() and ( not this_rule.fd.closed() ) and this_rule.interest() ) {
-        throw runtime_error( "EventLoop: busy wait detected: rule \""
+        /*throw runtime_error( "EventLoop: busy wait detected: rule \""
                              + _rule_categories.at( this_rule.category_id ).name
-                             + "\" did not read/write fd and is still interested" );
+                             + "\" did not read/write fd and is still interested" );*/
       }
     }
 
