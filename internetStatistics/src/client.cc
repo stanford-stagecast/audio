@@ -36,14 +36,15 @@ void program_body() {
   EventLoop event_loop;
   UDPSocket client_sock;
   client_sock.set_blocking(false);
-  uint64_t next_announce_time = Timer::timestamp_ns();
+  uint64_t start_time = Timer::timestamp_ns();
+  uint64_t next_announce_time = start_time;
   uint64_t packet_counter = 1;
   event_loop.add_rule(
     "UDP send 40 byte packet",
     client_sock,
     Direction::Out,
     [&] {
-      client_sock.sendto(server, packet_counter);
+      client_sock.sendto(server, std::to_string(packet_counter));
       packet_counter++;
       next_announce_time = Timer::timestamp_ns() + BILLION; /*TODO*/
     },

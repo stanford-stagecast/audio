@@ -1,3 +1,5 @@
+internetStatistics/src/*.o
+
 .DS_Store
 /build
 /.vscode
