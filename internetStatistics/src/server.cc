@@ -12,7 +12,7 @@
 #include "timer.hh"
 
 const uint64_t DELAY{ 1'000'000 };
-
+const uint64_t MAX_NUM_PACKETS = 1000000;
 using namespace std;
 
 void split_on_char(const string_view str, const char ch_to_find, vector<string_view>& ret)
@@ -39,13 +39,13 @@ void split_on_char(const string_view str, const char ch_to_find, vector<string_v
 void export_data(vector<int64_t>& buffer_vals, vector<int>& packets_received)
 {
   std::fstream fout;
-  fout.open("buffer_every_one_ms.csv", std::ios::out);
+  fout.open("csv/buffer_every_one_ms.csv", std::ios::out);
   for (size_t i = 0; i < buffer_vals.size(); i++) {
     fout << buffer_vals.at(i) << "\n";
   }
   fout.close();
 
-  fout.open("packets_received.csv", std::ios::out);
+  fout.open("csv/packets_received.csv", std::ios::out);
   for (size_t i = 0; i < packets_received.size(); i++) {
     fout << packets_received.at(i) << "\n";
   }
@@ -66,14 +66,12 @@ void program_body(vector<int64_t>& buffer_vals, vector<int>& packets_received)
   atomic<int64_t> buffer = 0;
   std::mutex mtx_buf_vec;
   std::mutex mtx_packet_vec;
-  bool received = false;
 
   event_loop.add_rule(
     "Server receive packets and keep track of buffer",
     server_sock,
     Direction::In,
     [&] {
-      received = true;
       if (prev_time + DELAY < current_time) {
         buffer--;
         auto recv = server_sock.recv();
@@ -100,19 +98,14 @@ void program_body(vector<int64_t>& buffer_vals, vector<int>& packets_received)
         prev_time = current_time;
         unique_lock<mutex> lk(mtx_buf_vec);
         buffer_vals.push_back(buffer);
-        //cout << "received packet " << packet_number << " current buffer " << buffer << endl;
+        cout << "received packet " << packet_number << " current buffer " << buffer << endl;
       }
-     current_time = Timer::timestamp_ns();
+      current_time = Timer::timestamp_ns();
     },
-    [&] { return server_packet_counter < 100000; });
+    [&] { return server_packet_counter < MAX_NUM_PACKETS; });
 
   while (event_loop.wait_next_event(5) != EventLoop::Result::Exit) {
-    //if (received && prev_time + DELAY < current_time) { // TODO: Determine whether this section is necessary
-      //buffer--; // race condition? not sure how the event handler is implemented
-      //cout << "buffer: " << buffer << endl;
-      //prev_time = current_time;
-    //}
-    //current_time = Timer::timestamp_ns();
+    /*Nothing in here*/
   }
 }
 
