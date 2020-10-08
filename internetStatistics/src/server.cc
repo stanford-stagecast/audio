@@ -66,48 +66,57 @@ void program_body(vector<int64_t>& buffer_vals, vector<int>& packets_received)
   atomic<int64_t> buffer = 0;
   std::mutex mtx_buf_vec;
   std::mutex mtx_packet_vec;
-  bool received = false;
+  bool receiving = false;
 
   event_loop.add_rule(
     "Server receive packets and keep track of buffer",
     server_sock,
     Direction::In,
     [&] {
-      received = true;
-      if (prev_time + DELAY < current_time) {
+      if (!receiving) {
+        prev_time = Timer::timestamp_ns();
+        receiving = true;
         buffer--;
-        auto recv = server_sock.recv();
-        string payload = recv.payload;
-        uint64_t packet_number = stoull(payload);
-
-        if (packet_number == server_packet_counter) {
-          buffer++;
-          server_packet_counter++;
-
-          unique_lock<mutex> lk(mtx_packet_vec);
-          packets_received.push_back(1);
-        }
-        else if (packet_number > server_packet_counter) {
-          cout << "skipping packets " << server_packet_counter << " to " << packet_number - 1 << endl;
-          buffer += (server_packet_counter - packet_number) + 1;
-          unique_lock<mutex> lk(mtx_packet_vec);
-          for (size_t i = server_packet_counter; i < packet_number; ++i) {
-            packets_received.push_back(0);
-          }
-          packets_received.push_back(1);
-          server_packet_counter = packet_number + 1;
-        }
-        prev_time = current_time;
-        unique_lock<mutex> lk(mtx_buf_vec);
-        buffer_vals.push_back(buffer);
-        cout << "received packet " << packet_number << " current buffer " << buffer << endl;
       }
-      current_time = Timer::timestamp_ns();
+      else {
+        current_time = Timer::timestamp_ns();
+        int64_t diff = (current_time - prev_time + DELAY / 2) / DELAY; // really hacky but basically rounds to nearest ms
+        cout << "received after " << diff << " ms" << endl;
+        buffer -= diff;
+        prev_time = current_time;
+      }
+      // buffer--;
+      auto recv = server_sock.recv();
+      string payload = recv.payload;
+      uint64_t packet_number = stoull(payload);
+
+      if (packet_number == server_packet_counter) {
+        buffer++;
+        server_packet_counter++;
+
+        unique_lock<mutex> lk(mtx_packet_vec);
+        packets_received.push_back(1);
+      }
+      else if (packet_number > server_packet_counter) {
+        cout << "skipping packets " << server_packet_counter << " to " << packet_number - 1 << endl;
+        buffer += (server_packet_counter - packet_number) + 1;
+        unique_lock<mutex> lk(mtx_packet_vec);
+        for (size_t i = server_packet_counter; i < packet_number; ++i) {
+          packets_received.push_back(0);
+        }
+        packets_received.push_back(1);
+        server_packet_counter = packet_number + 1;
+      }
+      // prev_time = current_time;
+      unique_lock<mutex> lk(mtx_buf_vec);
+      buffer_vals.push_back(buffer);
+      cout << "received packet " << packet_number << " current buffer " << buffer << endl;
+      // current_time = Timer::timestamp_ns();
     },
     [&] { return server_packet_counter < 100000; });
 
   while (event_loop.wait_next_event(5) != EventLoop::Result::Exit) {
-    if (received && prev_time + DELAY < current_time) { // TODO: Determine whether this section is necessary
+    if (receiving && prev_time + DELAY < current_time) { // TODO: Determine whether this section is necessary
       // buffer--; // race condition? not sure how the event handler is implemented
       // cout << "buffer: " << buffer << endl;
       // prev_time = current_time;
