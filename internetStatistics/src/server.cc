@@ -9,6 +9,8 @@
 #include "socket.hh"
 #include "timer.hh"
 
+const uint64_t DELAY {1'000'000};
+
 using namespace std;
 
 void split_on_char( const string_view str, const char ch_to_find, vector<string_view>& ret )
@@ -34,43 +36,55 @@ void program_body()
 {
   EventLoop event_loop;
   UDPSocket server_sock;
-  uint64_t prev_time = Timer::timestamp_ns();
+  server_sock.set_blocking(true);
   server_sock.bind({"0", 9090});
+
+  uint64_t start_time = Timer::timestamp_ns();
+  uint64_t prev_time = start_time;
+  uint64_t current_time = start_time;
 
   uint64_t server_packet_counter = 1;
   int64_t buffer = 0;
   vector<int64_t> buffer_vals;
+  bool received = false;
 
   event_loop.add_rule(
     "Server receive packets and keep track of buffer",
     server_sock,
     Direction::In,
     [&] {
-      auto recv = server_sock.recv();
-      string payload = recv.payload;
-      uint64_t packet_number = stoull(payload);
-      cout << "received packet " << packet_number << endl;
+        received = true;
+      // auto recv = server_sock.recv();
+      // cout << "received packet from " << recv.source_address << ": " << stoull(recv.payload) << endl;
+      // if (prev_time + DELAY < current_time) {
+        auto recv = server_sock.recv();
+        string payload = recv.payload;
+        uint64_t packet_number = stoull(payload);
+        cout << "received packet " << packet_number << endl;
 
-      if (packet_number == server_packet_counter) {
-        buffer++;
-        server_packet_counter++;
-      }
-      else if (packet_number > server_packet_counter) {
-        cout << "skipping packets " << server_packet_counter << " to " << packet_number - 1 << endl;
-        buffer += (server_packet_counter - packet_number) + 1;
-        server_packet_counter = packet_number + 1;
-      }
+        if (packet_number == server_packet_counter) {
+          buffer++;
+          server_packet_counter++;
+        }
+        else if (packet_number > server_packet_counter) {
+          cout << "skipping packets " << server_packet_counter << " to " << packet_number - 1 << endl;
+          buffer += (server_packet_counter - packet_number) + 1;
+          server_packet_counter = packet_number + 1;
+        }
 
+        // prev_time = current_time;
+      // }
+      // current_time = Timer::timestamp_ns();
     },
     [&] {return server_packet_counter;});
 
-  while (event_loop.wait_next_event(1) != EventLoop::Result::Exit) {
-    buffer--;
-    uint64_t cur_time = Timer::timestamp_ns();
-    if (cur_time - prev_time > 1ULL * 1000 * 1000 * 1000) {
+  while (event_loop.wait_next_event(5) != EventLoop::Result::Exit) {
+    if (received && prev_time + DELAY < current_time) {
+      buffer--; // race condition? not sure how the event handler is implemented
       cout << "buffer: " << buffer << endl;
-      prev_time = cur_time;
+      prev_time = current_time;
     }
+    current_time = Timer::timestamp_ns();
   }
 }
 
