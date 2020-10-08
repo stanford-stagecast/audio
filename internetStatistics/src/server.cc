@@ -1,8 +1,9 @@
 #include <cstdio>
 #include <cstdlib>
+#include <fstream>
 #include <iostream>
 #include <atomic>
-
+#include <mutex>
 #include <unistd.h>
 
 #include "eventloop.hh"
@@ -33,7 +34,16 @@ void split_on_char( const string_view str, const char ch_to_find, vector<string_
   ret.emplace_back( str.substr( field_start ) );
 }
 
-void program_body()
+void export_data(vector<int64_t>& buffer_vals) {
+  std::fstream fout;
+  fout.open("buffer_every_one_ms.csv", std::ios::out|std::ios::app);
+  for (size_t i = 0; i < buffer_vals.size(); i++) {
+    fout << buffer_vals.at(i) << "\n";
+  }
+
+}
+
+void program_body(vector<int64_t>& buffer_vals)
 {
   EventLoop event_loop;
   UDPSocket server_sock;
@@ -43,10 +53,9 @@ void program_body()
   uint64_t start_time = Timer::timestamp_ns();
   uint64_t prev_time = start_time;
   uint64_t current_time = start_time;
-
   uint64_t server_packet_counter = 1;
   atomic<int64_t> buffer = 0;
-  vector<int64_t> buffer_vals;
+  std::mutex mtx_buf_vec;
   bool received = false;
 
   event_loop.add_rule(
@@ -55,35 +64,35 @@ void program_body()
     Direction::In,
     [&] {
         received = true;
-      // auto recv = server_sock.recv();
-      // cout << "received packet from " << recv.source_address << ": " << stoull(recv.payload) << endl;
-      // if (prev_time + DELAY < current_time) {
-        auto recv = server_sock.recv();
-        string payload = recv.payload;
-        uint64_t packet_number = stoull(payload);
-        cout << "received packet " << packet_number << endl;
+        if (prev_time + DELAY < current_time) {
+          buffer--;
+	  auto recv = server_sock.recv();
+          string payload = recv.payload;
+          uint64_t packet_number = stoull(payload);
 
-        if (packet_number == server_packet_counter) {
-          buffer++;
-          server_packet_counter++;
-        }
-        else if (packet_number > server_packet_counter) {
-          cout << "skipping packets " << server_packet_counter << " to " << packet_number - 1 << endl;
-          buffer += (server_packet_counter - packet_number) + 1;
-          server_packet_counter = packet_number + 1;
-        }
-
-        // prev_time = current_time;
-      // }
-      // current_time = Timer::timestamp_ns();
+          if (packet_number == server_packet_counter) {
+            buffer++;
+            server_packet_counter++;
+          } else if (packet_number > server_packet_counter) {
+            cout << "skipping packets " << server_packet_counter << " to " << packet_number - 1 << endl;
+            buffer += (server_packet_counter - packet_number) + 1;
+            server_packet_counter = packet_number + 1;
+          }
+          prev_time = current_time;
+	  mtx_buf_vec.lock();
+	  buffer_vals.push_back(buffer);
+	  mtx_buf_vec.unlock();
+          cout << "received packet " << packet_number << " current buffer " << buffer << endl;
+	}
+        current_time = Timer::timestamp_ns();
     },
-    [&] {return server_packet_counter;});
+    [&] {return server_packet_counter < 100000;});
 
   while (event_loop.wait_next_event(5) != EventLoop::Result::Exit) {
-    if (received && prev_time + DELAY < current_time) {
-      buffer--; // race condition? not sure how the event handler is implemented
-      cout << "buffer: " << buffer << endl;
-      prev_time = current_time;
+    if (received && prev_time + DELAY < current_time) { //TODO: Determine whether this section is necessary
+      //buffer--; // race condition? not sure how the event handler is implemented
+      //cout << "buffer: " << buffer << endl;
+      //prev_time = current_time;
     }
     current_time = Timer::timestamp_ns();
   }
@@ -93,7 +102,9 @@ void program_body()
 int main() {
   try {
     global_timer();
-    program_body();
+    vector<int64_t> buffer_values;
+    program_body(buffer_values);
+    export_data(buffer_values);
     cout << global_timer().summary() << "\n";
   } catch (const exception& e) {
     cout << "Exception: " << e.what() << endl;
