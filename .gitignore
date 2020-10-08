@@ -1,4 +1,5 @@
 internetStatistics/src/*.o
+internetStatistics/src/csv/
 
 .DS_Store
 /build
