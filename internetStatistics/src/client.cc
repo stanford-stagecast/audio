@@ -1,18 +1,19 @@
+#include "eventloop.hh"
+#include "exception.hh"
+#include "socket.hh"
+#include "timer.hh"
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
 #include <optional>
 #include <unistd.h>
-#include "eventloop.hh"
-#include "exception.hh"
-#include "socket.hh"
-#include "timer.hh"
 
 using namespace std;
 
 const uint64_t MAX_NUM_PACKETS = 100000;
 const uint64_t DELAY { 1'000'000 };
-Address server {"171.67.76.94", 9090};
+// Address server {"171.67.76.46", 9090};
+Address server { "127.0.0.1", 9090 };
 
 void split_on_char( const string_view str, const char ch_to_find, vector<string_view>& ret )
 {
@@ -33,14 +34,16 @@ void split_on_char( const string_view str, const char ch_to_find, vector<string_
   ret.emplace_back( str.substr( field_start ) );
 }
 
-string build_packet(int packet_counter) {
-  return std::to_string(packet_counter);
+string build_packet( int packet_counter )
+{
+  return std::to_string( packet_counter );
 }
 
-void program_body() {
+void program_body()
+{
   EventLoop event_loop;
   UDPSocket client_sock;
-  client_sock.set_blocking(false);
+  client_sock.set_blocking( false );
   uint64_t start_time = Timer::timestamp_ns();
   uint64_t prev_time = start_time;
   uint64_t current_time = start_time;
@@ -50,18 +53,18 @@ void program_body() {
     client_sock,
     Direction::Out,
     [&] {
-      if (prev_time + DELAY < current_time) {
+      if ( prev_time + DELAY < current_time ) {
         cout << "Packet counter: " << packet_counter << endl;
-        string packet_content = build_packet(packet_counter);
-        client_sock.sendto(server, packet_content);
+        string packet_content = build_packet( packet_counter );
+        client_sock.sendto( server, packet_content );
         packet_counter++;
-	prev_time = current_time;
+        prev_time = current_time;
       }
       current_time = Timer::timestamp_ns();
     },
-    [&] {return packet_counter < MAX_NUM_PACKETS;});
+    [&] { return packet_counter < MAX_NUM_PACKETS; } );
 
-  while (event_loop.wait_next_event(5) != EventLoop::Result::Exit) {
+  while ( event_loop.wait_next_event( 5 ) != EventLoop::Result::Exit ) {
     /*if (Timer::timestamp_ns() - start_time > 5ULL * 1000 * 1000 * 1000) {
       cout << " timeout\n";
       return;
@@ -69,12 +72,13 @@ void program_body() {
   }
 }
 
-int main(const int argc, const char* const argv[]) {
+int main( const int argc, const char* const argv[] )
+{
   try {
     global_timer();
     program_body();
     cout << global_timer().summary() << "\n";
-  } catch (const exception& e) {
+  } catch ( const exception& e ) {
     cout << "Exception: " << e.what() << endl;
     cout << global_timer().summary() << "\n";
     return EXIT_FAILURE;

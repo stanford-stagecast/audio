@@ -1,8 +1,8 @@
+#include <atomic>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
-#include <atomic>
 #include <mutex>
 #include <unistd.h>
 
@@ -11,7 +11,7 @@
 #include "socket.hh"
 #include "timer.hh"
 
-const uint64_t DELAY {1'000'000};
+const uint64_t DELAY { 1'000'000 };
 
 using namespace std;
 
@@ -34,21 +34,21 @@ void split_on_char( const string_view str, const char ch_to_find, vector<string_
   ret.emplace_back( str.substr( field_start ) );
 }
 
-void export_data(vector<int64_t>& buffer_vals) {
+void export_data( vector<int64_t>& buffer_vals )
+{
   std::fstream fout;
-  fout.open("buffer_every_one_ms.csv", std::ios::out|std::ios::app);
-  for (size_t i = 0; i < buffer_vals.size(); i++) {
-    fout << buffer_vals.at(i) << "\n";
+  fout.open( "buffer_every_one_ms.csv", std::ios::out | std::ios::app );
+  for ( size_t i = 0; i < buffer_vals.size(); i++ ) {
+    fout << buffer_vals.at( i ) << "\n";
   }
-
 }
 
-void program_body(vector<int64_t>& buffer_vals)
+void program_body( vector<int64_t>& buffer_vals )
 {
   EventLoop event_loop;
   UDPSocket server_sock;
-  server_sock.set_blocking(true);
-  server_sock.bind({"0", 9090});
+  server_sock.set_blocking( true );
+  server_sock.bind( { "0", 9090 } );
 
   uint64_t start_time = Timer::timestamp_ns();
   uint64_t prev_time = start_time;
@@ -63,50 +63,50 @@ void program_body(vector<int64_t>& buffer_vals)
     server_sock,
     Direction::In,
     [&] {
-        received = true;
-        if (prev_time + DELAY < current_time) {
-          buffer--;
-	  auto recv = server_sock.recv();
-          string payload = recv.payload;
-          uint64_t packet_number = stoull(payload);
+      received = true;
+      if ( prev_time + DELAY < current_time ) {
+        buffer--;
+        auto recv = server_sock.recv();
+        string payload = recv.payload;
+        uint64_t packet_number = stoull( payload );
 
-          if (packet_number == server_packet_counter) {
-            buffer++;
-            server_packet_counter++;
-          } else if (packet_number > server_packet_counter) {
-            cout << "skipping packets " << server_packet_counter << " to " << packet_number - 1 << endl;
-            buffer += (server_packet_counter - packet_number) + 1;
-            server_packet_counter = packet_number + 1;
-          }
-          prev_time = current_time;
-	  mtx_buf_vec.lock();
-	  buffer_vals.push_back(buffer);
-	  mtx_buf_vec.unlock();
-          cout << "received packet " << packet_number << " current buffer " << buffer << endl;
-	}
-        current_time = Timer::timestamp_ns();
+        if ( packet_number == server_packet_counter ) {
+          buffer++;
+          server_packet_counter++;
+        } else if ( packet_number > server_packet_counter ) {
+          cout << "skipping packets " << server_packet_counter << " to " << packet_number - 1 << endl;
+          buffer += ( server_packet_counter - packet_number ) + 1;
+          server_packet_counter = packet_number + 1;
+        }
+        prev_time = current_time;
+        mtx_buf_vec.lock();
+        buffer_vals.push_back( buffer );
+        mtx_buf_vec.unlock();
+        cout << "received packet " << packet_number << " current buffer " << buffer << endl;
+      }
+      current_time = Timer::timestamp_ns();
     },
-    [&] {return server_packet_counter < 100000;});
+    [&] { return server_packet_counter < 100000; } );
 
-  while (event_loop.wait_next_event(5) != EventLoop::Result::Exit) {
-    if (received && prev_time + DELAY < current_time) { //TODO: Determine whether this section is necessary
-      //buffer--; // race condition? not sure how the event handler is implemented
-      //cout << "buffer: " << buffer << endl;
-      //prev_time = current_time;
+  while ( event_loop.wait_next_event( 5 ) != EventLoop::Result::Exit ) {
+    if ( received && prev_time + DELAY < current_time ) { // TODO: Determine whether this section is necessary
+      // buffer--; // race condition? not sure how the event handler is implemented
+      // cout << "buffer: " << buffer << endl;
+      // prev_time = current_time;
     }
     current_time = Timer::timestamp_ns();
   }
 }
 
-
-int main() {
+int main()
+{
   try {
     global_timer();
     vector<int64_t> buffer_values;
-    program_body(buffer_values);
-    export_data(buffer_values);
+    program_body( buffer_values );
+    export_data( buffer_values );
     cout << global_timer().summary() << "\n";
-  } catch (const exception& e) {
+  } catch ( const exception& e ) {
     cout << "Exception: " << e.what() << endl;
     cout << global_timer().summary() << "\n";
     return EXIT_FAILURE;
