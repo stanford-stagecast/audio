@@ -100,19 +100,19 @@ void program_body(vector<int64_t>& buffer_vals, vector<int>& packets_received)
         prev_time = current_time;
         unique_lock<mutex> lk(mtx_buf_vec);
         buffer_vals.push_back(buffer);
-        cout << "received packet " << packet_number << " current buffer " << buffer << endl;
+        //cout << "received packet " << packet_number << " current buffer " << buffer << endl;
       }
-      current_time = Timer::timestamp_ns();
+     current_time = Timer::timestamp_ns();
     },
     [&] { return server_packet_counter < 100000; });
 
   while (event_loop.wait_next_event(5) != EventLoop::Result::Exit) {
-    if (received && prev_time + DELAY < current_time) { // TODO: Determine whether this section is necessary
-      // buffer--; // race condition? not sure how the event handler is implemented
-      // cout << "buffer: " << buffer << endl;
-      // prev_time = current_time;
-    }
-    current_time = Timer::timestamp_ns();
+    //if (received && prev_time + DELAY < current_time) { // TODO: Determine whether this section is necessary
+      //buffer--; // race condition? not sure how the event handler is implemented
+      //cout << "buffer: " << buffer << endl;
+      //prev_time = current_time;
+    //}
+    //current_time = Timer::timestamp_ns();
   }
 }
 
