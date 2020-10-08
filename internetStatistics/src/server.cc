@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
+#include <atomic>
 
 #include <unistd.h>
 
@@ -44,7 +45,7 @@ void program_body()
   uint64_t current_time = start_time;
 
   uint64_t server_packet_counter = 1;
-  int64_t buffer = 0;
+  atomic<int64_t> buffer = 0;
   vector<int64_t> buffer_vals;
   bool received = false;
 
