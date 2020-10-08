@@ -12,7 +12,7 @@ using namespace std;
 
 const uint64_t MAX_NUM_PACKETS = 100000;
 const uint64_t DELAY { 1'000'000 };
-Address server {"171.67.76.46", 9090};
+Address server {"171.67.76.94", 9090};
 
 void split_on_char( const string_view str, const char ch_to_find, vector<string_view>& ret )
 {
@@ -62,10 +62,10 @@ void program_body() {
     [&] {return packet_counter < MAX_NUM_PACKETS;});
 
   while (event_loop.wait_next_event(5) != EventLoop::Result::Exit) {
-    if (Timer::timestamp_ns() - start_time > 5ULL * 1000 * 1000 * 1000) {
+    /*if (Timer::timestamp_ns() - start_time > 5ULL * 1000 * 1000 * 1000) {
       cout << " timeout\n";
       return;
-    }
+    }*/
   }
 }
 
