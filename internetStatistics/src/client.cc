@@ -10,7 +10,7 @@
 
 using namespace std;
 
-const uint64_t MAX_NUM_PACKETS = 1000000;
+const uint64_t MAX_NUM_PACKETS = 100;
 const uint64_t DELAY{ 1'000'000 };
 Address server {"171.67.76.94", 9090};
 
@@ -37,7 +37,7 @@ void split_on_char(const string_view str, const char ch_to_find, vector<string_v
 
 string build_packet(int packet_counter)
 {
-  return std::to_string(packet_counter);
+  return std::to_string(packet_counter) + "12345678"; //40 byte packet
 }
 
 void program_body()
@@ -45,31 +45,13 @@ void program_body()
   EventLoop event_loop;
   UDPSocket client_sock;
   client_sock.set_blocking(false);
-  uint64_t start_time = Timer::timestamp_ns();
-  uint64_t prev_time = start_time;
-  uint64_t current_time = start_time;
   uint64_t packet_counter = 1;
-  event_loop.add_rule(
-    "UDP send 40 byte packet",
-    client_sock,
-    Direction::Out,
-    [&] {
-      if (prev_time + DELAY < current_time) {
-        cout << "Packet counter: " << packet_counter << endl;
-        string packet_content = build_packet(packet_counter);
-        client_sock.sendto(server, packet_content);
-        packet_counter++;
-        prev_time = current_time;
-      }
-      current_time = Timer::timestamp_ns();
-    },
-    [&] { return packet_counter < MAX_NUM_PACKETS; });
-
-  while (event_loop.wait_next_event(5) != EventLoop::Result::Exit) {
-    /*if (Timer::timestamp_ns() - start_time > 5ULL * 1000 * 1000 * 1000) {
-      cout << " timeout\n";
-      return;
-    }*/
+  while (true) {
+    usleep(1000);
+    cout << "Packet counter: " << packet_counter << endl;
+    string packet_content = build_packet(packet_counter);
+    client_sock.sendto(server, packet_content);
+    packet_counter++;
   }
 }
 
