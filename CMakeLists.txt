@@ -4,7 +4,7 @@ project ( StageCast-Audio )
 
 include ( etc/build_defs.cmake )
 include ( etc/build_type.cmake )
-#include ( etc/cflags.cmake )
+include ( etc/cflags.cmake )
 include ( etc/clang_format.cmake )
 include ( etc/clang_tidy.cmake )
 
