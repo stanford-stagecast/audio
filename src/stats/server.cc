@@ -11,46 +11,11 @@
 #include "socket.hh"
 #include "timer.hh"
 
+const string BUFFER_CSV = "~/audio/csv/buffer_every_one_ms.csv";
+const string PACKET_CSV = "~/audio/csv/packets_received.csv";
 const uint64_t DELAY{ 1'000'000 };
-const uint64_t MAX_NUM_PACKETS = 1000000;
+const uint64_t MAX_NUM_PACKETS = 100;
 using namespace std;
-
-void split_on_char(const string_view str, const char ch_to_find, vector<string_view>& ret)
-{
-  ret.clear();
-  bool in_double_quoted_string = false;
-  unsigned int field_start = 0;
-  for (unsigned int i = 0; i < str.size(); i++) {
-    const char ch = str[i];
-    if (ch == '"') {
-      in_double_quoted_string = !in_double_quoted_string;
-    }
-    else if (in_double_quoted_string) {
-      continue;
-    }
-    else if (ch == ch_to_find) {
-      ret.emplace_back(str.substr(field_start, i - field_start));
-      field_start = i + 1;
-    }
-  }
-  ret.emplace_back(str.substr(field_start));
-}
-
-void export_data(vector<int64_t>& buffer_vals, vector<int>& packets_received)
-{
-  std::fstream fout;
-  fout.open("csv/buffer_every_one_ms.csv", std::ios::out);
-  for (size_t i = 0; i < buffer_vals.size(); i++) {
-    fout << buffer_vals.at(i) << "\n";
-  }
-  fout.close();
-
-  fout.open("csv/packets_received.csv", std::ios::out);
-  for (size_t i = 0; i < packets_received.size(); i++) {
-    fout << packets_received.at(i) << "\n";
-  }
-  fout.close();
-}
 
 void program_body(vector<int64_t>& buffer_vals, vector<int>& packets_received)
 {
@@ -104,9 +69,26 @@ void program_body(vector<int64_t>& buffer_vals, vector<int>& packets_received)
     },
     [&] { return server_packet_counter < MAX_NUM_PACKETS; });
 
-  while (event_loop.wait_next_event(5) != EventLoop::Result::Exit) {
+  while (event_loop.wait_next_event(2) != EventLoop::Result::Exit) {
     /*Nothing in here*/
   }
+}
+
+/*Exports data about buffer sizes and packet drops*/
+void export_data(vector<int64_t>& buffer_vals, vector<int>& packets_received)
+{
+  std::fstream fout;
+  fout.open(BUFFER_CSV, std::ios::out);
+  for (size_t i = 0; i < buffer_vals.size(); i++) {
+    fout << buffer_vals.at(i) << "\n";
+  }
+  fout.close();
+
+  fout.open(PACKET_CSV, std::ios::out);
+  for (size_t i = 0; i < packets_received.size(); i++) {
+    fout << packets_received.at(i) << "\n";
+  }
+  fout.close();
 }
 
 int main()
