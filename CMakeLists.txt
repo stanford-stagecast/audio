@@ -4,21 +4,24 @@ project ( StageCast-Audio )
 
 include ( etc/build_defs.cmake )
 include ( etc/build_type.cmake )
-include ( etc/cflags.cmake )
+#include ( etc/cflags.cmake )
 include ( etc/clang_format.cmake )
 include ( etc/clang_tidy.cmake )
 
-file ( GLOB STATS_SRC
-    internetStatistics/src/examples/*
-    internetStatistics/src/util/*
+file ( GLOB AUDIO_SRC
+    src/stats/*
+    src/util/*
 )
 
-include_directories ( internetStatistics )
-
-add_library (stats STATIC
-	${STATS_SRC}
+include_directories ( 
+    src/util
+    src/stats
 )
 
-set ( STATS_LIBS
+add_library (audio STATIC
+	${AUDIO_SRC}
+)
+
+set ( AUDIO_LIBS
     audio
 )
