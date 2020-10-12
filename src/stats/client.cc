@@ -55,7 +55,7 @@ void program_body()
   }
 }
 
-int main(const int argc, const char* const argv[])
+int main()
 {
   try {
     global_timer();

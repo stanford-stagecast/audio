@@ -31,9 +31,9 @@ private:
 
   struct BasicRule
   {
-    size_t category_id;
-    InterestT interest;
-    CallbackT callback;
+    size_t category_idMember;
+    InterestT interestMember;
+    CallbackT callbackMember;
     bool cancel_requested;
 
     BasicRule( const size_t category_id, const InterestT& interest, const CallbackT& callback );
@@ -41,9 +41,9 @@ private:
 
   struct FDRule : public BasicRule
   {
-    FileDescriptor fd;   //!< FileDescriptor to monitor for activity.
-    Direction direction; //!< Direction::In for reading from fd, Direction::Out for writing to fd.
-    CallbackT cancel;    //!< A callback that is called when the rule is cancelled (e.g. on hangup)
+    FileDescriptor fdMember;   //!< FileDescriptor to monitor for activity.
+    Direction directionMember; //!< Direction::In for reading from fd, Direction::Out for writing to fd.
+    CallbackT cancelMember;    //!< A callback that is called when the rule is cancelled (e.g. on hangup)
 
     FDRule( BasicRule&& base, FileDescriptor&& fd, const Direction direction, const CallbackT& cancel );
 
