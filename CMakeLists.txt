@@ -8,8 +8,13 @@ include ( etc/cflags.cmake )
 include ( etc/clang_format.cmake )
 include ( etc/clang_tidy.cmake )
 
-file ( GLOB AUDIO_SRC
-    src/stats/*
+file ( GLOB CLIENT_SRC
+    src/stats/client.cc
+    src/util/*
+)
+
+file ( GLOB SERVER_SRC
+    src/stats/server.cc
     src/util/*
 )
 
@@ -18,9 +23,11 @@ include_directories (
     src/stats
 )
 
-add_library (audio STATIC
-	${AUDIO_SRC}
-)
+add_executable (client ${CLIENT_SRC})
+add_executable (server ${SERVER_SRC})
+#add_library (audio STATIC
+#	${AUDIO_SRC}
+#)
 
 set ( AUDIO_LIBS
     audio
