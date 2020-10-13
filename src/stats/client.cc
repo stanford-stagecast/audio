@@ -13,13 +13,13 @@
 using namespace std;
 using namespace std::chrono;
 
-const uint64_t MAX_NUM_PACKETS = 100;
+const uint64_t MAX_NUM_PACKETS = 10;
 const uint64_t DELAY { 1'000'000 };
-Address server { "171.67.76.94", 9090 };
+Address server { "127.0.0.1", 9090 };
 
 string build_packet( int packet_counter )
 {
-  return std::to_string( packet_counter ) + "12345678"; // 40 byte packet
+  return std::to_string( packet_counter ); // 32 byte packet
 }
 
 void program_body()
