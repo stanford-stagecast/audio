@@ -92,9 +92,9 @@ void program_body( vector<int64_t>& buffer_vals, vector<int>& packets_received )
     },
     [&] { return server_packet_counter < MAX_NUM_PACKETS; } );
 
-  while ( event_loop.wait_next_event( 5 ) != EventLoop::Result::Exit ) {
+  while ( event_loop.wait_next_event( 0 ) != EventLoop::Result::Exit ) {
     /*Nothing in here*/
-  usleep(2500);
+    usleep(2500);
   }
   buffer_decrementing = false;
   decrementer.join();
