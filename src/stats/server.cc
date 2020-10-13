@@ -11,11 +11,13 @@
 #include "socket.hh"
 #include "timer.hh"
 
+using namespace std;
+
 const string BUFFER_CSV = "~/audio/csv/buffer_every_one_ms.csv";
 const string PACKET_CSV = "~/audio/csv/packets_received.csv";
 const uint64_t DELAY{ 1'000'000 };
 const uint64_t MAX_NUM_PACKETS = 100;
-using namespace std;
+
 
 void program_body(vector<int64_t>& buffer_vals, vector<int>& packets_received)
 {
