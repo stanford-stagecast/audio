@@ -25,6 +25,7 @@ include_directories (
 
 add_executable (client ${CLIENT_SRC})
 add_executable (server ${SERVER_SRC})
+target_link_libraries (server pthread)
 #add_library (audio STATIC
 #	${AUDIO_SRC}
 #)
