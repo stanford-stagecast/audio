@@ -15,13 +15,13 @@
 
 using namespace std;
 
-const string HOME(getenv("HOME")); // DANGER: does not check if getevv succeeds
+const string HOME(getenv("HOME"));
 
 const string BUFFER_CSV = HOME + "/audio/csv/buffer_every_one_ms.csv";
 const string PACKET_CSV = HOME + "/audio/csv/packets_received.csv";
 const uint64_t NS_PER_MS { 1'000'000 };
 const uint64_t DELAY { 2'500'000 };
-const uint64_t MAX_NUM_PACKETS = 100000;
+const uint64_t MAX_NUM_PACKETS = 100;
 
 void program_body( vector<int64_t>& buffer_vals, vector<int>& packets_received )
 {
@@ -92,9 +92,8 @@ void program_body( vector<int64_t>& buffer_vals, vector<int>& packets_received )
     },
     [&] { return server_packet_counter < MAX_NUM_PACKETS; } );
 
-  while ( event_loop.wait_next_event( 0 ) != EventLoop::Result::Exit ) {
+  while ( event_loop.wait_next_event( 5 ) != EventLoop::Result::Exit ) {
     /*Nothing in here*/
-    usleep(2500);
   }
   buffer_decrementing = false;
   decrementer.join();
