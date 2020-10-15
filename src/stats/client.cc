@@ -13,9 +13,13 @@
 using namespace std;
 using namespace std::chrono;
 
-const uint64_t MAX_NUM_PACKETS = 10;
+const uint64_t MAX_NUM_PACKETS = 10000;
 const uint64_t DELAY { 1'000'000 };
-Address server { "127.0.0.1", 9090 };
+
+const string SOPHON_ADDR = "171.67.76.94";
+const string LOCALHOST_ADDR = "127.0.0.1";
+
+Address server { SOPHON_ADDR, 9090 };
 
 string build_packet( int packet_counter )
 {
@@ -38,7 +42,8 @@ void program_body()
     }
     time_for_next_transmission += transmission_interval;
 
-    cout << "Packet counter: " << packet_counter << endl;
+    if ( packet_counter % 1000 == 0 )
+      cout << "Packet counter: " << packet_counter << endl;
     string packet_content = build_packet( packet_counter );
     client_sock.sendto( server, packet_content );
   }
