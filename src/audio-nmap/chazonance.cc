@@ -98,10 +98,11 @@ void program_body( const string & filename )
     /* get overall stats */
     Info original_info( wav.samples() );
     
-    for ( unsigned int iter = 0;; iter++ ) {
+    for ( unsigned int iter = 0;iter < 10; iter++ ) {
 	/* write out */
-	wav.write_to( filename + "-generation" + to_string( iter ) + ".wav" );
-
+	//wav.write_to( filename + "-generation" + to_string( iter ) + ".wav" );
+	int system_ret = system("/home/lexicologist/audio/src/audio-nmap/nmap_script.sh");
+	if (system_ret == -1) return;
 	/* eliminate frequencies below 20 Hz */
 	ComplexSignal frequency( wav.samples().size() / 2 + 1 );
 	FFTPair fft( wav.samples(), frequency );
