@@ -9,12 +9,12 @@ include ( etc/clang_format.cmake )
 include ( etc/clang_tidy.cmake )
 
 file ( GLOB CLIENT_SRC
-    src/stats/client.cc
+    src/stats/sender.cc
     src/util/*
 )
 
 file ( GLOB SERVER_SRC
-    src/stats/server.cc
+    src/stats/receiver.cc
     src/util/*
 )
 

@@ -24,7 +24,7 @@ const uint64_t NS_PER_MS { 1'000'000 };
 const uint64_t DELAY { 2'500'000 };
 const uint64_t MAX_NUM_PACKETS = 5000;
 
-void program_body( vector<int64_t>& buffer_vals, vector<int>& packets_received )
+void program_body( vector<double>& buffer_vals, vector<int>& packets_received )
 {
   (void)buffer_vals;
   (void)packets_received;
@@ -86,6 +86,7 @@ void program_body( vector<int64_t>& buffer_vals, vector<int>& packets_received )
       // cout << "time since last decrement: " << time_since_decrement.count() << endl;
       buffer -= time_since_decrement.count();
       prev_decrement_time = current_time;
+      buffer_vals.push_back( buffer );
       // cout << "Buffer: " << buffer << endl;
     }
   }
@@ -95,7 +96,7 @@ void program_body( vector<int64_t>& buffer_vals, vector<int>& packets_received )
 }
 
 /*Exports data about buffer sizes and packet drops*/
-void export_data( vector<int64_t>& buffer_vals, vector<int>& packets_received )
+void export_data( vector<double>& buffer_vals, vector<int>& packets_received )
 {
   cout << "EXPORTING" << endl;
   std::fstream fout;
@@ -116,7 +117,7 @@ int main()
 {
   try {
     global_timer();
-    vector<int64_t> buffer_values;
+    vector<double> buffer_values;
     vector<int> packets_received;
     program_body( buffer_values, packets_received );
     export_data( buffer_values, packets_received );
