@@ -18,11 +18,11 @@ using namespace std;
 
 const string HOME( getenv( "HOME" ) );
 
-const string BUFFER_CSV = HOME + "/audio/csv/buffer_every_one_ms.csv";
-const string PACKET_CSV = HOME + "/audio/csv/packets_received.csv";
+const string BUFFER_CSV = HOME + "/audio/csv/buffer100k.csv";
+const string PACKET_CSV = HOME + "/audio/csv/packets100k.csv";
 const uint64_t NS_PER_MS { 1'000'000 };
 const uint64_t DELAY { 2'500'000 };
-const uint64_t MAX_NUM_PACKETS = 5000;
+const uint64_t MAX_NUM_PACKETS = 100000;
 
 void program_body( vector<double>& buffer_vals, vector<int>& packets_received )
 {
@@ -56,7 +56,7 @@ void program_body( vector<double>& buffer_vals, vector<int>& packets_received )
         packets_received.push_back( 1 );
         packet_zero_received = true;
       } else if ( packet_number >= server_packet_counter ) {
-        buffer += ( server_packet_counter - packet_number + 1 ) * 2.5;
+        buffer += ( packet_number - server_packet_counter + 1 ) * 2.5;
         for ( size_t i = server_packet_counter; i < packet_number; i++ ) {
           packets_received.push_back( 0 );
         }
@@ -86,7 +86,7 @@ void program_body( vector<double>& buffer_vals, vector<int>& packets_received )
       // cout << "time since last decrement: " << time_since_decrement.count() << endl;
       buffer -= time_since_decrement.count();
       prev_decrement_time = current_time;
-      buffer_vals.push_back( buffer );
+      // buffer_vals.push_back( buffer ); // if we want to store buffer on time values instead of per packet
       // cout << "Buffer: " << buffer << endl;
     }
   }
