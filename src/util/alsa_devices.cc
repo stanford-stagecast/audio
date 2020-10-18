@@ -146,7 +146,7 @@ int alsa_check( const string& context, const int return_value )
   return alsa_check( context.c_str(), return_value );
 }
 
-void ALSADevices::list_devices()
+void ALSADevices::list_devices() const
 {
   int card = -1;
 

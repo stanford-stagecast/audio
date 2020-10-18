@@ -8,7 +8,18 @@ include ( etc/cflags.cmake )
 include ( etc/clang_format.cmake )
 include ( etc/clang_tidy.cmake )
 
+find_package ( PkgConfig )
+
+pkg_check_modules ( ALSA REQUIRED alsa )
+include_directories ( ${ALSA_INCLUDE_DIRS} )
+add_compile_options ( ${ALSA_CFLAGS_OTHER} )
+
+pkg_check_modules ( DBus REQUIRED dbus-1 )
+include_directories ( ${DBus_INCLUDE_DIRS} )
+add_compile_options ( ${DBus_CFLAGS_OTHER} )
+
 include_directories ("${PROJECT_SOURCE_DIR}/src/util")
 
 add_subdirectory ("${PROJECT_SOURCE_DIR}/src/util")
 add_subdirectory ("${PROJECT_SOURCE_DIR}/src/stats")
+add_subdirectory ("${PROJECT_SOURCE_DIR}/src/audio")

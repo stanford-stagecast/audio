@@ -3,5 +3,8 @@
 
 int main()
 {
+  ALSADevices devices;
+  devices.list_devices();
+
   return EXIT_SUCCESS;
 }

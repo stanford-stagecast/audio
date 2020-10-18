@@ -1,0 +1,8 @@
+add_executable (tester "tester.cc")
+target_link_libraries ("tester" util)
+
+target_link_libraries ("tester" ${ALSA_LDFLAGS_OTHER})
+target_link_libraries ("tester" ${ALSA_LIBRARIES})
+
+target_link_libraries ("tester" ${DBus_LDFLAGS_OTHER})
+target_link_libraries ("tester" ${DBus_LIBRARIES})
