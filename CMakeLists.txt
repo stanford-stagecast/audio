@@ -8,28 +8,7 @@ include ( etc/cflags.cmake )
 include ( etc/clang_format.cmake )
 include ( etc/clang_tidy.cmake )
 
-file ( GLOB CLIENT_SRC
-    src/stats/sender.cc
-    src/util/*
-)
+include_directories ("${PROJECT_SOURCE_DIR}/src/util")
 
-file ( GLOB SERVER_SRC
-    src/stats/receiver.cc
-    src/util/*
-)
-
-include_directories ( 
-    src/util
-    src/stats
-)
-
-add_executable (client ${CLIENT_SRC})
-add_executable (server ${SERVER_SRC})
-target_link_libraries (server pthread)
-#add_library (audio STATIC
-#	${AUDIO_SRC}
-#)
-
-set ( AUDIO_LIBS
-    audio
-)
+add_subdirectory ("${PROJECT_SOURCE_DIR}/src/util")
+add_subdirectory ("${PROJECT_SOURCE_DIR}/src/stats")

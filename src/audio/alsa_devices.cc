@@ -6,6 +6,8 @@
 #include <string>
 #include <thread>
 
+#include "alsa_devices.hh"
+
 using namespace std;
 
 template<typename T>
@@ -144,7 +146,7 @@ int alsa_check( const string& context, const int return_value )
   return alsa_check( context.c_str(), return_value );
 }
 
-void list_alsa_devices()
+void ALSADevices::list_devices()
 {
   int card = -1;
 
@@ -185,6 +187,7 @@ void list_alsa_devices()
   }
 }
 
+#if 0
 void program_body()
 {
   list_alsa_devices();
@@ -304,3 +307,4 @@ int main()
 
   return EXIT_SUCCESS;
 }
+#endif
