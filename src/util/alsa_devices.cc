@@ -146,7 +146,7 @@ int alsa_check( const string& context, const int return_value )
   return alsa_check( context.c_str(), return_value );
 }
 
-void ALSADevices::list_devices() const
+vector<ALSADevices::Device> ALSADevices::list()
 {
   int card = -1;
 
@@ -160,11 +160,15 @@ void ALSADevices::list_devices() const
     void operator()( void* x ) const { free( x ); }
   };
 
+  vector<Device> ret;
+
   while ( true ) {
     alsa_check( "snd_card_next", snd_card_next( &card ) );
     if ( card < 0 ) {
       break;
     }
+
+    ret.push_back( { "Audio" + to_string( card ), {} } );
 
     unique_ptr<void*, ALSA_hint_deleter> hints { [&] {
       void** hints_tmp;
@@ -180,11 +184,13 @@ void ALSADevices::list_devices() const
         const string_view name_str { name.get() }, desc_str { desc.get() };
         if ( name_str.substr( 0, 3 ) == "hw:"sv ) {
           const auto first_line = desc_str.substr( 0, desc_str.find_first_of( '\n' ) );
-          cout << "Audio" << card << ": " << name_str << " = " << first_line << "\n";
+          ret.back().outputs.emplace_back( name_str, first_line );
         }
       }
     }
   }
+
+  return ret;
 }
 
 #if 0
