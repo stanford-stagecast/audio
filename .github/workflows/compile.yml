@@ -16,6 +16,6 @@ jobs:
       steps:
       - uses: actions/checkout@v1
       - name: configure
-        run:  sudo apt install libasound2-dev && sudo apt-get install dbus-tests && sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 8 && sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-8 8 && mkdir build && cd build && cmake ..
+        run:  sudo apt install libasound2-dev && sudo apt install libdbus-1-dev && sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 8 && sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-8 8 && mkdir build && cd build && cmake ..
       - name: build
         run: make
