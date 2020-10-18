@@ -1,1 +1,51 @@
-name: cmake
+- name: install-cmake
+  # You may pin to the exact commit or the version.
+  # uses: Symbitic/install-cmake@301e932c0011b8d12d8bf33d4975fd1e17972709
+  uses: Symbitic/install-cmake@v0.1.0
+  with:
+    # Version of CMake to install
+    cmake: # default is 3.17.2
+    # Version of ninja-build to install
+    ninja: # default is 1.9.0
+    # Override default platform with one of [win, mac, linux]
+    platform: # optional
+
+- name: run-cmake
+  # You may pin to the exact commit or the version.
+  # uses: lukka/run-cmake@47a0d061008e6df0acac012dcf4e36dbc11dd763
+  uses: lukka/run-cmake@v3.1
+  with:
+    # Select the mode of the action. There are three different modes: CMakeListsTxtBasic: Run CMake using a CMakeLists.txt - Basic configuration, CMakeListsTxtAdvanced: Run CMake using a CMakeLists.txt - Advanced configuration, CMakeSettingsJson: Run CMake using a CMakeSettings.json of Visual Studio.
+    cmakeListsOrSettingsJson: # default is CMakeListsTxtBasic
+    # Path to CMakeLists.txt. Used for both CMakeListsTxtBasic and CMakeListsTxtAdvanced modes.
+    cmakeListsTxtPath: # optional, default is ${{ github.workspace }}/CMakeLists.txt
+    # Path to CMakeSettings.json. Used for CMakeSettingsJson mode.
+    cmakeSettingsJsonPath: # optional, default is ${{ github.workspace }}//CMakeSettings.json
+    # Path to toolchain .cmake file. Used for CMakeListsTxtBasic mode.
+    cmakeToolchainPath: # optional, default is 
+    # Indicates whether to use vcpkg's CMake toolchain file if RUNVCPKG_VCPKG_ROOT environment variable is defined, for example by a previous run-vcpkg action execution. If the variable is defined, its content would be passed with '-DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=<RUNVCPKG_VCPKG_ROOT>/scripts/buildsystems/vcpkg.cmake'. Used by any mode.
+    useVcpkgToolchainFile: # optional
+    # Specify the triplet used with vcpkg. Default value is $RUNVCPKG_VCPKG_TRIPLET environment variable, which is set e.g. by the run-vcpkg. Possible values include any file name with no extension present in the vcpkgroot/trplet directory, e.g. x64-linux, x64-windows, x64-osx and so forth. Used by any mode.
+    vcpkgTriplet: # optional
+    # Select the build configuration, typically Debug or Release. Used by CMakeListsTxtBasic mode.
+    cmakeBuildType: # optional, default is Debug
+    # Specify the CMake generator to use. Possible values: Ninja: Ninja, NinjaMulti: Ninja Multi-Config UnixMakefiles: Unix Makefiles, VS16Win64: Visual Studio 2019 x64, VS16Arm64: Visual Studio 2019 ARM64, VS16Arm: Visual Studio 2019 ARM, VS16Win32: Visual Studio 2019 Win32, VS15Win64: Visual Studio 2017 x64, VS15Arm64: Visual Studio 2017 ARM64, VS15Arm: Visual Studio 2017 ARM, VS15Win32: Visual Studio 2017 Win32. Used by CMakeListsTxtBasic mode.
+    cmakeGenerator: # optional, default is Ninja
+    # Set the build directory, i.e. where CMake generates the build system files. Defaults to `$(Build.ArtifactStagingDirectory)` for CMakeLists.txt, and to `$(Build.ArtifactStagingDirectory)/<configuration-name>` for CMakeSettings.json. Used by any mode.
+    buildDirectory: # optional, default is ${{ github.workspace }}/../../_temp
+    # Provides a mean to provide all the CMake arguments. This is required when using CMakeLists.txt in Advanced mode. For CMakeSettings.json, the arguments are already inferred, but you can append your arguments providing them here.  Used by CMakeListsTxtAdvanced and CMakeSettingsJson modes.
+    cmakeAppendedArgs: # optional, default is 
+    # The regular expression selects which CMakeSettings.json's configuration(s) to build, one or more. Used by CMakeSettingsJson mode.
+    configurationRegexFilter: # default is .*
+    # Full path to ninja build tool. If not specified, the one in PATH environment variable will be used. If not available, it will be downloaded from Internet. Used by any mode.
+    ninjaPath: # optional, default is 
+    # URL to download ninja build tool from. Used by any mode.
+    ninjaDownloadUrl: # optional, default is 
+    # The shell command that woud setup the environment and then invoke the cmake command. An example is 'emcmake' of Emscripten SDK. Used by any mode.
+    cmakeWrapperCommand: # optional, default is 
+    # Indicates whether to run 'cmake --build' after CMake project files have been generated successfully. Used by any mode.
+    buildWithCMake: # optional, default is true
+    # Additional parameters for both CMake and the make program (e.g. ninja or make).  Separate CMake arguments to the native make program arguments with '--', such as: '--clean-first --config Debug -- -j0'. Used by both CMakeListsTxtBasic and CMakeListsTxtAdvanced modes
+    buildWithCMakeArgs: # optional, default is 
+    # Specify which shell to be used when launching commands. 'true' means the default shell is used. 'false' means no shell is used. It also can be an absolute with arguments of the shell to spawn commands with.
+    useShell: # optional, default is true
