@@ -1,0 +1,20 @@
+# This workflow compiles the audio project with cmake
+
+name: Compile
+
+# Controls when the action will run. Triggers the workflow on pull request
+# events but only for the master branch
+on: [push]
+
+# Executes cmake
+jobs:
+  build-ubuntu:
+
+      runs-on: ubuntu-latest
+
+      steps:
+      - uses: actions/checkout@v1
+      - name: configure
+        run: mkdir build && cd build && cmake ..
+      - name: build
+        run: make
