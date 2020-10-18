@@ -11,9 +11,15 @@
 using namespace std;
 
 template<typename T>
-inline T* notnull( const string_view context, T* const x )
+inline T* notnull( const char* context, T* const x )
 {
   return x ? x : throw runtime_error( string( context ) + ": returned null pointer" );
+}
+
+template<typename T>
+inline T* notnull( const string& context, T* const x )
+{
+  return notnull( context.c_str(), x );
 }
 
 struct DBusMem_deleter
@@ -181,7 +187,7 @@ vector<ALSADevices::Device> ALSADevices::list()
         const string_view name_str { name.get() }, desc_str { desc.get() };
         if ( name_str.substr( 0, 3 ) == "hw:"sv ) {
           const auto first_line = desc_str.substr( 0, desc_str.find_first_of( '\n' ) );
-          ret.back().outputs.emplace_back( name_str, first_line );
+          ret.back().interfaces.emplace_back( name_str, first_line );
         }
       }
     }
@@ -281,5 +287,29 @@ AudioDeviceClaim::AudioDeviceClaim( const string_view name )
     } else {
       throw runtime_error( "Could not claim device " + string( name ) );
     }
+  }
+}
+
+AudioInterface::AudioInterface( const string_view interface_name, const string_view annotation )
+  : interface_name_( interface_name )
+  , annotation_( annotation )
+  , pcm_( nullptr )
+{
+  const string diagnostic = "snd_pcm_open(" + name() + ")";
+  alsa_check( diagnostic, snd_pcm_open( &pcm_, interface_name_.c_str(), SND_PCM_STREAM_CAPTURE, 0 ) );
+  notnull( diagnostic, pcm_ );
+}
+
+string AudioInterface::name() const
+{
+  return annotation_ + "[" + interface_name_ + "]";
+}
+
+AudioInterface::~AudioInterface()
+{
+  try {
+    alsa_check( "snd_pcm_close(" + name() + ")", snd_pcm_close( pcm_ ) );
+  } catch ( const exception& e ) {
+    cerr << "Exception in destructor: " << e.what() << endl;
   }
 }

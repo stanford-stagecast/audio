@@ -12,17 +12,17 @@ pair<string, string> find_device( const string_view expected_description )
   ALSADevices devices;
   bool found = false;
 
-  string name, output_name;
+  string name, interface_name;
 
   for ( const auto& dev : devices.list() ) {
-    for ( const auto& output : dev.outputs ) {
-      if ( output.second == expected_description ) {
+    for ( const auto& interface : dev.interfaces ) {
+      if ( interface.second == expected_description ) {
         if ( found ) {
           throw runtime_error( "Multiple devices matching description" );
         } else {
           found = true;
           name = dev.name;
-          output_name = output.first;
+          interface_name = interface.first;
         }
       }
     }
@@ -32,18 +32,20 @@ pair<string, string> find_device( const string_view expected_description )
     throw runtime_error( "device \"" + string( expected_description ) + "\" not found" );
   }
 
-  return { name, output_name };
+  return { name, interface_name };
 }
 
 void program_body()
 {
-  const auto [name, output_name] = find_device( "UAC-2, USB Audio" );
+  const auto [name, interface_name] = find_device( "UAC-2, USB Audio" );
 
-  cout << "Device found, nice name is " << name << " and output name is " << output_name << "\n";
+  cout << "Device found, name is " << name << " and interface name is " << interface_name << "\n";
 
   AudioDeviceClaim ownership { name };
 
-  this_thread::sleep_for( seconds( 20 ) );
+  AudioInterface pcm { interface_name, "Zoom" };
+
+  this_thread::sleep_for( seconds( 3 ) );
 }
 
 int main()
