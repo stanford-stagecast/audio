@@ -88,30 +88,27 @@ public:
   DBusErrorWrapper* operator=( DBusErrorWrapper& other ) = delete;
 };
 
-class DBusConnectionWrapper
+void AudioDeviceClaim::DBusConnectionWrapper::DBusConnection_deleter::operator()( DBusConnection* x ) const
 {
-  struct DBusConnection_deleter
-  {
-    void operator()( DBusConnection* x ) const { dbus_connection_unref( x ); }
-  };
+  dbus_connection_unref( x );
+}
 
-  unique_ptr<DBusConnection, DBusConnection_deleter> connection_;
+AudioDeviceClaim::DBusConnectionWrapper::DBusConnectionWrapper( const DBusBusType type )
+  : connection_( [&] {
+    DBusErrorWrapper error;
+    DBusConnection* ret = dbus_bus_get( type, error );
+    error.throw_if_error();
+    notnull( "dbus_bus_get", ret );
+    return ret;
+  }() )
+{
+  dbus_connection_set_exit_on_disconnect( connection_.get(), false );
+}
 
-public:
-  DBusConnectionWrapper( const DBusBusType type )
-    : connection_( [&] {
-      DBusErrorWrapper error;
-      DBusConnection* ret = dbus_bus_get( type, error );
-      error.throw_if_error();
-      notnull( "dbus_bus_get", ret );
-      return ret;
-    }() )
-  {
-    dbus_connection_set_exit_on_disconnect( connection_.get(), false );
-  }
-
-  operator DBusConnection*() { return connection_.get(); }
-};
+AudioDeviceClaim::DBusConnectionWrapper::operator DBusConnection*()
+{
+  return connection_.get();
+}
 
 class alsa_error_category : public error_category
 {
