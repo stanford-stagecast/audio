@@ -30,7 +30,7 @@ class AudioDeviceClaim
     operator DBusConnection*();
   };
 
-  DBusConnectionWrapper dbus_connection_;
+  DBusConnectionWrapper connection_;
 
 public:
   AudioDeviceClaim( const std::string_view name );

@@ -1,8 +1,11 @@
 #include "alsa_devices.hh"
+#include <chrono>
 #include <cstdlib>
 #include <iostream>
+#include <thread>
 
 using namespace std;
+using namespace std::chrono;
 
 pair<string, string> find_device( const string_view expected_description )
 {
@@ -37,6 +40,10 @@ void program_body()
   const auto [name, output_name] = find_device( "UAC-2, USB Audio" );
 
   cout << "Device found, nice name is " << name << " and output name is " << output_name << "\n";
+
+  AudioDeviceClaim ownership { name };
+
+  this_thread::sleep_for( seconds( 20 ) );
 }
 
 int main()

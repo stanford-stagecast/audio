@@ -190,37 +190,31 @@ vector<ALSADevices::Device> ALSADevices::list()
   return ret;
 }
 
-#if 0
-void program_body()
+AudioDeviceClaim::AudioDeviceClaim( const string_view name )
+  : connection_( DBUS_BUS_SESSION )
 {
-  list_alsa_devices();
-
-  DBusConnectionWrapper connection { DBUS_BUS_SESSION };
+  const string resource = "org.freedesktop.ReserveDevice1." + string( name );
+  const string path = "/org/freedesktop/ReserveDevice1/" + string( name );
 
   {
     DBusErrorWrapper error;
-    const int ret = dbus_bus_request_name(
-      connection, "org.freedesktop.ReserveDevice1.Audio1", DBUS_NAME_FLAG_DO_NOT_QUEUE, error );
+    const int ret = dbus_bus_request_name( connection_, resource.c_str(), DBUS_NAME_FLAG_DO_NOT_QUEUE, error );
     error.throw_if_error();
     if ( ret == DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER ) {
-      cout << "Success.\n";
+      /* success -- was not already claimed */
+      cerr << "Successfully claimed uncontested device " << name << ".\n";
       return;
     }
   }
 
-  cout << "Failure -- currently in use.\n";
-
   {
-    DBusMethodCall method { "org.freedesktop.ReserveDevice1.Audio1",
-                            "/org/freedesktop/ReserveDevice1/Audio1",
-                            "org.freedesktop.DBus.Properties",
-                            "Get" };
+    DBusMethodCall method { resource.c_str(), path.c_str(), "org.freedesktop.DBus.Properties", "Get" };
     method.add_argument( "org.freedesktop.ReserveDevice1" );
     method.add_argument( "ApplicationName" );
 
     {
       DBusErrorWrapper error;
-      DBusMessageWrapper reply { dbus_connection_send_with_reply_and_block( connection, method, 1000, error ) };
+      DBusMessageWrapper reply { dbus_connection_send_with_reply_and_block( connection_, method, 1000, error ) };
       error.throw_if_error();
       notnull( "dbus_connection_send_with_reply_and_block", reply.get() );
 
@@ -248,21 +242,18 @@ void program_body()
       char* strptr;
       dbus_message_iter_get_basic( &iterator2, &strptr );
 
-      cout << "ApplicationName: " << strptr << "\n";
+      cerr << "Claiming " << name << " from " << strptr << "\n";
     }
   }
 
   // claim it
   {
-    DBusMethodCall method { "org.freedesktop.ReserveDevice1.Audio1",
-                            "/org/freedesktop/ReserveDevice1/Audio1",
-                            "org.freedesktop.ReserveDevice1",
-                            "RequestRelease" };
+    DBusMethodCall method { resource.c_str(), path.c_str(), "org.freedesktop.ReserveDevice1", "RequestRelease" };
     method.add_argument( numeric_limits<int32_t>::max() );
 
     {
       DBusErrorWrapper error;
-      DBusMessageWrapper reply { dbus_connection_send_with_reply_and_block( connection, method, 1000, error ) };
+      DBusMessageWrapper reply { dbus_connection_send_with_reply_and_block( connection_, method, 1000, error ) };
       error.throw_if_error();
       notnull( "dbus_connection_send_with_reply_and_block", reply.get() );
 
@@ -277,37 +268,18 @@ void program_body()
 
       bool result = 0;
       dbus_message_iter_get_basic( &iterator, &result );
-
-      cout << "Result: " << result << "\n";
     }
   }
 
   {
     DBusErrorWrapper error;
-    const int ret = dbus_bus_request_name( connection,
-                                           "org.freedesktop.ReserveDevice1.Audio1",
-                                           DBUS_NAME_FLAG_DO_NOT_QUEUE | DBUS_NAME_FLAG_REPLACE_EXISTING,
-                                           error );
+    const int ret = dbus_bus_request_name(
+      connection_, resource.c_str(), DBUS_NAME_FLAG_DO_NOT_QUEUE | DBUS_NAME_FLAG_REPLACE_EXISTING, error );
     error.throw_if_error();
     if ( ret == DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER ) {
-      cout << "Success.\n";
+      cerr << "Successfully claimed contested device " << name << ".\n";
     } else {
-      throw runtime_error( "Could not claim device " + "Audio1"s );
+      throw runtime_error( "Could not claim device " + string( name ) );
     }
   }
-
-  this_thread::sleep_for( chrono::seconds( 10 ) );
 }
-
-int main()
-{
-  try {
-    program_body();
-  } catch ( const exception& e ) {
-    cerr << e.what() << "\n";
-    return EXIT_FAILURE;
-  }
-
-  return EXIT_SUCCESS;
-}
-#endif
