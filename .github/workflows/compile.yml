@@ -1,4 +1,5 @@
 # This workflow compiles the audio project with cmake
+# Workflow credit to: https://github.com/actions/starter-workflows/issues/196
 
 name: Compile
 
@@ -11,10 +12,10 @@ jobs:
   build-ubuntu:
 
       runs-on: ubuntu-latest
-
+      
       steps:
       - uses: actions/checkout@v1
       - name: configure
-        run: mkdir build && cd build && cmake ..
+        run: sudo apt update && sudo apt upgrade && mkdir build && cd build && cmake ..
       - name: build
         run: make
