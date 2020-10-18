@@ -16,7 +16,7 @@ Once this is done, execute the following commands:
 $ mkdir build
 $ cd build/
 $ cmake ..
-$ make -j `nproc`
+$ make
 ```
 
 # Contents of this Repo:
