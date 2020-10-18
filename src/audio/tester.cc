@@ -39,11 +39,17 @@ void program_body()
 {
   const auto [name, interface_name] = find_device( "UAC-2, USB Audio" );
 
-  cout << "Device found, name is " << name << " and interface name is " << interface_name << "\n";
+  cout << "Found " << interface_name << " as " << name << "\n";
 
   AudioDeviceClaim ownership { name };
 
-  AudioInterface pcm { interface_name, "Zoom" };
+  cout << "Claimed ownership of " << name;
+  if ( ownership.claimed_from() ) {
+    cout << " from " << ownership.claimed_from().value();
+  }
+  cout << "\n";
+
+  AudioInterface pcm { interface_name, "Microphone", SND_PCM_STREAM_CAPTURE };
 
   this_thread::sleep_for( seconds( 3 ) );
 }

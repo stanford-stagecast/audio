@@ -208,7 +208,7 @@ AudioDeviceClaim::AudioDeviceClaim( const string_view name )
     error.throw_if_error();
     if ( ret == DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER ) {
       /* success -- was not already claimed */
-      cerr << "Successfully claimed uncontested device " << name << ".\n";
+      //      cerr << "Successfully claimed uncontested device " << name << ".\n";
       return;
     }
   }
@@ -248,7 +248,7 @@ AudioDeviceClaim::AudioDeviceClaim( const string_view name )
       char* strptr;
       dbus_message_iter_get_basic( &iterator2, &strptr );
 
-      cerr << "Claiming " << name << " from " << strptr << "\n";
+      claimed_from_.emplace( strptr );
     }
   }
 
@@ -283,21 +283,29 @@ AudioDeviceClaim::AudioDeviceClaim( const string_view name )
       connection_, resource.c_str(), DBUS_NAME_FLAG_DO_NOT_QUEUE | DBUS_NAME_FLAG_REPLACE_EXISTING, error );
     error.throw_if_error();
     if ( ret == DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER ) {
-      cerr << "Successfully claimed contested device " << name << ".\n";
+      //      cerr << "Successfully claimed contested device " << name << ".\n";
     } else {
-      throw runtime_error( "Could not claim device " + string( name ) );
+      string error_message = "Could not claim device " + string( name );
+      if ( claimed_from_.has_value() ) {
+        error_message += " from " + claimed_from_.value();
+      }
+      throw runtime_error( error_message );
     }
   }
 }
 
-AudioInterface::AudioInterface( const string_view interface_name, const string_view annotation )
+AudioInterface::AudioInterface( const string_view interface_name,
+                                const string_view annotation,
+                                const snd_pcm_stream_t stream )
   : interface_name_( interface_name )
   , annotation_( annotation )
   , pcm_( nullptr )
 {
   const string diagnostic = "snd_pcm_open(" + name() + ")";
-  alsa_check( diagnostic, snd_pcm_open( &pcm_, interface_name_.c_str(), SND_PCM_STREAM_CAPTURE, 0 ) );
+  alsa_check( diagnostic, snd_pcm_open( &pcm_, interface_name_.c_str(), stream, SND_PCM_NONBLOCK ) );
   notnull( diagnostic, pcm_ );
+
+  check_state( SND_PCM_STATE_OPEN );
 }
 
 string AudioInterface::name() const
@@ -311,5 +319,14 @@ AudioInterface::~AudioInterface()
     alsa_check( "snd_pcm_close(" + name() + ")", snd_pcm_close( pcm_ ) );
   } catch ( const exception& e ) {
     cerr << "Exception in destructor: " << e.what() << endl;
+  }
+}
+
+void AudioInterface::check_state( const snd_pcm_state_t expected_state )
+{
+  const auto actual_state = snd_pcm_state( pcm_ );
+  if ( expected_state != actual_state ) {
+    throw runtime_error( name() + ": expected state " + snd_pcm_state_name( expected_state ) + " but state is "
+                         + snd_pcm_state_name( actual_state ) );
   }
 }
