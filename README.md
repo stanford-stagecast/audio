@@ -1,7 +1,7 @@
 # audio
 Stagecast Audio group repo
 
-![Compiles](https://github.com/stanford-stagecast/audio/workflows/Compile/badge.svg?event=push)
+[![Compiles](https://github.com/stanford-stagecast/audio/workflows/Compile/badge.svg?event=push)][https://github.com/stanford-stagecast/audio/actions]
 
 # Build directions
 
