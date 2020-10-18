@@ -81,8 +81,7 @@ void program_body( vector<double>& buffer_vals, vector<int>& packets_received )
   while ( event_loop.wait_next_event( timeout ) != EventLoop::Result::Exit ) {
     if ( packet_zero_received ) {
       auto current_time = chrono::steady_clock::now();
-      chrono::duration<double, ratio<1, 1000>> time_since_decrement
-        = current_time - prev_decrement_time;
+      chrono::duration<double, ratio<1, 1000>> time_since_decrement = current_time - prev_decrement_time;
       // cout << "time since last decrement: " << time_since_decrement.count() << endl;
       buffer -= time_since_decrement.count();
       prev_decrement_time = current_time;

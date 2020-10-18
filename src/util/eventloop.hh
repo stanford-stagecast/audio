@@ -1,12 +1,12 @@
 #pragma once
 
+#include "file_descriptor.hh"
+#include "timer.hh"
 #include <functional>
 #include <list>
 #include <memory>
-#include <string_view>
 #include <poll.h>
-#include "file_descriptor.hh"
-#include "timer.hh"
+#include <string_view>
 
 //! Waits for events on file descriptors and executes corresponding callbacks.
 class EventLoop

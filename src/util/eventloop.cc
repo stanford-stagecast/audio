@@ -183,8 +183,8 @@ EventLoop::Result EventLoop::wait_next_event( const int timeout_ms )
       } else if ( optlen != sizeof( socket_error ) ) {
         throw runtime_error( "unexpected length from getsockopt: " + to_string( optlen ) );
       } else if ( socket_error ) {
-        throw unix_error( "error on polled socket for rule \"" + _rule_categories.at( this_rule.category_idMember ).name
-                            + "\"",
+        throw unix_error( "error on polled socket for rule \""
+                            + _rule_categories.at( this_rule.category_idMember ).name + "\"",
                           socket_error );
       }
 
@@ -212,7 +212,8 @@ EventLoop::Result EventLoop::wait_next_event( const int timeout_ms )
       const auto count_before = this_rule.service_count();
       this_rule.callbackMember();
 
-      if ( count_before == this_rule.service_count() and ( not this_rule.fdMember.closed() ) and this_rule.interestMember() ) {
+      if ( count_before == this_rule.service_count() and ( not this_rule.fdMember.closed() )
+           and this_rule.interestMember() ) {
         throw runtime_error( "EventLoop: busy wait detected: rule \""
                              + _rule_categories.at( this_rule.category_idMember ).name
                              + "\" did not read/write fd and is still interested" );
