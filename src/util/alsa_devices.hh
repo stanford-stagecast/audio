@@ -58,10 +58,15 @@ public:
   void start();
   void drop();
   void loop();
+  void write_silence( const unsigned int sample_count );
 
   std::string name() const;
 
   ~AudioInterface();
+
+  void link_with( AudioInterface& other );
+
+  operator snd_pcm_t*() { return pcm_; }
 
   /* can't copy or assign */
   AudioInterface( const AudioInterface& other ) = delete;

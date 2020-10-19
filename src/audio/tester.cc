@@ -51,14 +51,19 @@ void program_body()
   }
   cout << "\n";
 
-  AudioInterface pcm { interface_name, "Microphone", SND_PCM_STREAM_CAPTURE };
+  AudioInterface microphone { interface_name, "Microphone", SND_PCM_STREAM_CAPTURE };
+  AudioInterface headphone { interface_name, "Headphone", SND_PCM_STREAM_PLAYBACK };
 
-  pcm.configure();
-  pcm.start();
+  microphone.configure();
+  headphone.configure();
 
-  pcm.loop();
+  microphone.link_with( headphone );
 
-  pcm.drop();
+  headphone.write_silence( 24 );
+
+  microphone.start();
+  microphone.loop();
+  microphone.drop();
 }
 
 int main()

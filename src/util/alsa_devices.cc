@@ -414,3 +414,44 @@ void AudioInterface::loop()
     cout << num_frames << "\n";
   }
 }
+
+void AudioInterface::link_with( AudioInterface& other )
+{
+  alsa_check( "snd_pcm_link(" + name() + ", " + other.name() + ")", snd_pcm_link( pcm_, other.pcm_ ) );
+}
+
+void AudioInterface::write_silence( const unsigned int sample_count )
+{
+  alsa_check_easy( snd_pcm_avail_update( pcm_ ) );
+
+  const snd_pcm_channel_area_t* areas;
+  snd_pcm_uframes_t offset;
+  snd_pcm_uframes_t frames = sample_count;
+  alsa_check_easy( snd_pcm_mmap_begin( pcm_, &areas, &offset, &frames ) );
+
+  if ( frames != sample_count ) {
+    throw runtime_error( "not enough space to write " + to_string( sample_count ) + " frames" );
+  }
+
+  if ( offset != 0 ) {
+    throw runtime_error( "can't handle nonzero offset" );
+  }
+
+  if ( areas[0].addr != areas[1].addr ) {
+    throw runtime_error( "non-interleaved areas returned" );
+  }
+
+  if ( areas[0].first != 0 or areas[1].first != 32 or areas[0].step != 64 or areas[1].step != 64 ) {
+    throw runtime_error( "unexpected format or stride returned" );
+  }
+
+  for ( int32_t* sample = static_cast<int32_t*>( areas[0].addr );
+        sample < static_cast<int32_t*>( areas[0].addr ) + 2 * sample_count;
+        sample++ ) {
+    *sample = 0;
+  }
+
+  if ( int( sample_count ) != alsa_check_easy( snd_pcm_mmap_commit( pcm_, offset, frames ) ) ) {
+    throw runtime_error( "short commit" );
+  }
+}
