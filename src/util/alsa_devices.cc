@@ -330,3 +330,21 @@ void AudioInterface::check_state( const snd_pcm_state_t expected_state )
                          + snd_pcm_state_name( actual_state ) );
   }
 }
+
+void AudioInterface::config()
+{
+  check_state( SND_PCM_STATE_OPEN );
+
+  struct pcm_params_deleter
+  {
+    void operator()( snd_pcm_hw_params_t* x ) const { snd_pcm_hw_params_free( x ); }
+  };
+
+  unique_ptr<snd_pcm_hw_params_t, pcm_params_deleter> params { [] {
+    snd_pcm_hw_params_t* x = nullptr;
+    snd_pcm_hw_params_alloca( &x );
+    return notnull( "snd_pcm_hw_params_alloca", x );
+  }() };
+
+  alsa_check( "snd_pcm_hw_params_any", snd_pcm_hw_params_any( pcm_, params.get() ) );
+}

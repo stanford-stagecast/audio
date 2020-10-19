@@ -29,7 +29,7 @@ pair<string, string> find_device( const string_view expected_description )
   }
 
   if ( not found ) {
-    throw runtime_error( "device \"" + string( expected_description ) + "\" not found" );
+    throw runtime_error( "Device \"" + string( expected_description ) + "\" not found" );
   }
 
   return { name, interface_name };

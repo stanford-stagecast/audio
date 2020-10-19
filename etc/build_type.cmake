@@ -1,4 +1,5 @@
 set (default_build_type "Release")
+set (CMAKE_EXPORT_COMPILE_COMMANDS ON)
 if (NOT (CMAKE_BUILD_TYPE_SHADOW STREQUAL CMAKE_BUILD_TYPE))
     if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
         message (STATUS "Setting build type to '${default_build_type}'")

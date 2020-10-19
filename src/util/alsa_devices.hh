@@ -54,6 +54,8 @@ public:
                   const std::string_view annotation,
                   const snd_pcm_stream_t stream );
 
+  void config();
+
   std::string name() const;
 
   ~AudioInterface();
