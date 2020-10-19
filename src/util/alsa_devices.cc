@@ -2,6 +2,7 @@
 #include <cstdlib>
 #include <dbus/dbus.h>
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <string>
 #include <thread>
@@ -149,6 +150,8 @@ int alsa_check( const string& context, const int return_value )
   return alsa_check( context.c_str(), return_value );
 }
 
+#define alsa_check_easy( expr ) alsa_check( #expr, expr )
+
 vector<ALSADevices::Device> ALSADevices::list()
 {
   int card = -1;
@@ -166,7 +169,7 @@ vector<ALSADevices::Device> ALSADevices::list()
   vector<Device> ret;
 
   while ( true ) {
-    alsa_check( "snd_card_next", snd_card_next( &card ) );
+    alsa_check_easy( snd_card_next( &card ) );
     if ( card < 0 ) {
       break;
     }
@@ -175,7 +178,7 @@ vector<ALSADevices::Device> ALSADevices::list()
 
     unique_ptr<void*, ALSA_hint_deleter> hints { [&] {
       void** hints_tmp;
-      alsa_check( "snd_device_name_hint", snd_device_name_hint( card, "pcm", &hints_tmp ) );
+      alsa_check_easy( snd_device_name_hint( card, "pcm", &hints_tmp ) );
       return hints_tmp;
     }() };
 
@@ -331,20 +334,61 @@ void AudioInterface::check_state( const snd_pcm_state_t expected_state )
   }
 }
 
-void AudioInterface::config()
+void AudioInterface::configure()
 {
   check_state( SND_PCM_STATE_OPEN );
 
-  struct pcm_params_deleter
+  /* set desired hardware parameters */
   {
-    void operator()( snd_pcm_hw_params_t* x ) const { snd_pcm_hw_params_free( x ); }
-  };
+    struct params_deleter
+    {
+      void operator()( snd_pcm_hw_params_t* x ) const { snd_pcm_hw_params_free( x ); }
+    };
+    unique_ptr<snd_pcm_hw_params_t, params_deleter> params { [] {
+      snd_pcm_hw_params_t* x = nullptr;
+      snd_pcm_hw_params_malloc( &x );
+      return notnull( "snd_pcm_hw_params_malloc", x );
+    }() };
 
-  unique_ptr<snd_pcm_hw_params_t, pcm_params_deleter> params { [] {
-    snd_pcm_hw_params_t* x = nullptr;
-    snd_pcm_hw_params_alloca( &x );
-    return notnull( "snd_pcm_hw_params_alloca", x );
-  }() };
+    alsa_check_easy( snd_pcm_hw_params_any( pcm_, params.get() ) );
 
-  alsa_check( "snd_pcm_hw_params_any", snd_pcm_hw_params_any( pcm_, params.get() ) );
+    alsa_check_easy( snd_pcm_hw_params_set_rate_resample( pcm_, params.get(), false ) );
+    alsa_check_easy( snd_pcm_hw_params_set_access( pcm_, params.get(), SND_PCM_ACCESS_MMAP_INTERLEAVED ) );
+    alsa_check_easy( snd_pcm_hw_params_set_format( pcm_, params.get(), SND_PCM_FORMAT_S32_LE ) );
+    alsa_check_easy( snd_pcm_hw_params_set_channels( pcm_, params.get(), 2 ) );
+    alsa_check_easy( snd_pcm_hw_params_set_rate( pcm_, params.get(), 48000, 0 ) );
+    alsa_check_easy( snd_pcm_hw_params_set_period_size( pcm_, params.get(), 60, 0 ) );
+
+    /* apply hardware parameters */
+    alsa_check_easy( snd_pcm_hw_params( pcm_, params.get() ) );
+  }
+
+  check_state( SND_PCM_STATE_PREPARED );
+
+  /* set desired software parameters */
+  {
+    struct params_deleter
+    {
+      void operator()( snd_pcm_sw_params_t* x ) const { snd_pcm_sw_params_free( x ); }
+    };
+    unique_ptr<snd_pcm_sw_params_t, params_deleter> params { [] {
+      snd_pcm_sw_params_t* x = nullptr;
+      snd_pcm_sw_params_malloc( &x );
+      return notnull( "snd_pcm_sw_params_malloc", x );
+    }() };
+
+    alsa_check_easy( snd_pcm_sw_params_current( pcm_, params.get() ) );
+
+    alsa_check_easy(
+      snd_pcm_sw_params_set_avail_min( pcm_, params.get(), numeric_limits<snd_pcm_uframes_t>::max() ) );
+    alsa_check_easy( snd_pcm_sw_params_set_period_event( pcm_, params.get(), false ) );
+    alsa_check_easy(
+      snd_pcm_sw_params_set_start_threshold( pcm_, params.get(), numeric_limits<snd_pcm_uframes_t>::max() ) );
+    alsa_check_easy( snd_pcm_sw_params_set_silence_size( pcm_, params.get(), 0 ) );
+    alsa_check_easy( snd_pcm_sw_params_set_silence_threshold( pcm_, params.get(), 0 ) );
+
+    alsa_check_easy( snd_pcm_sw_params( pcm_, params.get() ) );
+  }
+
+  check_state( SND_PCM_STATE_PREPARED );
 }

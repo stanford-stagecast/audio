@@ -54,7 +54,7 @@ public:
                   const std::string_view annotation,
                   const snd_pcm_stream_t stream );
 
-  void config();
+  void configure();
 
   std::string name() const;
 

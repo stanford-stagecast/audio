@@ -51,6 +51,8 @@ void program_body()
 
   AudioInterface pcm { interface_name, "Microphone", SND_PCM_STREAM_CAPTURE };
 
+  pcm.configure();
+
   this_thread::sleep_for( seconds( 3 ) );
 }
 
