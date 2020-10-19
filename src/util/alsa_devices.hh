@@ -55,6 +55,9 @@ public:
                   const snd_pcm_stream_t stream );
 
   void configure();
+  void start();
+  void drop();
+  void loop();
 
   std::string name() const;
 

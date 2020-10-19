@@ -37,6 +37,8 @@ pair<string, string> find_device( const string_view expected_description )
 
 void program_body()
 {
+  ios::sync_with_stdio( false );
+
   const auto [name, interface_name] = find_device( "UAC-2, USB Audio" );
 
   cout << "Found " << interface_name << " as " << name << "\n";
@@ -52,8 +54,11 @@ void program_body()
   AudioInterface pcm { interface_name, "Microphone", SND_PCM_STREAM_CAPTURE };
 
   pcm.configure();
+  pcm.start();
 
-  this_thread::sleep_for( seconds( 3 ) );
+  pcm.loop();
+
+  pcm.drop();
 }
 
 int main()

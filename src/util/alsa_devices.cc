@@ -392,3 +392,25 @@ void AudioInterface::configure()
 
   check_state( SND_PCM_STATE_PREPARED );
 }
+
+void AudioInterface::start()
+{
+  alsa_check( "snd_pcm_start(" + name() + ")", snd_pcm_start( pcm_ ) );
+  check_state( SND_PCM_STATE_RUNNING );
+}
+
+void AudioInterface::drop()
+{
+  alsa_check( "snd_pcm_drop(" + name() + ")", snd_pcm_drop( pcm_ ) );
+  check_state( SND_PCM_STATE_SETUP );
+}
+
+void AudioInterface::loop()
+{
+  const string diagnostic = "snd_pcm_avail(" + name() + ")";
+
+  while ( true ) {
+    auto num_frames = alsa_check( diagnostic, snd_pcm_avail( pcm_ ) );
+    cout << num_frames << "\n";
+  }
+}
