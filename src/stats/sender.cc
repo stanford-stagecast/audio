@@ -48,6 +48,7 @@ void program_body( unsigned int num_packets )
   const auto transmission_interval = microseconds( 2500 );
 
   auto time_for_next_transmission = start_time + transmission_interval;
+  start_time = time_for_next_transmission;
 
   for ( unsigned int packet_counter = 0; packet_counter < num_packets; packet_counter++ ) {
     auto duration_to_sleep = time_for_next_transmission - steady_clock::now();
@@ -64,8 +65,8 @@ void program_body( unsigned int num_packets )
   }
 
   auto end_time = steady_clock::now();
-  chrono::duration<double, ratio<1, 1>> overall_duration = end_time - start_time;
-  cout << "Sent " << num_packets << " packets in " << overall_duration.count() << " seconds" << endl;
+  chrono::duration<double, ratio<1, 1000>> overall_duration = end_time - start_time;
+  cout << "Time between packet 0 and packet " << num_packets << ": " << overall_duration.count() << " ms" << endl;
 }
 
 int main( int argc, char* argv[] )
