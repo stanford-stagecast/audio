@@ -18,11 +18,11 @@ using namespace std;
 
 const string HOME( getenv( "HOME" ) );
 
-const string BUFFER_CSV = HOME + "/audio/csv/buffer100k.csv";
-const string PACKET_CSV = HOME + "/audio/csv/packets100k.csv";
+const string BUFFER_CSV = HOME + "/audio/csv/buffer3M_wireless.csv";
+const string PACKET_CSV = HOME + "/audio/csv/packets3M_wireless.csv";
 const uint64_t NS_PER_MS { 1'000'000 };
 const uint64_t DELAY { 2'500'000 };
-const uint64_t MAX_NUM_PACKETS = 100000;
+const uint64_t MAX_NUM_PACKETS = 3000000;
 
 void program_body( vector<double>& buffer_vals, vector<int>& packets_received )
 {
@@ -37,9 +37,10 @@ void program_body( vector<double>& buffer_vals, vector<int>& packets_received )
   auto prev_time = chrono::steady_clock::now();
   auto prev_decrement_time = chrono::steady_clock::now();
   uint64_t server_packet_counter = 0;
+  uint64_t silent_packets = 0;
   double buffer = 0;
   bool packet_zero_received = false;
-  double average_time = 0;
+  double total_time = 0;
 
   event_loop.add_rule(
     "Server receive packets and keep track of buffer",
@@ -59,6 +60,7 @@ void program_body( vector<double>& buffer_vals, vector<int>& packets_received )
         buffer += ( packet_number - server_packet_counter + 1 ) * 2.5;
         for ( size_t i = server_packet_counter; i < packet_number; i++ ) {
           packets_received.push_back( 0 );
+          silent_packets++;
         }
         packets_received.push_back( 1 );
         server_packet_counter = packet_number + 1;
@@ -70,7 +72,7 @@ void program_body( vector<double>& buffer_vals, vector<int>& packets_received )
       chrono::duration<double, ratio<1, 1000>> diff = chrono::steady_clock::now() - prev_time;
       if ( packet_number > 0 ) {
         // cout << "diff: " << diff.count() << endl;
-        average_time += diff.count();
+        total_time += diff.count();
       }
       prev_time = chrono::steady_clock::now();
     },
@@ -82,16 +84,14 @@ void program_body( vector<double>& buffer_vals, vector<int>& packets_received )
     if ( packet_zero_received ) {
       auto current_time = chrono::steady_clock::now();
       chrono::duration<double, ratio<1, 1000>> time_since_decrement = current_time - prev_decrement_time;
-      // cout << "time since last decrement: " << time_since_decrement.count() << endl;
       buffer -= time_since_decrement.count();
       prev_decrement_time = current_time;
-      // buffer_vals.push_back( buffer ); // if we want to store buffer on time values instead of per packet
-      // cout << "Buffer: " << buffer << endl;
     }
   }
-  average_time /= ( MAX_NUM_PACKETS - 1 );
-  cout << "Average time: " << average_time << endl;
+  cout << "Time from packet 0 to packet " << MAX_NUM_PACKETS << ": " << total_time << " ms" << endl;
   cout << "Buffer: " << buffer << endl;
+  cout << "# Silent packets: " << silent_packets << "(" << (double)silent_packets / (double)MAX_NUM_PACKETS << "%)"
+       << endl;
 }
 
 /*Exports data about buffer sizes and packet drops*/
