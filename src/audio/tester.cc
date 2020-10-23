@@ -49,20 +49,33 @@ void program_body()
   if ( ownership.claimed_from() ) {
     cout << " from " << ownership.claimed_from().value();
   }
-  cout << "\n";
+  cout << endl;
 
   AudioInterface microphone { interface_name, "Microphone", SND_PCM_STREAM_CAPTURE };
   AudioInterface headphone { interface_name, "Headphone", SND_PCM_STREAM_PLAYBACK };
 
-  microphone.configure();
-  headphone.configure();
+  headphone.debug();
+  microphone.debug();
+
+  headphone.debug();
+  microphone.debug();
+
+  headphone.write_silence( 96 );
 
   microphone.link_with( headphone );
 
-  headphone.write_silence( 24 );
+  headphone.debug();
+  microphone.debug();
 
-  microphone.start();
-  microphone.loop();
+  this_thread::sleep_for( seconds( 1 ) );
+
+  headphone.debug();
+  microphone.debug();
+
+  this_thread::sleep_for( seconds( 1 ) );
+
+  headphone.start();
+  microphone.loopback_to( headphone );
   microphone.drop();
 }
 

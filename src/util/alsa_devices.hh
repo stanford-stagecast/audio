@@ -1,3 +1,4 @@
+
 #include <alsa/asoundlib.h>
 #include <dbus/dbus.h>
 #include <memory>
@@ -46,19 +47,43 @@ class AudioInterface
 {
   std::string interface_name_, annotation_;
   snd_pcm_t* pcm_;
+  snd_pcm_uframes_t buffer_size_;
 
   void check_state( const snd_pcm_state_t expected_state );
 
 public:
+  class Buffer
+  {
+    snd_pcm_t* pcm_;
+    const snd_pcm_channel_area_t* areas_;
+    unsigned int sample_count_;
+    snd_pcm_uframes_t offset_;
+
+  public:
+    Buffer( AudioInterface& interface, const unsigned int sample_count );
+    void commit();
+    ~Buffer();
+
+    int32_t& sample( const bool right_channel, const unsigned int sample_num )
+    {
+      return *( static_cast<int32_t*>( areas_[0].addr ) + offset_ + right_channel + 2 * sample_num );
+    }
+
+    /* can't copy or assign */
+    Buffer( const Buffer& other ) = delete;
+    Buffer& operator=( const Buffer& other ) = delete;
+  };
+
   AudioInterface( const std::string_view interface_name,
                   const std::string_view annotation,
                   const snd_pcm_stream_t stream );
 
-  void configure();
   void start();
   void drop();
-  void loop();
+  void loopback_to( AudioInterface& other );
   void write_silence( const unsigned int sample_count );
+
+  void debug();
 
   std::string name() const;
 

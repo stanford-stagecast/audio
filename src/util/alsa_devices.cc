@@ -10,6 +10,7 @@
 #include "alsa_devices.hh"
 
 using namespace std;
+using namespace std::chrono;
 
 template<typename T>
 inline T* notnull( const char* context, T* const x )
@@ -303,12 +304,77 @@ AudioInterface::AudioInterface( const string_view interface_name,
   : interface_name_( interface_name )
   , annotation_( annotation )
   , pcm_( nullptr )
+  , buffer_size_( 0 )
 {
   const string diagnostic = "snd_pcm_open(" + name() + ")";
   alsa_check( diagnostic, snd_pcm_open( &pcm_, interface_name_.c_str(), stream, SND_PCM_NONBLOCK ) );
   notnull( diagnostic, pcm_ );
 
   check_state( SND_PCM_STATE_OPEN );
+
+  /* set desired hardware parameters */
+  {
+    struct params_deleter
+    {
+      void operator()( snd_pcm_hw_params_t* x ) const { snd_pcm_hw_params_free( x ); }
+    };
+    unique_ptr<snd_pcm_hw_params_t, params_deleter> params { [] {
+      snd_pcm_hw_params_t* x = nullptr;
+      snd_pcm_hw_params_malloc( &x );
+      return notnull( "snd_pcm_hw_params_malloc", x );
+    }() };
+
+    alsa_check_easy( snd_pcm_hw_params_any( pcm_, params.get() ) );
+
+    alsa_check_easy( snd_pcm_hw_params_set_rate_resample( pcm_, params.get(), false ) );
+    alsa_check_easy( snd_pcm_hw_params_set_access( pcm_, params.get(), SND_PCM_ACCESS_MMAP_INTERLEAVED ) );
+    alsa_check_easy( snd_pcm_hw_params_set_format( pcm_, params.get(), SND_PCM_FORMAT_S32_LE ) );
+    alsa_check_easy( snd_pcm_hw_params_set_channels( pcm_, params.get(), 2 ) );
+    alsa_check_easy( snd_pcm_hw_params_set_rate( pcm_, params.get(), 48000, 0 ) );
+    alsa_check_easy( snd_pcm_hw_params_set_period_size( pcm_, params.get(), 24, 0 ) );
+
+    /* apply hardware parameters */
+    alsa_check_easy( snd_pcm_hw_params( pcm_, params.get() ) );
+
+    /* save buffer size */
+    alsa_check_easy( snd_pcm_hw_params_get_buffer_size( params.get(), &buffer_size_ ) );
+  }
+
+  check_state( SND_PCM_STATE_PREPARED );
+
+  /* set desired software parameters */
+  {
+    struct params_deleter
+    {
+      void operator()( snd_pcm_sw_params_t* x ) const { snd_pcm_sw_params_free( x ); }
+    };
+    unique_ptr<snd_pcm_sw_params_t, params_deleter> params { [] {
+      snd_pcm_sw_params_t* x = nullptr;
+      snd_pcm_sw_params_malloc( &x );
+      return notnull( "snd_pcm_sw_params_malloc", x );
+    }() };
+
+    alsa_check_easy( snd_pcm_sw_params_current( pcm_, params.get() ) );
+
+    alsa_check_easy(
+      snd_pcm_sw_params_set_avail_min( pcm_, params.get(), numeric_limits<snd_pcm_uframes_t>::max() ) );
+    alsa_check_easy( snd_pcm_sw_params_set_period_event( pcm_, params.get(), false ) );
+    alsa_check_easy(
+      snd_pcm_sw_params_set_start_threshold( pcm_, params.get(), numeric_limits<snd_pcm_uframes_t>::max() ) );
+
+    alsa_check_easy( snd_pcm_sw_params_set_stop_threshold(
+      pcm_, params.get(), ( stream == SND_PCM_STREAM_CAPTURE ) ? 960 : ( buffer_size_ - 1 ) ) );
+    alsa_check_easy( snd_pcm_sw_params_set_silence_size( pcm_, params.get(), 0 ) );
+    alsa_check_easy( snd_pcm_sw_params_set_silence_threshold( pcm_, params.get(), 0 ) );
+
+    alsa_check_easy( snd_pcm_sw_params( pcm_, params.get() ) );
+
+    snd_pcm_uframes_t thresh;
+    alsa_check_easy( snd_pcm_sw_params_get_stop_threshold( params.get(), &thresh ) );
+    cerr << name() << ": stop threshold = " << thresh << "\n";
+  }
+
+  check_state( SND_PCM_STATE_PREPARED );
 }
 
 string AudioInterface::name() const
@@ -334,67 +400,9 @@ void AudioInterface::check_state( const snd_pcm_state_t expected_state )
   }
 }
 
-void AudioInterface::configure()
-{
-  check_state( SND_PCM_STATE_OPEN );
-
-  /* set desired hardware parameters */
-  {
-    struct params_deleter
-    {
-      void operator()( snd_pcm_hw_params_t* x ) const { snd_pcm_hw_params_free( x ); }
-    };
-    unique_ptr<snd_pcm_hw_params_t, params_deleter> params { [] {
-      snd_pcm_hw_params_t* x = nullptr;
-      snd_pcm_hw_params_malloc( &x );
-      return notnull( "snd_pcm_hw_params_malloc", x );
-    }() };
-
-    alsa_check_easy( snd_pcm_hw_params_any( pcm_, params.get() ) );
-
-    alsa_check_easy( snd_pcm_hw_params_set_rate_resample( pcm_, params.get(), false ) );
-    alsa_check_easy( snd_pcm_hw_params_set_access( pcm_, params.get(), SND_PCM_ACCESS_MMAP_INTERLEAVED ) );
-    alsa_check_easy( snd_pcm_hw_params_set_format( pcm_, params.get(), SND_PCM_FORMAT_S32_LE ) );
-    alsa_check_easy( snd_pcm_hw_params_set_channels( pcm_, params.get(), 2 ) );
-    alsa_check_easy( snd_pcm_hw_params_set_rate( pcm_, params.get(), 48000, 0 ) );
-    alsa_check_easy( snd_pcm_hw_params_set_period_size( pcm_, params.get(), 60, 0 ) );
-
-    /* apply hardware parameters */
-    alsa_check_easy( snd_pcm_hw_params( pcm_, params.get() ) );
-  }
-
-  check_state( SND_PCM_STATE_PREPARED );
-
-  /* set desired software parameters */
-  {
-    struct params_deleter
-    {
-      void operator()( snd_pcm_sw_params_t* x ) const { snd_pcm_sw_params_free( x ); }
-    };
-    unique_ptr<snd_pcm_sw_params_t, params_deleter> params { [] {
-      snd_pcm_sw_params_t* x = nullptr;
-      snd_pcm_sw_params_malloc( &x );
-      return notnull( "snd_pcm_sw_params_malloc", x );
-    }() };
-
-    alsa_check_easy( snd_pcm_sw_params_current( pcm_, params.get() ) );
-
-    alsa_check_easy(
-      snd_pcm_sw_params_set_avail_min( pcm_, params.get(), numeric_limits<snd_pcm_uframes_t>::max() ) );
-    alsa_check_easy( snd_pcm_sw_params_set_period_event( pcm_, params.get(), false ) );
-    alsa_check_easy(
-      snd_pcm_sw_params_set_start_threshold( pcm_, params.get(), numeric_limits<snd_pcm_uframes_t>::max() ) );
-    alsa_check_easy( snd_pcm_sw_params_set_silence_size( pcm_, params.get(), 0 ) );
-    alsa_check_easy( snd_pcm_sw_params_set_silence_threshold( pcm_, params.get(), 0 ) );
-
-    alsa_check_easy( snd_pcm_sw_params( pcm_, params.get() ) );
-  }
-
-  check_state( SND_PCM_STATE_PREPARED );
-}
-
 void AudioInterface::start()
 {
+  check_state( SND_PCM_STATE_PREPARED );
   alsa_check( "snd_pcm_start(" + name() + ")", snd_pcm_start( pcm_ ) );
   check_state( SND_PCM_STATE_RUNNING );
 }
@@ -405,13 +413,50 @@ void AudioInterface::drop()
   check_state( SND_PCM_STATE_SETUP );
 }
 
-void AudioInterface::loop()
+void AudioInterface::debug()
 {
-  const string diagnostic = "snd_pcm_avail(" + name() + ")";
+  check_state( SND_PCM_STATE_PREPARED );
+  snd_pcm_sframes_t avail, delay;
+  alsa_check( "snd_pcm_avail_delay(" + name() + ")", snd_pcm_avail_delay( pcm_, &avail, &delay ) );
+  cerr << name() << ": " << avail << "/" << delay << "\n";
+}
+
+void AudioInterface::loopback_to( AudioInterface& other )
+{
+  unsigned int loops = 0, copies = 0;
 
   while ( true ) {
-    auto num_frames = alsa_check( diagnostic, snd_pcm_avail( pcm_ ) );
-    cout << num_frames << "\n";
+    loops++;
+    snd_pcm_sframes_t mic_avail, mic_delay;
+    snd_pcm_sframes_t phone_avail, phone_delay;
+    snd_pcm_avail_delay( pcm_, &mic_avail, &mic_delay );
+    snd_pcm_avail_delay( other.pcm_, &phone_avail, &phone_delay );
+    try {
+      check_state( SND_PCM_STATE_RUNNING );
+      other.check_state( SND_PCM_STATE_RUNNING );
+    } catch ( const exception& e ) {
+      cerr << e.what() << ": " << mic_avail << "/" << mic_delay << " " << phone_avail << "/" << phone_delay << " + "
+           << copies / 48000.0 << "#" << loops << "\n";
+      throw;
+    }
+
+    if ( mic_avail >= 48 and phone_avail >= 48 ) {
+      cerr << "\r" << mic_avail << "/" << mic_delay << " " << phone_avail << "/" << phone_delay << " + "
+           << copies / 48000.0 << "#" << loops << "             ";
+      Buffer read_buf { *this, 48 };
+      Buffer write_buf { other, 48 };
+
+      for ( unsigned int i = 0; i < 48; i++ ) {
+        write_buf.sample( false, i ) = read_buf.sample( false, i );
+        write_buf.sample( true, i ) = read_buf.sample( true, i );
+      }
+
+      write_buf.commit();
+      read_buf.commit();
+
+      copies += 48;
+      loops = 0;
+    }
   }
 }
 
@@ -420,38 +465,64 @@ void AudioInterface::link_with( AudioInterface& other )
   alsa_check( "snd_pcm_link(" + name() + ", " + other.name() + ")", snd_pcm_link( pcm_, other.pcm_ ) );
 }
 
-void AudioInterface::write_silence( const unsigned int sample_count )
+AudioInterface::Buffer::Buffer( AudioInterface& interface, const unsigned int sample_count )
+  : pcm_( interface.pcm_ )
+  , areas_( nullptr )
+  , sample_count_( sample_count )
+  , offset_( 0 )
 {
-  alsa_check_easy( snd_pcm_avail_update( pcm_ ) );
-
-  const snd_pcm_channel_area_t* areas;
-  snd_pcm_uframes_t offset;
+  /* XXX channel count must be 2 */
   snd_pcm_uframes_t frames = sample_count;
-  alsa_check_easy( snd_pcm_mmap_begin( pcm_, &areas, &offset, &frames ) );
+  alsa_check_easy( snd_pcm_mmap_begin( pcm_, &areas_, &offset_, &frames ) );
 
   if ( frames != sample_count ) {
-    throw runtime_error( "not enough space to write " + to_string( sample_count ) + " frames" );
+    throw runtime_error( interface.name() + ": could not get " + to_string( sample_count ) + " frames, got "
+                         + to_string( frames ) + " instead" );
   }
 
-  if ( offset != 0 ) {
-    throw runtime_error( "can't handle nonzero offset" );
-  }
-
-  if ( areas[0].addr != areas[1].addr ) {
+  if ( areas_[0].addr != areas_[1].addr ) {
     throw runtime_error( "non-interleaved areas returned" );
   }
 
-  if ( areas[0].first != 0 or areas[1].first != 32 or areas[0].step != 64 or areas[1].step != 64 ) {
+  if ( areas_[0].first != 0 or areas_[1].first != 32 or areas_[0].step != 64 or areas_[1].step != 64 ) {
     throw runtime_error( "unexpected format or stride returned" );
   }
+}
 
-  for ( int32_t* sample = static_cast<int32_t*>( areas[0].addr );
-        sample < static_cast<int32_t*>( areas[0].addr ) + 2 * sample_count;
-        sample++ ) {
-    *sample = 0;
+void AudioInterface::Buffer::commit()
+{
+  if ( areas_ ) {
+    if ( int( sample_count_ ) != alsa_check_easy( snd_pcm_mmap_commit( pcm_, offset_, sample_count_ ) ) ) {
+      throw runtime_error( "short commit" );
+    }
+
+    areas_ = nullptr;
+  }
+}
+
+AudioInterface::Buffer::~Buffer()
+{
+  if ( areas_ ) {
+    cerr << "Warning, AudioInterface Buffer not committed before destruction.\n";
+
+    try {
+      commit();
+    } catch ( const exception& e ) {
+      cerr << "AudioInterface::Buffer destructor: " << e.what() << "\n";
+    }
+  }
+}
+
+void AudioInterface::write_silence( const unsigned int sample_count )
+{
+  Buffer buffer { *this, sample_count };
+
+  for ( unsigned int i = 0; i < sample_count; i++ ) {
+    buffer.sample( false, i ) = 0;
+    buffer.sample( true, i ) = 0;
   }
 
-  if ( int( sample_count ) != alsa_check_easy( snd_pcm_mmap_commit( pcm_, offset, frames ) ) ) {
-    throw runtime_error( "short commit" );
-  }
+  buffer.commit();
+
+  check_state( SND_PCM_STATE_PREPARED );
 }
