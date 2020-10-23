@@ -43,27 +43,27 @@ void program_body()
 
   cout << "Found " << interface_name << " as " << name << "\n";
 
-  AudioDeviceClaim ownership { name };
+  try {
+    AudioDeviceClaim ownership { name };
 
-  cout << "Claimed ownership of " << name;
-  if ( ownership.claimed_from() ) {
-    cout << " from " << ownership.claimed_from().value();
+    cout << "Claimed ownership of " << name;
+    if ( ownership.claimed_from() ) {
+      cout << " from " << ownership.claimed_from().value();
+    }
+    cout << endl;
+  } catch ( const exception& e ) {
+    cout << "Failed to claim ownership: " << e.what() << "\n";
   }
-  cout << "\n";
 
-  AudioInterface microphone { interface_name, "Microphone", SND_PCM_STREAM_CAPTURE };
   AudioInterface headphone { interface_name, "Headphone", SND_PCM_STREAM_PLAYBACK };
+  AudioInterface microphone { interface_name, "Microphone", SND_PCM_STREAM_CAPTURE };
 
-  microphone.configure();
-  headphone.configure();
+  headphone.write_silence( 120 );
 
   microphone.link_with( headphone );
 
-  headphone.write_silence( 24 );
-
   microphone.start();
-  microphone.loop();
-  microphone.drop();
+  microphone.loopback_to( headphone );
 }
 
 int main()

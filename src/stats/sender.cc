@@ -7,9 +7,9 @@
 #include <cstdlib>
 #include <iostream>
 #include <optional>
+#include <stdexcept>
 #include <thread>
 #include <unistd.h>
-#include <stdexcept>
 
 using namespace std;
 using namespace std::chrono;
@@ -40,7 +40,7 @@ string build_packet( int packet_number )
 void program_body( unsigned int num_packets )
 {
   cout << "Preparing to send " << num_packets << " packets" << endl;
-  
+
   UDPSocket client_sock;
   client_sock.set_blocking( false );
 
@@ -82,7 +82,7 @@ int main( int argc, char* argv[] )
       char* endptr;
       num_packets = strtoul( argv[1], &endptr, 10 );
       if ( *endptr != '\0' ) {
-        throw runtime_error("Invalid number of packets provided");
+        throw runtime_error( "Invalid number of packets provided" );
       }
     }
 
