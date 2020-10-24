@@ -62,7 +62,8 @@ public:
 
   public:
     Buffer( AudioInterface& interface, const unsigned int sample_count );
-    void commit();
+    void commit( const unsigned int num_frames );
+    void commit() { commit( frame_count_ ); }
     ~Buffer();
 
     int32_t& sample( const bool right_channel, const unsigned int sample_num )

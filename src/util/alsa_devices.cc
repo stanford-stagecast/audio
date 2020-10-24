@@ -441,7 +441,7 @@ void AudioInterface::loopback_to( AudioInterface& other )
   unsigned int mic_avail = 0, mic_delay = 0;
 
   while ( true ) {
-    while ( mic_avail < 24 ) {
+    while ( mic_avail == 0 ) {
       tie( mic_avail, mic_delay ) = avail_delay();
     }
 
@@ -452,31 +452,20 @@ void AudioInterface::loopback_to( AudioInterface& other )
     min_phone = min( min_phone, phone_delay );
     max_phone = max( max_phone, phone_delay );
 
-    if ( phone_avail < mic_avail ) {
-      throw runtime_error( "buffer overflow for output" );
+    Buffer read_buf { *this, mic_avail };
+    Buffer write_buf { other, mic_avail };
+
+    const unsigned int num_frames = min( read_buf.frame_count(), write_buf.frame_count() );
+
+    for ( unsigned int i = 0; i < num_frames; i++ ) {
+      write_buf.sample( false, i ) = read_buf.sample( false, i );
+      write_buf.sample( true, i ) = read_buf.sample( false, i );
     }
 
-    Buffer read_buf { *this, 24 };
-    if ( read_buf.frame_count() != 24 ) {
-      throw runtime_error( "too many frames returned" );
-    }
+    write_buf.commit( num_frames );
+    read_buf.commit( num_frames );
 
-    unsigned int frames_written = 0;
-    while ( frames_written < read_buf.frame_count() ) {
-      Buffer write_buf { other, read_buf.frame_count() - frames_written };
-
-      for ( unsigned int i = 0; i < write_buf.frame_count(); i++ ) {
-        write_buf.sample( false, i ) = read_buf.sample( false, frames_written + i );
-        write_buf.sample( true, i ) = read_buf.sample( false, frames_written + i );
-      }
-
-      frames_written += write_buf.frame_count();
-
-      write_buf.commit();
-    }
-
-    read_buf.commit();
-    mic_avail -= read_buf.frame_count();
+    mic_avail -= num_frames;
 
     iteration++;
 
@@ -521,10 +510,14 @@ AudioInterface::Buffer::Buffer( AudioInterface& interface, const unsigned int fr
   }
 }
 
-void AudioInterface::Buffer::commit()
+void AudioInterface::Buffer::commit( const unsigned int num_frames )
 {
+  if ( num_frames > frame_count_ ) {
+    throw runtime_error( "Buffer::commit(): num_frames > frame_count_" );
+  }
+
   if ( areas_ ) {
-    if ( int( frame_count_ ) != alsa_check_easy( snd_pcm_mmap_commit( pcm_, offset_, frame_count_ ) ) ) {
+    if ( int( num_frames ) != alsa_check_easy( snd_pcm_mmap_commit( pcm_, offset_, num_frames ) ) ) {
       throw runtime_error( "short commit" );
     }
 
