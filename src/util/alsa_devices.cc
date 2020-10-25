@@ -522,7 +522,7 @@ void AudioInterface::loopback_to( AudioInterface& other )
       other.start();
     }
 
-    if ( other.delay() > 48 and num_frames > 0 ) {
+    if ( other.delay() + amount_to_write > 64 and num_frames > 0 ) {
       amount_to_write--;
       samples_skipped++;
     }
@@ -530,8 +530,8 @@ void AudioInterface::loopback_to( AudioInterface& other )
     write_buf.commit( amount_to_write );
     read_buf.commit( num_frames );
 
-    if ( other.delay() < 6 ) {
-      Buffer write_buf2 { other, 6 };
+    if ( other.delay() + amount_to_write <= 18 ) {
+      Buffer write_buf2 { other, 1 };
 
       for ( unsigned int i = 0; i < write_buf2.frame_count(); i++ ) {
         write_buf2.sample( false, i ) = write_buf2.sample( true, i ) = 0;
