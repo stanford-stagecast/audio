@@ -2,6 +2,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <dbus/dbus.h>
+#include <iomanip>
 #include <iostream>
 #include <limits>
 #include <memory>
@@ -366,7 +367,7 @@ void AudioInterface::initialize()
 
     alsa_check_easy( snd_pcm_sw_params_current( pcm_, params.get() ) );
 
-    alsa_check_easy( snd_pcm_sw_params_set_avail_min( pcm_, params.get(), 12 ) );
+    alsa_check_easy( snd_pcm_sw_params_set_avail_min( pcm_, params.get(), 6 ) );
     alsa_check_easy( snd_pcm_sw_params_set_period_event( pcm_, params.get(), true ) );
     alsa_check_easy(
       snd_pcm_sw_params_set_start_threshold( pcm_, params.get(), numeric_limits<snd_pcm_uframes_t>::max() ) );
@@ -463,13 +464,13 @@ void AudioInterface::prepare()
 
 void AudioInterface::loopback_to( AudioInterface& other )
 {
-  unsigned int iteration = 0;
   unsigned int max_mic = 0, min_mic = numeric_limits<unsigned int>::max();
   unsigned int max_phone = 0, min_phone = numeric_limits<unsigned int>::max();
   unsigned int max_combined = 0, min_combined = numeric_limits<unsigned int>::max();
   unsigned int samples_skipped = 0, samples_added = 0;
+  unsigned int total_wakeups = 0, empty_wakeups = 0;
 
-  while ( true ) {
+  for ( unsigned int iteration = 0;; ++iteration ) {
     if ( state() == SND_PCM_STATE_PREPARED ) {
       start();
     }
@@ -477,9 +478,6 @@ void AudioInterface::loopback_to( AudioInterface& other )
     const auto ret = snd_pcm_wait( pcm_, -1 );
     if ( ret < 0 ) {
       cerr << "snd_pcm_wait: " << snd_strerror( ret ) << "\n";
-    } else if ( ret == 0 ) {
-      cerr << "#";
-      continue;
     }
 
     bool failure = false;
@@ -492,8 +490,9 @@ void AudioInterface::loopback_to( AudioInterface& other )
       continue;
     }
 
+    total_wakeups++;
     if ( avail() == 0 ) {
-      cerr << ".";
+      empty_wakeups++;
       continue;
     }
 
@@ -542,18 +541,18 @@ void AudioInterface::loopback_to( AudioInterface& other )
       samples_added += write_buf2.frame_count();
     }
 
-    iteration++;
-
     if ( iteration % 4000 == 0 ) {
       cerr << "mic: " << min_mic << ".." << max_mic << ", phone: " << min_phone << ".." << max_phone
            << ", combined: " << min_combined << ".." << max_combined << ", skipped: " << samples_skipped
-           << ", added: " << samples_added << ", recoveries: " << recoveries() << "/" << other.recoveries() << "\n";
+           << ", added: " << samples_added << ", recoveries: " << recoveries() << "/" << other.recoveries()
+           << ", empty wakeups: " << empty_wakeups << "/" << total_wakeups << "\n";
       max_mic = 0;
       min_mic = numeric_limits<unsigned int>::max();
       max_phone = 0;
       min_phone = numeric_limits<unsigned int>::max();
       max_combined = 0;
       min_combined = numeric_limits<unsigned int>::max();
+      total_wakeups = empty_wakeups = 0;
     }
   }
 }
