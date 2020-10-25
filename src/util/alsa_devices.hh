@@ -54,6 +54,8 @@ class AudioInterface
 
   unsigned int recoveries_ {};
 
+  void initialize();
+
 public:
   class Buffer
   {
@@ -91,8 +93,9 @@ public:
   void loopback_to( AudioInterface& other );
   void write_silence( const unsigned int sample_count );
   snd_pcm_state_t state() const;
+  void recover();
 
-  void update();
+  bool update();
 
   unsigned int avail() const { return avail_; }
   unsigned int delay() const { return delay_; }

@@ -312,6 +312,13 @@ AudioInterface::AudioInterface( const string_view interface_name,
 
   check_state( SND_PCM_STATE_OPEN );
 
+  initialize();
+}
+
+void AudioInterface::initialize()
+{
+  check_state( SND_PCM_STATE_OPEN );
+
   snd_pcm_uframes_t buffer_size;
 
   /* set desired hardware parameters */
@@ -333,8 +340,8 @@ AudioInterface::AudioInterface( const string_view interface_name,
     alsa_check_easy( snd_pcm_hw_params_set_format( pcm_, params.get(), SND_PCM_FORMAT_S32_LE ) );
     alsa_check_easy( snd_pcm_hw_params_set_channels( pcm_, params.get(), 2 ) );
     alsa_check_easy( snd_pcm_hw_params_set_rate( pcm_, params.get(), 48000, 0 ) );
-    alsa_check_easy( snd_pcm_hw_params_set_period_size( pcm_, params.get(), 24, 0 ) );
-    alsa_check_easy( snd_pcm_hw_params_set_buffer_size( pcm_, params.get(), 96 ) );
+    alsa_check_easy( snd_pcm_hw_params_set_period_size( pcm_, params.get(), 12, 0 ) );
+    alsa_check_easy( snd_pcm_hw_params_set_buffer_size( pcm_, params.get(), 192 ) );
 
     /* apply hardware parameters */
     alsa_check_easy( snd_pcm_hw_params( pcm_, params.get() ) );
@@ -359,7 +366,7 @@ AudioInterface::AudioInterface( const string_view interface_name,
 
     alsa_check_easy( snd_pcm_sw_params_current( pcm_, params.get() ) );
 
-    alsa_check_easy( snd_pcm_sw_params_set_avail_min( pcm_, params.get(), 24 ) );
+    alsa_check_easy( snd_pcm_sw_params_set_avail_min( pcm_, params.get(), 12 ) );
     alsa_check_easy( snd_pcm_sw_params_set_period_event( pcm_, params.get(), true ) );
     alsa_check_easy(
       snd_pcm_sw_params_set_start_threshold( pcm_, params.get(), numeric_limits<snd_pcm_uframes_t>::max() ) );
@@ -375,26 +382,26 @@ AudioInterface::AudioInterface( const string_view interface_name,
   check_state( SND_PCM_STATE_PREPARED );
 }
 
-void AudioInterface::update()
+bool AudioInterface::update()
 {
   const auto ret = snd_pcm_avail_delay( pcm_, &avail_, &delay_ );
   if ( ret < 0 ) {
-    cerr << "recovering " << name() << ": " << snd_strerror( ret ) << "\n";
-    drop();
-    prepare();
-    if ( snd_pcm_stream( pcm_ ) == SND_PCM_STREAM_PLAYBACK ) {
-      write_silence( 48 );
-    }
-    start();
-
-    recoveries_++;
-
-    alsa_check_easy( snd_pcm_avail_delay( pcm_, &avail_, &delay_ ) );
+    cerr << name() << ": " << snd_strerror( ret ) << "\n";
+    return true;
   }
 
   if ( avail_ < 0 or delay_ < 0 ) {
     throw runtime_error( "avail < 0 or delay < 0" );
   }
+
+  return false;
+}
+
+void AudioInterface::recover()
+{
+  drop();
+  prepare();
+  recoveries_++;
 }
 
 string AudioInterface::name() const
@@ -467,7 +474,7 @@ void AudioInterface::loopback_to( AudioInterface& other )
       start();
     }
 
-    const auto ret = snd_pcm_wait( pcm_, 10 );
+    const auto ret = snd_pcm_wait( pcm_, -1 );
     if ( ret < 0 ) {
       cerr << "snd_pcm_wait: " << snd_strerror( ret ) << "\n";
     } else if ( ret == 0 ) {
@@ -475,8 +482,15 @@ void AudioInterface::loopback_to( AudioInterface& other )
       continue;
     }
 
-    update();
-    other.update();
+    bool failure = false;
+    failure |= update();
+    failure |= other.update();
+
+    if ( failure ) {
+      recover();
+      other.recover();
+      continue;
+    }
 
     if ( avail() == 0 ) {
       cerr << ".";
@@ -505,11 +519,11 @@ void AudioInterface::loopback_to( AudioInterface& other )
 
     unsigned int amount_to_write = num_frames;
 
-    if ( other.delay() >= 48 and other.state() == SND_PCM_STATE_PREPARED ) {
+    if ( other.delay() >= 24 and other.state() == SND_PCM_STATE_PREPARED ) {
       other.start();
     }
 
-    if ( other.delay() >= 72 and num_frames > 0 ) {
+    if ( other.delay() > 48 and num_frames > 0 ) {
       amount_to_write--;
       samples_skipped++;
     }
@@ -517,8 +531,8 @@ void AudioInterface::loopback_to( AudioInterface& other )
     write_buf.commit( amount_to_write );
     read_buf.commit( num_frames );
 
-    if ( other.delay() < 12 ) {
-      Buffer write_buf2 { other, 12 };
+    if ( other.delay() < 6 ) {
+      Buffer write_buf2 { other, 6 };
 
       for ( unsigned int i = 0; i < write_buf2.frame_count(); i++ ) {
         write_buf2.sample( false, i ) = write_buf2.sample( true, i ) = 0;
