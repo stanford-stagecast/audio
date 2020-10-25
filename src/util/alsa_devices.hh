@@ -47,10 +47,12 @@ class AudioInterface
 {
   std::string interface_name_, annotation_;
   snd_pcm_t* pcm_;
-  snd_pcm_uframes_t buffer_size_;
 
   void check_state( const snd_pcm_state_t expected_state );
-  std::pair<unsigned int, unsigned int> avail_delay();
+
+  snd_pcm_sframes_t avail_ {}, delay_ {};
+
+  unsigned int recoveries_ {};
 
 public:
   class Buffer
@@ -83,9 +85,18 @@ public:
                   const snd_pcm_stream_t stream );
 
   void start();
+  void prepare();
   void drop();
+  void drain();
   void loopback_to( AudioInterface& other );
   void write_silence( const unsigned int sample_count );
+  snd_pcm_state_t state() const;
+
+  void update();
+
+  unsigned int avail() const { return avail_; }
+  unsigned int delay() const { return delay_; }
+  unsigned int recoveries() const { return recoveries_; }
 
   std::string name() const;
 

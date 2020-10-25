@@ -305,13 +305,14 @@ AudioInterface::AudioInterface( const string_view interface_name,
   : interface_name_( interface_name )
   , annotation_( annotation )
   , pcm_( nullptr )
-  , buffer_size_( 0 )
 {
   const string diagnostic = "snd_pcm_open(" + name() + ")";
   alsa_check( diagnostic, snd_pcm_open( &pcm_, interface_name_.c_str(), stream, SND_PCM_NONBLOCK ) );
   notnull( diagnostic, pcm_ );
 
   check_state( SND_PCM_STATE_OPEN );
+
+  snd_pcm_uframes_t buffer_size;
 
   /* set desired hardware parameters */
   {
@@ -333,13 +334,13 @@ AudioInterface::AudioInterface( const string_view interface_name,
     alsa_check_easy( snd_pcm_hw_params_set_channels( pcm_, params.get(), 2 ) );
     alsa_check_easy( snd_pcm_hw_params_set_rate( pcm_, params.get(), 48000, 0 ) );
     alsa_check_easy( snd_pcm_hw_params_set_period_size( pcm_, params.get(), 24, 0 ) );
-    alsa_check_easy( snd_pcm_hw_params_set_buffer_size( pcm_, params.get(), 240 ) );
+    alsa_check_easy( snd_pcm_hw_params_set_buffer_size( pcm_, params.get(), 96 ) );
 
     /* apply hardware parameters */
     alsa_check_easy( snd_pcm_hw_params( pcm_, params.get() ) );
 
     /* save buffer size */
-    alsa_check_easy( snd_pcm_hw_params_get_buffer_size( params.get(), &buffer_size_ ) );
+    alsa_check_easy( snd_pcm_hw_params_get_buffer_size( params.get(), &buffer_size ) );
   }
 
   check_state( SND_PCM_STATE_PREPARED );
@@ -362,9 +363,7 @@ AudioInterface::AudioInterface( const string_view interface_name,
     alsa_check_easy( snd_pcm_sw_params_set_period_event( pcm_, params.get(), true ) );
     alsa_check_easy(
       snd_pcm_sw_params_set_start_threshold( pcm_, params.get(), numeric_limits<snd_pcm_uframes_t>::max() ) );
-
-    alsa_check_easy( snd_pcm_sw_params_set_stop_threshold(
-      pcm_, params.get(), ( stream == SND_PCM_STREAM_CAPTURE ) ? ( buffer_size_ - 1 ) : ( buffer_size_ - 1 ) ) );
+    alsa_check_easy( snd_pcm_sw_params_set_stop_threshold( pcm_, params.get(), buffer_size - 1 ) );
 
     alsa_check_easy( snd_pcm_sw_params( pcm_, params.get() ) );
 
@@ -376,21 +375,26 @@ AudioInterface::AudioInterface( const string_view interface_name,
   check_state( SND_PCM_STATE_PREPARED );
 }
 
-pair<unsigned int, unsigned int> AudioInterface::avail_delay()
+void AudioInterface::update()
 {
-  snd_pcm_sframes_t avail, delay;
-  const auto ret = snd_pcm_avail_delay( pcm_, &avail, &delay );
+  const auto ret = snd_pcm_avail_delay( pcm_, &avail_, &delay_ );
   if ( ret < 0 ) {
-    alsa_check( "snd_pcm_avail_delay(" + name() + ") in state " + snd_pcm_state_name( snd_pcm_state( pcm_ ) )
-                  + " with avail=" + to_string( avail ) + ", delay=" + to_string( delay ),
-                ret );
+    cerr << "recovering " << name() << ": " << snd_strerror( ret ) << "\n";
+    drop();
+    prepare();
+    if ( snd_pcm_stream( pcm_ ) == SND_PCM_STREAM_PLAYBACK ) {
+      write_silence( 48 );
+    }
+    start();
+
+    recoveries_++;
+
+    alsa_check_easy( snd_pcm_avail_delay( pcm_, &avail_, &delay_ ) );
   }
 
-  if ( avail < 0 or delay < 0 ) {
+  if ( avail_ < 0 or delay_ < 0 ) {
     throw runtime_error( "avail < 0 or delay < 0" );
   }
-
-  return { avail, delay };
 }
 
 string AudioInterface::name() const
@@ -407,9 +411,14 @@ AudioInterface::~AudioInterface()
   }
 }
 
+snd_pcm_state_t AudioInterface::state() const
+{
+  return snd_pcm_state( pcm_ );
+}
+
 void AudioInterface::check_state( const snd_pcm_state_t expected_state )
 {
-  const auto actual_state = snd_pcm_state( pcm_ );
+  const auto actual_state = state();
   if ( expected_state != actual_state ) {
     snd_pcm_sframes_t avail, delay;
     snd_pcm_avail_delay( pcm_, &avail, &delay );
@@ -426,10 +435,23 @@ void AudioInterface::start()
   check_state( SND_PCM_STATE_RUNNING );
 }
 
+void AudioInterface::drain()
+{
+  alsa_check( "snd_pcm_drain(" + name() + ")", snd_pcm_drop( pcm_ ) );
+  check_state( SND_PCM_STATE_SETUP );
+}
+
 void AudioInterface::drop()
 {
-  alsa_check( "snd_pcm_drop(" + name() + ")", snd_pcm_drop( pcm_ ) );
+  alsa_check( "snd_pcm_drain(" + name() + ")", snd_pcm_drop( pcm_ ) );
   check_state( SND_PCM_STATE_SETUP );
+}
+
+void AudioInterface::prepare()
+{
+  check_state( SND_PCM_STATE_SETUP );
+  alsa_check( "snd_pcm_prepare(" + name() + ")", snd_pcm_prepare( pcm_ ) );
+  check_state( SND_PCM_STATE_PREPARED );
 }
 
 void AudioInterface::loopback_to( AudioInterface& other )
@@ -437,44 +459,87 @@ void AudioInterface::loopback_to( AudioInterface& other )
   unsigned int iteration = 0;
   unsigned int max_mic = 0, min_mic = numeric_limits<unsigned int>::max();
   unsigned int max_phone = 0, min_phone = numeric_limits<unsigned int>::max();
-
-  unsigned int mic_avail = 0, mic_delay = 0;
+  unsigned int max_combined = 0, min_combined = numeric_limits<unsigned int>::max();
+  unsigned int samples_skipped = 0, samples_added = 0;
 
   while ( true ) {
-    while ( mic_avail == 0 ) {
-      tie( mic_avail, mic_delay ) = avail_delay();
+    if ( state() == SND_PCM_STATE_PREPARED ) {
+      start();
     }
 
-    min_mic = min( min_mic, mic_avail );
-    max_mic = max( max_mic, mic_avail );
+    const auto ret = snd_pcm_wait( pcm_, 10 );
+    if ( ret < 0 ) {
+      cerr << "snd_pcm_wait: " << snd_strerror( ret ) << "\n";
+    } else if ( ret == 0 ) {
+      cerr << "#";
+      continue;
+    }
 
-    auto [phone_avail, phone_delay] = other.avail_delay();
-    min_phone = min( min_phone, phone_delay );
-    max_phone = max( max_phone, phone_delay );
+    update();
+    other.update();
 
-    Buffer read_buf { *this, mic_avail };
-    Buffer write_buf { other, mic_avail };
+    if ( avail() == 0 ) {
+      cerr << ".";
+      continue;
+    }
 
-    const unsigned int num_frames = min( read_buf.frame_count(), write_buf.frame_count() );
+    min_mic = min( min_mic, avail() );
+    max_mic = max( max_mic, avail() );
+
+    min_phone = min( min_phone, other.delay() );
+    max_phone = max( max_phone, other.delay() );
+
+    const auto combined = avail() + other.delay();
+    min_combined = min( min_combined, combined );
+    max_combined = max( max_combined, combined );
+
+    Buffer read_buf { *this, avail() };
+    Buffer write_buf { other, read_buf.frame_count() };
+
+    const unsigned int num_frames = write_buf.frame_count();
 
     for ( unsigned int i = 0; i < num_frames; i++ ) {
       write_buf.sample( false, i ) = read_buf.sample( false, i );
       write_buf.sample( true, i ) = read_buf.sample( false, i );
     }
 
-    write_buf.commit( num_frames );
+    unsigned int amount_to_write = num_frames;
+
+    if ( other.delay() >= 48 and other.state() == SND_PCM_STATE_PREPARED ) {
+      other.start();
+    }
+
+    if ( other.delay() >= 72 and num_frames > 0 ) {
+      amount_to_write--;
+      samples_skipped++;
+    }
+
+    write_buf.commit( amount_to_write );
     read_buf.commit( num_frames );
 
-    mic_avail -= num_frames;
+    if ( other.delay() < 12 ) {
+      Buffer write_buf2 { other, 12 };
+
+      for ( unsigned int i = 0; i < write_buf2.frame_count(); i++ ) {
+        write_buf2.sample( false, i ) = write_buf2.sample( true, i ) = 0;
+      }
+
+      write_buf2.commit();
+      samples_added += write_buf2.frame_count();
+    }
 
     iteration++;
 
-    if ( iteration % 1000 == 0 ) {
-      cerr << "mic: " << min_mic << ".." << max_mic << ", phone: " << min_phone << ".." << max_phone << "\n";
+    if ( iteration % 4000 == 0 ) {
+      cerr << "mic: " << min_mic << ".." << max_mic << ", phone: " << min_phone << ".." << max_phone
+           << ", combined: " << min_combined << ".." << max_combined << ", skipped: " << samples_skipped
+           << ", added: " << samples_added << ", recoveries: " << recoveries() << "/" << other.recoveries() << "\n";
       max_mic = 0;
       min_mic = numeric_limits<unsigned int>::max();
       max_phone = 0;
       min_phone = numeric_limits<unsigned int>::max();
+      max_combined = 0;
+      min_combined = numeric_limits<unsigned int>::max();
     }
   }
 }
@@ -553,5 +618,5 @@ void AudioInterface::write_silence( const unsigned int sample_count )
 
   buffer.commit();
 
-  check_state( SND_PCM_STATE_PREPARED );
+  //  check_state( SND_PCM_STATE_PREPARED );
 }
