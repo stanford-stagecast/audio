@@ -467,7 +467,7 @@ void AudioInterface::loopback_to( AudioInterface& other )
   unsigned int max_mic = 0, min_mic = numeric_limits<unsigned int>::max();
   unsigned int max_phone = 0, min_phone = numeric_limits<unsigned int>::max();
   unsigned int max_combined = 0, min_combined = numeric_limits<unsigned int>::max();
-  unsigned int samples_skipped = 0, samples_added = 0;
+  unsigned int samples_skipped = 0;
   unsigned int total_wakeups = 0, empty_wakeups = 0;
 
   for ( unsigned int iteration = 0;; ++iteration ) {
@@ -506,46 +506,41 @@ void AudioInterface::loopback_to( AudioInterface& other )
     min_combined = min( min_combined, combined );
     max_combined = max( max_combined, combined );
 
-    Buffer read_buf { *this, avail() };
-    Buffer write_buf { other, read_buf.frame_count() };
+    unsigned int avail_remaining = avail();
 
-    const unsigned int num_frames = write_buf.frame_count();
+    while ( avail_remaining ) {
+      Buffer read_buf { *this, avail_remaining };
+      Buffer write_buf { other, read_buf.frame_count() };
 
-    for ( unsigned int i = 0; i < num_frames; i++ ) {
-      write_buf.sample( false, i ) = read_buf.sample( false, i );
-      write_buf.sample( true, i ) = read_buf.sample( false, i );
-    }
+      const unsigned int num_frames = write_buf.frame_count();
 
-    unsigned int amount_to_write = num_frames;
-
-    if ( other.delay() >= 24 and other.state() == SND_PCM_STATE_PREPARED ) {
-      other.start();
-    }
-
-    if ( other.delay() + amount_to_write > 64 and num_frames > 0 ) {
-      amount_to_write--;
-      samples_skipped++;
-    }
-
-    write_buf.commit( amount_to_write );
-    read_buf.commit( num_frames );
-
-    if ( other.delay() + amount_to_write <= 18 ) {
-      Buffer write_buf2 { other, 1 };
-
-      for ( unsigned int i = 0; i < write_buf2.frame_count(); i++ ) {
-        write_buf2.sample( false, i ) = write_buf2.sample( true, i ) = 0;
+      for ( unsigned int i = 0; i < num_frames; i++ ) {
+        write_buf.sample( false, i ) = read_buf.sample( false, i );
+        write_buf.sample( true, i ) = read_buf.sample( false, i );
       }
 
-      write_buf2.commit();
-      samples_added += write_buf2.frame_count();
+      unsigned int amount_to_write = num_frames;
+
+      if ( other.delay() + amount_to_write > 64 and num_frames > 0 ) {
+        amount_to_write--;
+        samples_skipped++;
+      }
+
+      write_buf.commit( amount_to_write );
+      read_buf.commit( num_frames );
+
+      if ( other.delay() + amount_to_write > 24 and other.state() == SND_PCM_STATE_PREPARED ) {
+        other.start();
+      }
+
+      avail_remaining -= num_frames;
     }
 
     if ( iteration % 4000 == 0 ) {
       cerr << "mic: " << min_mic << ".." << max_mic << ", phone: " << min_phone << ".." << max_phone
            << ", combined: " << min_combined << ".." << max_combined << ", skipped: " << samples_skipped
-           << ", added: " << samples_added << ", recoveries: " << recoveries() << "/" << other.recoveries()
-           << ", empty wakeups: " << empty_wakeups << "/" << total_wakeups << "\n";
+           << ", recoveries: " << recoveries() << "/" << other.recoveries() << ", empty wakeups: " << empty_wakeups
+           << "/" << total_wakeups << "\n";
       max_mic = 0;
       min_mic = numeric_limits<unsigned int>::max();
       max_phone = 0;
