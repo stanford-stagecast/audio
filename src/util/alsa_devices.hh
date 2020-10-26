@@ -52,9 +52,12 @@ class AudioInterface
 
   snd_pcm_sframes_t avail_ {}, delay_ {};
 
+  unsigned int samples_skipped_ {};
   unsigned int recoveries_ {};
 
   void initialize();
+
+  void copy_all_available_samples_to( AudioInterface& other );
 
 public:
   class Buffer

@@ -467,7 +467,6 @@ void AudioInterface::loopback_to( AudioInterface& other )
   unsigned int max_mic = 0, min_mic = numeric_limits<unsigned int>::max();
   unsigned int max_phone = 0, min_phone = numeric_limits<unsigned int>::max();
   unsigned int max_combined = 0, min_combined = numeric_limits<unsigned int>::max();
-  unsigned int samples_skipped = 0;
   unsigned int total_wakeups = 0, empty_wakeups = 0;
 
   for ( unsigned int iteration = 0;; ++iteration ) {
@@ -480,20 +479,27 @@ void AudioInterface::loopback_to( AudioInterface& other )
       cerr << "snd_pcm_wait: " << snd_strerror( ret ) << "\n";
     }
 
-    bool failure = false;
-    failure |= update();
-    failure |= other.update();
+    total_wakeups++;
 
-    if ( failure ) {
+    if ( update() ) {
       recover();
       other.recover();
       continue;
     }
 
-    total_wakeups++;
+    if ( other.update() ) {
+      recover();
+      other.recover();
+      continue;
+    }
+
     if ( avail() == 0 ) {
       empty_wakeups++;
       continue;
+    }
+
+    if ( other.delay() > 24 and other.state() == SND_PCM_STATE_PREPARED ) {
+      other.start();
     }
 
     min_mic = min( min_mic, avail() );
@@ -506,39 +512,11 @@ void AudioInterface::loopback_to( AudioInterface& other )
     min_combined = min( min_combined, combined );
     max_combined = max( max_combined, combined );
 
-    unsigned int avail_remaining = avail();
-
-    while ( avail_remaining ) {
-      Buffer read_buf { *this, avail_remaining };
-      Buffer write_buf { other, read_buf.frame_count() };
-
-      const unsigned int num_frames = write_buf.frame_count();
-
-      for ( unsigned int i = 0; i < num_frames; i++ ) {
-        write_buf.sample( false, i ) = read_buf.sample( false, i );
-        write_buf.sample( true, i ) = read_buf.sample( false, i );
-      }
-
-      unsigned int amount_to_write = num_frames;
-
-      if ( other.delay() + amount_to_write > 64 and num_frames > 0 ) {
-        amount_to_write--;
-        samples_skipped++;
-      }
-
-      write_buf.commit( amount_to_write );
-      read_buf.commit( num_frames );
-
-      if ( other.delay() + amount_to_write > 24 and other.state() == SND_PCM_STATE_PREPARED ) {
-        other.start();
-      }
-
-      avail_remaining -= num_frames;
-    }
+    copy_all_available_samples_to( other );
 
     if ( iteration % 4000 == 0 ) {
       cerr << "mic: " << min_mic << ".." << max_mic << ", phone: " << min_phone << ".." << max_phone
-           << ", combined: " << min_combined << ".." << max_combined << ", skipped: " << samples_skipped
+           << ", combined: " << min_combined << ".." << max_combined << ", skipped: " << samples_skipped_
            << ", recoveries: " << recoveries() << "/" << other.recoveries() << ", empty wakeups: " << empty_wakeups
            << "/" << total_wakeups << "\n";
       max_mic = 0;
@@ -549,6 +527,35 @@ void AudioInterface::loopback_to( AudioInterface& other )
       min_combined = numeric_limits<unsigned int>::max();
       total_wakeups = empty_wakeups = 0;
     }
+  }
+}
+
+void AudioInterface::copy_all_available_samples_to( AudioInterface& other )
+{
+  unsigned int avail_remaining = avail();
+
+  while ( avail_remaining ) {
+    Buffer read_buf { *this, avail_remaining };
+    Buffer write_buf { other, read_buf.frame_count() };
+
+    const unsigned int num_frames = write_buf.frame_count();
+
+    for ( unsigned int i = 0; i < num_frames; i++ ) {
+      write_buf.sample( false, i ) = read_buf.sample( false, i );
+      write_buf.sample( true, i ) = read_buf.sample( false, i );
+    }
+
+    unsigned int amount_to_write = num_frames;
+
+    if ( other.delay() + amount_to_write > 64 and num_frames > 0 ) {
+      amount_to_write--;
+      samples_skipped_++;
+    }
+
+    write_buf.commit( amount_to_write );
+    read_buf.commit( num_frames );
+
+    avail_remaining -= num_frames;
   }
 }
 
