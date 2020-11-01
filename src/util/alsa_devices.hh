@@ -92,7 +92,6 @@ public:
   void start();
   void prepare();
   void drop();
-  void drain();
   void loopback_to( AudioInterface& other );
   void write_silence( const unsigned int sample_count );
   snd_pcm_state_t state() const;

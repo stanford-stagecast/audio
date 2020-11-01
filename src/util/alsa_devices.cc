@@ -443,15 +443,9 @@ void AudioInterface::start()
   check_state( SND_PCM_STATE_RUNNING );
 }
 
-void AudioInterface::drain()
-{
-  alsa_check( "snd_pcm_drain(" + name() + ")", snd_pcm_drop( pcm_ ) );
-  check_state( SND_PCM_STATE_SETUP );
-}
-
 void AudioInterface::drop()
 {
-  alsa_check( "snd_pcm_drain(" + name() + ")", snd_pcm_drop( pcm_ ) );
+  alsa_check( "snd_pcm_drop(" + name() + ")", snd_pcm_drop( pcm_ ) );
   check_state( SND_PCM_STATE_SETUP );
 }
 
