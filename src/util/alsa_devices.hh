@@ -48,14 +48,19 @@ class AudioInterface
   std::string interface_name_, annotation_;
   snd_pcm_t* pcm_;
 
+  snd_pcm_state_t state() const;
   void check_state( const snd_pcm_state_t expected_state );
+
+  void start();
+  void prepare();
+  void drop();
+  void recover();
+  bool update();
 
   snd_pcm_sframes_t avail_ {}, delay_ {};
 
   unsigned int samples_skipped_ {};
   unsigned int recoveries_ {};
-
-  void initialize();
 
   void copy_all_available_samples_to( AudioInterface& other );
 
@@ -85,19 +90,30 @@ class AudioInterface
   };
 
 public:
+  struct Configuration
+  {
+    unsigned int sample_rate { 48000 };
+    unsigned int avail_minimum { 6 };
+    unsigned int period_size { 12 };
+    unsigned int buffer_size { 192 };
+
+    unsigned int start_threshold { 24 };
+    unsigned int skip_threshold { 64 };
+  };
+
+private:
+  Configuration config_ {};
+
+public:
   AudioInterface( const std::string_view interface_name,
                   const std::string_view annotation,
                   const snd_pcm_stream_t stream );
 
-  void start();
-  void prepare();
-  void drop();
+  void initialize();
   void loopback_to( AudioInterface& other );
-  void write_silence( const unsigned int sample_count );
-  snd_pcm_state_t state() const;
-  void recover();
 
-  bool update();
+  const Configuration& config() const { return config_; }
+  Configuration& config() { return config_; }
 
   unsigned int avail() const { return avail_; }
   unsigned int delay() const { return delay_; }
@@ -108,8 +124,6 @@ public:
   ~AudioInterface();
 
   void link_with( AudioInterface& other );
-
-  operator snd_pcm_t*() { return pcm_; }
 
   /* can't copy or assign */
   AudioInterface( const AudioInterface& other ) = delete;

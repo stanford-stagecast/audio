@@ -56,7 +56,10 @@ void program_body()
   }
 
   AudioInterface headphone { interface_name, "Headphone", SND_PCM_STREAM_PLAYBACK };
+  headphone.initialize();
+
   AudioInterface microphone { interface_name, "Microphone", SND_PCM_STREAM_CAPTURE };
+  microphone.initialize();
 
   microphone.loopback_to( headphone );
 }
