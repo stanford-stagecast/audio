@@ -1,3 +1,4 @@
+#pragma once
 
 #include <alsa/asoundlib.h>
 #include <dbus/dbus.h>
@@ -5,6 +6,8 @@
 #include <optional>
 #include <string>
 #include <vector>
+
+#include "file_descriptor.hh"
 
 class ALSADevices
 {
@@ -43,26 +46,25 @@ public:
   const std::optional<std::string>& claimed_from() const { return claimed_from_; }
 };
 
+class PCMFD : public FileDescriptor
+{
+public:
+  using FileDescriptor::FileDescriptor;
+
+  using FileDescriptor::register_read;
+};
+
 class AudioInterface
 {
   std::string interface_name_, annotation_;
   snd_pcm_t* pcm_;
 
-  snd_pcm_state_t state() const;
   void check_state( const snd_pcm_state_t expected_state );
-
-  void start();
-  void prepare();
-  void drop();
-  void recover();
-  bool update();
 
   snd_pcm_sframes_t avail_ {}, delay_ {};
 
   unsigned int samples_skipped_ {};
   unsigned int recoveries_ {};
-
-  void copy_all_available_samples_to( AudioInterface& other );
 
   class Buffer
   {
@@ -110,16 +112,24 @@ public:
                   const snd_pcm_stream_t stream );
 
   void initialize();
-  void loopback_to( AudioInterface& other );
+  void start();
+  void prepare();
+  void drop();
+  void recover();
+  bool update();
+
+  void copy_all_available_samples_to( AudioInterface& other );
 
   const Configuration& config() const { return config_; }
-  Configuration& config() { return config_; }
+  void set_config( const Configuration& other ) { config_ = other; }
 
+  snd_pcm_state_t state() const;
   unsigned int avail() const { return avail_; }
   unsigned int delay() const { return delay_; }
   unsigned int recoveries() const { return recoveries_; }
 
   std::string name() const;
+  PCMFD fd();
 
   ~AudioInterface();
 
@@ -128,4 +138,30 @@ public:
   /* can't copy or assign */
   AudioInterface( const AudioInterface& other ) = delete;
   AudioInterface& operator=( const AudioInterface& other ) = delete;
+};
+
+class AudioPair
+{
+  AudioInterface headphone_, microphone_;
+  AudioInterface::Configuration config_ {};
+  PCMFD fd_ { microphone_.fd() };
+
+  unsigned int empty_wakeups_ {};
+
+public:
+  AudioPair( const std::string_view interface_name );
+
+  const AudioInterface::Configuration& config() const { return config_; }
+  void set_config( const AudioInterface::Configuration& config );
+
+  void initialize()
+  {
+    microphone_.initialize();
+    headphone_.initialize();
+  }
+
+  PCMFD& fd() { return fd_; }
+
+  void start() { microphone_.start(); }
+  void loopback();
 };

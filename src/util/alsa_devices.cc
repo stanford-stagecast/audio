@@ -10,6 +10,7 @@
 #include <thread>
 
 #include "alsa_devices.hh"
+#include "exception.hh"
 
 using namespace std;
 using namespace std::chrono;
@@ -300,6 +301,18 @@ AudioDeviceClaim::AudioDeviceClaim( const string_view name )
   }
 }
 
+AudioPair::AudioPair( const string_view interface_name )
+  : headphone_( interface_name, "Headphone", SND_PCM_STREAM_PLAYBACK )
+  , microphone_( interface_name, "Microphone", SND_PCM_STREAM_CAPTURE )
+{}
+
+void AudioPair::set_config( const AudioInterface::Configuration& config )
+{
+  config_ = config;
+  headphone_.set_config( config );
+  microphone_.set_config( config );
+}
+
 AudioInterface::AudioInterface( const string_view interface_name,
                                 const string_view annotation,
                                 const snd_pcm_stream_t stream )
@@ -312,6 +325,20 @@ AudioInterface::AudioInterface( const string_view interface_name,
   notnull( diagnostic, pcm_ );
 
   check_state( SND_PCM_STATE_OPEN );
+}
+
+PCMFD AudioInterface::fd()
+{
+  const int count = alsa_check_easy( snd_pcm_poll_descriptors_count( pcm_ ) );
+  if ( count < 1 or count > 2 ) {
+    throw runtime_error( "unexpected fd count: " + to_string( count ) );
+  }
+
+  // XXX rely on "hw" driver behavior where PCM fd is always first
+
+  pollfd pollfds[2];
+  alsa_check_easy( snd_pcm_poll_descriptors( pcm_, pollfds, count ) );
+  return PCMFD { CheckSystemCall( "dup AudioInterface fd", dup( pollfds[0].fd ) ) };
 }
 
 void AudioInterface::initialize()
@@ -384,6 +411,7 @@ void AudioInterface::initialize()
 bool AudioInterface::update()
 {
   const auto ret = snd_pcm_avail_delay( pcm_, &avail_, &delay_ );
+
   if ( ret < 0 ) {
     cerr << name() << ": " << snd_strerror( ret ) << "\n";
     return true;
@@ -454,72 +482,34 @@ void AudioInterface::prepare()
   check_state( SND_PCM_STATE_PREPARED );
 }
 
-void AudioInterface::loopback_to( AudioInterface& other )
+void AudioPair::loopback()
 {
-  unsigned int max_mic = 0, min_mic = numeric_limits<unsigned int>::max();
-  unsigned int max_phone = 0, min_phone = numeric_limits<unsigned int>::max();
-  unsigned int max_combined = 0, min_combined = numeric_limits<unsigned int>::max();
-  unsigned int total_wakeups = 0, empty_wakeups = 0;
+  fd_.register_read();
 
-  for ( unsigned int iteration = 0;; ++iteration ) {
-    if ( state() == SND_PCM_STATE_PREPARED ) {
-      start();
-    }
-
-    const auto ret = snd_pcm_wait( pcm_, -1 );
-    if ( ret < 0 ) {
-      cerr << "snd_pcm_wait: " << snd_strerror( ret ) << "\n";
-    }
-
-    total_wakeups++;
-
-    if ( update() ) {
-      recover();
-      other.recover();
-      continue;
-    }
-
-    if ( other.update() ) {
-      recover();
-      other.recover();
-      continue;
-    }
-
-    if ( avail() == 0 ) {
-      empty_wakeups++;
-      continue;
-    }
-
-    if ( other.delay() > config_.start_threshold and other.state() == SND_PCM_STATE_PREPARED ) {
-      other.start();
-    }
-
-    min_mic = min( min_mic, avail() );
-    max_mic = max( max_mic, avail() );
-
-    min_phone = min( min_phone, other.delay() );
-    max_phone = max( max_phone, other.delay() );
-
-    const auto combined = avail() + other.delay();
-    min_combined = min( min_combined, combined );
-    max_combined = max( max_combined, combined );
-
-    copy_all_available_samples_to( other );
-
-    if ( iteration % 4000 == 0 ) {
-      cerr << "mic: " << min_mic << ".." << max_mic << ", phone: " << min_phone << ".." << max_phone
-           << ", combined: " << min_combined << ".." << max_combined << ", skipped: " << samples_skipped_
-           << ", recoveries: " << recoveries() << "/" << other.recoveries() << ", empty wakeups: " << empty_wakeups
-           << "/" << total_wakeups << "\n";
-      max_mic = 0;
-      min_mic = numeric_limits<unsigned int>::max();
-      max_phone = 0;
-      min_phone = numeric_limits<unsigned int>::max();
-      max_combined = 0;
-      min_combined = numeric_limits<unsigned int>::max();
-      total_wakeups = empty_wakeups = 0;
-    }
+  if ( microphone_.update() ) {
+    microphone_.recover();
+    headphone_.recover();
+    microphone_.start();
+    return;
   }
+
+  if ( headphone_.update() ) {
+    microphone_.recover();
+    headphone_.recover();
+    microphone_.start();
+    return;
+  }
+
+  if ( microphone_.avail() == 0 ) {
+    empty_wakeups_++;
+    return;
+  }
+
+  if ( headphone_.delay() > config_.start_threshold and headphone_.state() == SND_PCM_STATE_PREPARED ) {
+    headphone_.start();
+  }
+
+  microphone_.copy_all_available_samples_to( headphone_ );
 }
 
 void AudioInterface::copy_all_available_samples_to( AudioInterface& other )

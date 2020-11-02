@@ -1,8 +1,11 @@
-#include "alsa_devices.hh"
 #include <chrono>
 #include <cstdlib>
 #include <iostream>
 #include <thread>
+
+#include "alsa_devices.hh"
+#include "eventloop.hh"
+#include "exception.hh"
 
 using namespace std;
 using namespace std::chrono;
@@ -55,21 +58,39 @@ void program_body()
     cout << "Failed to claim ownership: " << e.what() << "\n";
   }
 
-  AudioInterface headphone { interface_name, "Headphone", SND_PCM_STREAM_PLAYBACK };
-  headphone.initialize();
+  AudioPair uac2 { interface_name };
+  uac2.initialize();
 
-  AudioInterface microphone { interface_name, "Microphone", SND_PCM_STREAM_CAPTURE };
-  microphone.initialize();
+  EventLoop loop;
 
-  microphone.loopback_to( headphone );
+  try {
+    FileDescriptor input { CheckSystemCall( "dup STDIN_FILENO", dup( STDIN_FILENO ) ) };
+
+    auto loopback_rule = loop.add_rule( "audio loopback", uac2.fd(), Direction::In, [&] { uac2.loopback(); } );
+    loop.add_rule( "exit on keystroke", input, Direction::In, [&] {
+      loopback_rule.cancel();
+      input.close();
+    } );
+
+    uac2.start();
+    while ( loop.wait_next_event( -1 ) != EventLoop::Result::Exit ) {
+    }
+  } catch ( const exception& e ) {
+    cout << loop.summary() << "\n";
+    throw;
+  }
+
+  cout << loop.summary() << "\n";
 }
 
 int main()
 {
   try {
     program_body();
+    cout << global_timer().summary() << "\n";
   } catch ( const exception& e ) {
-    cout << e.what() << "\n";
+    cout << "Exception: " << e.what() << "\n";
+    cout << global_timer().summary() << "\n";
     return EXIT_FAILURE;
   }
 
