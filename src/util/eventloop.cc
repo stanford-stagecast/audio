@@ -11,7 +11,7 @@ using namespace std;
 
 unsigned int EventLoop::FDRule::service_count() const
 {
-  return directionMember == Direction::In ? fdMember.read_count() : fdMember.write_count();
+  return direction == Direction::In ? fd.read_count() : fd.write_count();
 }
 
 size_t EventLoop::add_category( const string& name )
@@ -20,21 +20,23 @@ size_t EventLoop::add_category( const string& name )
   return _rule_categories.size() - 1;
 }
 
-EventLoop::BasicRule::BasicRule( const size_t category_id, const InterestT& interest, const CallbackT& callback )
-  : category_idMember( category_id )
-  , interestMember( interest )
-  , callbackMember( callback )
+EventLoop::BasicRule::BasicRule( const size_t s_category_id,
+                                 const InterestT& s_interest,
+                                 const CallbackT& s_callback )
+  : category_id( s_category_id )
+  , interest( s_interest )
+  , callback( s_callback )
   , cancel_requested( false )
 {}
 
 EventLoop::FDRule::FDRule( BasicRule&& base,
-                           FileDescriptor&& fd,
-                           const Direction direction,
-                           const CallbackT& cancel )
+                           FileDescriptor&& s_fd,
+                           const Direction s_direction,
+                           const CallbackT& s_cancel )
   : BasicRule( base )
-  , fdMember( move( fd ) )
-  , directionMember( direction )
-  , cancelMember( cancel )
+  , fd( move( s_fd ) )
+  , direction( s_direction )
+  , cancel( s_cancel )
 {}
 
 EventLoop::RuleHandle EventLoop::add_rule( const size_t category_id,
@@ -91,18 +93,18 @@ EventLoop::Result EventLoop::wait_next_event( const int timeout_ms )
           continue;
         }
 
-        if ( this_rule.interestMember() ) {
+        if ( this_rule.interest() ) {
           if ( iterations > 128 ) {
             throw runtime_error( "EventLoop: busy wait detected: rule \""
-                                 + _rule_categories.at( this_rule.category_idMember ).name
+                                 + _rule_categories.at( this_rule.category_id ).name
                                  + "\" is still interested after " + to_string( iterations ) + " iterations" );
           }
 
           rule_fired = true;
           RecordScopeTimer<Timer::Category::Nonblock> record_timer {
-            _rule_categories.at( this_rule.category_idMember ).timer
+            _rule_categories.at( this_rule.category_id ).timer
           };
-          this_rule.callbackMember();
+          this_rule.callback();
         }
 
         ++it;
@@ -124,29 +126,29 @@ EventLoop::Result EventLoop::wait_next_event( const int timeout_ms )
     auto& this_rule = **it;
 
     if ( this_rule.cancel_requested ) {
-      this_rule.cancelMember();
+      this_rule.cancel();
       it = _fd_rules.erase( it );
       continue;
     }
 
-    if ( this_rule.directionMember == Direction::In && this_rule.fdMember.eof() ) {
+    if ( this_rule.direction == Direction::In && this_rule.fd.eof() ) {
       // no more reading on this rule, it's reached eof
-      this_rule.cancelMember();
+      this_rule.cancel();
       it = _fd_rules.erase( it );
       continue;
     }
 
-    if ( this_rule.fdMember.closed() ) {
-      this_rule.cancelMember();
+    if ( this_rule.fd.closed() ) {
+      this_rule.cancel();
       it = _fd_rules.erase( it );
       continue;
     }
 
-    if ( this_rule.interestMember() ) {
-      pollfds.push_back( { this_rule.fdMember.fd_num(), static_cast<short>( this_rule.directionMember ), 0 } );
+    if ( this_rule.interest() ) {
+      pollfds.push_back( { this_rule.fd.fd_num(), static_cast<short>( this_rule.direction ), 0 } );
       something_to_poll = true;
     } else {
-      pollfds.push_back( { this_rule.fdMember.fd_num(), 0, 0 } ); // placeholder --- we still want errors
+      pollfds.push_back( { this_rule.fd.fd_num(), 0, 0 } ); // placeholder --- we still want errors
     }
     ++it;
   }
@@ -174,21 +176,21 @@ EventLoop::Result EventLoop::wait_next_event( const int timeout_ms )
       /* see if fd is a socket */
       int socket_error = 0;
       socklen_t optlen = sizeof( socket_error );
-      const int ret = getsockopt( this_rule.fdMember.fd_num(), SOL_SOCKET, SO_ERROR, &socket_error, &optlen );
+      const int ret = getsockopt( this_rule.fd.fd_num(), SOL_SOCKET, SO_ERROR, &socket_error, &optlen );
       if ( ret == -1 and errno == ENOTSOCK ) {
         throw runtime_error( "error on polled file descriptor for rule \""
-                             + _rule_categories.at( this_rule.category_idMember ).name + "\"" );
+                             + _rule_categories.at( this_rule.category_id ).name + "\"" );
       } else if ( ret == -1 ) {
         throw unix_error( "getsockopt" );
       } else if ( optlen != sizeof( socket_error ) ) {
         throw runtime_error( "unexpected length from getsockopt: " + to_string( optlen ) );
       } else if ( socket_error ) {
-        throw unix_error( "error on polled socket for rule \""
-                            + _rule_categories.at( this_rule.category_idMember ).name + "\"",
+        throw unix_error( "error on polled socket for rule \"" + _rule_categories.at( this_rule.category_id ).name
+                            + "\"",
                           socket_error );
       }
 
-      this_rule.cancelMember();
+      this_rule.cancel();
       it = _fd_rules.erase( it );
       continue;
     }
@@ -199,23 +201,22 @@ EventLoop::Result EventLoop::wait_next_event( const int timeout_ms )
       // if we asked for the status, and the _only_ condition was a hangup, this FD is defunct:
       //   - if it was POLLIN and nothing is readable, no more will ever be readable
       //   - if it was POLLOUT, it will not be writable again
-      this_rule.cancelMember();
+      this_rule.cancel();
       it = _fd_rules.erase( it );
       continue;
     }
 
     if ( poll_ready ) {
       RecordScopeTimer<Timer::Category::Nonblock> record_timer {
-        _rule_categories.at( this_rule.category_idMember ).timer
+        _rule_categories.at( this_rule.category_id ).timer
       };
       // we only want to call callback if revents includes the event we asked for
       const auto count_before = this_rule.service_count();
-      this_rule.callbackMember();
+      this_rule.callback();
 
-      if ( count_before == this_rule.service_count() and ( not this_rule.fdMember.closed() )
-           and this_rule.interestMember() ) {
+      if ( count_before == this_rule.service_count() and ( not this_rule.fd.closed() ) and this_rule.interest() ) {
         throw runtime_error( "EventLoop: busy wait detected: rule \""
-                             + _rule_categories.at( this_rule.category_idMember ).name
+                             + _rule_categories.at( this_rule.category_id ).name
                              + "\" did not read/write fd and is still interested" );
       }
     }

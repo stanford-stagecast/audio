@@ -1,12 +1,13 @@
 #pragma once
 
-#include "file_descriptor.hh"
-#include "timer.hh"
 #include <functional>
 #include <list>
 #include <memory>
 #include <poll.h>
 #include <string_view>
+
+#include "file_descriptor.hh"
+#include "timer.hh"
 
 //! Waits for events on file descriptors and executes corresponding callbacks.
 class EventLoop
@@ -31,21 +32,21 @@ private:
 
   struct BasicRule
   {
-    size_t category_idMember;
-    InterestT interestMember;
-    CallbackT callbackMember;
+    size_t category_id;
+    InterestT interest;
+    CallbackT callback;
     bool cancel_requested;
 
-    BasicRule( const size_t category_id, const InterestT& interest, const CallbackT& callback );
+    BasicRule( const size_t s_category_id, const InterestT& s_interest, const CallbackT& s_callback );
   };
 
   struct FDRule : public BasicRule
   {
-    FileDescriptor fdMember;   //!< FileDescriptor to monitor for activity.
-    Direction directionMember; //!< Direction::In for reading from fd, Direction::Out for writing to fd.
-    CallbackT cancelMember;    //!< A callback that is called when the rule is cancelled (e.g. on hangup)
+    FileDescriptor fd;   //!< FileDescriptor to monitor for activity.
+    Direction direction; //!< Direction::In for reading from fd, Direction::Out for writing to fd.
+    CallbackT cancel;    //!< A callback that is called when the rule is cancelled (e.g. on hangup)
 
-    FDRule( BasicRule&& base, FileDescriptor&& fd, const Direction direction, const CallbackT& cancel );
+    FDRule( BasicRule&& base, FileDescriptor&& s_fd, const Direction s_direction, const CallbackT& s_cancel );
 
     //! Returns the number of times fd has been read or written, depending on the value of Rule::direction.
     //! \details This function is used internally by EventLoop; you will not need to call it
