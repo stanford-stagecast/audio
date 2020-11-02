@@ -84,6 +84,11 @@ inline Timer& global_timer()
   return the_global_timer;
 }
 
+inline void reset_global_timer()
+{
+  global_timer() = Timer {};
+}
+
 template<Timer::Category category>
 class GlobalScopeTimer
 {

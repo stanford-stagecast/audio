@@ -428,7 +428,6 @@ void AudioInterface::recover()
 {
   drop();
   prepare();
-  recoveries_++;
 }
 
 string AudioInterface::name() const
@@ -482,26 +481,31 @@ void AudioInterface::prepare()
   check_state( SND_PCM_STATE_PREPARED );
 }
 
+void AudioPair::recover()
+{
+  statistics_.recoveries++;
+  microphone_.recover();
+  headphone_.recover();
+  microphone_.start();
+}
+
 void AudioPair::loopback()
 {
+  statistics_.total_wakeups++;
   fd_.register_read();
 
   if ( microphone_.update() ) {
-    microphone_.recover();
-    headphone_.recover();
-    microphone_.start();
+    recover();
     return;
   }
 
   if ( headphone_.update() ) {
-    microphone_.recover();
-    headphone_.recover();
-    microphone_.start();
+    recover();
     return;
   }
 
   if ( microphone_.avail() == 0 ) {
-    empty_wakeups_++;
+    statistics_.empty_wakeups++;
     return;
   }
 
@@ -509,11 +513,17 @@ void AudioPair::loopback()
     headphone_.start();
   }
 
-  microphone_.copy_all_available_samples_to( headphone_ );
+  statistics_.max_microphone_avail = max( statistics_.max_microphone_avail, microphone_.avail() );
+  statistics_.min_headphone_delay = min( statistics_.min_headphone_delay, headphone_.delay() );
+  const unsigned int combined = microphone_.avail() + headphone_.delay();
+  statistics_.max_combined_samples = max( statistics_.max_combined_samples, combined );
+
+  statistics_.samples_skipped += microphone_.copy_all_available_samples_to( headphone_ );
 }
 
-void AudioInterface::copy_all_available_samples_to( AudioInterface& other )
+unsigned int AudioInterface::copy_all_available_samples_to( AudioInterface& other )
 {
+  unsigned int samples_skipped = 0;
   unsigned int avail_remaining = avail();
 
   while ( avail_remaining ) {
@@ -539,6 +549,8 @@ void AudioInterface::copy_all_available_samples_to( AudioInterface& other )
 
     avail_remaining -= num_frames;
   }
+
+  return samples_skipped;
 }
 
 void AudioInterface::link_with( AudioInterface& other )

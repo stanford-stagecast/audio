@@ -64,7 +64,6 @@ class AudioInterface
   snd_pcm_sframes_t avail_ {}, delay_ {};
 
   unsigned int samples_skipped_ {};
-  unsigned int recoveries_ {};
 
   class Buffer
   {
@@ -118,7 +117,7 @@ public:
   void recover();
   bool update();
 
-  void copy_all_available_samples_to( AudioInterface& other );
+  unsigned int copy_all_available_samples_to( AudioInterface& other );
 
   const Configuration& config() const { return config_; }
   void set_config( const Configuration& other ) { config_ = other; }
@@ -126,7 +125,6 @@ public:
   snd_pcm_state_t state() const;
   unsigned int avail() const { return avail_; }
   unsigned int delay() const { return delay_; }
-  unsigned int recoveries() const { return recoveries_; }
 
   std::string name() const;
   PCMFD fd();
@@ -146,7 +144,20 @@ class AudioPair
   AudioInterface::Configuration config_ {};
   PCMFD fd_ { microphone_.fd() };
 
-  unsigned int empty_wakeups_ {};
+  struct Statistics
+  {
+    unsigned int recoveries;
+    unsigned int samples_skipped;
+
+    unsigned int total_wakeups;
+    unsigned int empty_wakeups;
+
+    unsigned int max_microphone_avail;
+    unsigned int min_headphone_delay { std::numeric_limits<unsigned int>::max() };
+    unsigned int max_combined_samples;
+  };
+
+  Statistics statistics_ {};
 
 public:
   AudioPair( const std::string_view interface_name );
@@ -163,5 +174,15 @@ public:
   PCMFD& fd() { return fd_; }
 
   void start() { microphone_.start(); }
+  void recover();
   void loopback();
+
+  const Statistics& statistics() { return statistics_; }
+  void reset_statistics()
+  {
+    auto rec = statistics_.recoveries, skip = statistics_.samples_skipped;
+    statistics_ = {};
+    statistics_.recoveries = rec;
+    statistics_.samples_skipped = skip;
+  }
 };

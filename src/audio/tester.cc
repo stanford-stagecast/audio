@@ -63,21 +63,45 @@ void program_body()
 
   EventLoop loop;
 
-  try {
-    FileDescriptor input { CheckSystemCall( "dup STDIN_FILENO", dup( STDIN_FILENO ) ) };
+  FileDescriptor input { CheckSystemCall( "dup STDIN_FILENO", dup( STDIN_FILENO ) ) };
 
-    auto loopback_rule = loop.add_rule( "audio loopback", uac2.fd(), Direction::In, [&] { uac2.loopback(); } );
-    loop.add_rule( "exit on keystroke", input, Direction::In, [&] {
-      loopback_rule.cancel();
-      input.close();
+  auto loopback_rule = loop.add_rule(
+    "audio loopback",
+    uac2.fd(),
+    Direction::In,
+    [&] { uac2.loopback(); },
+    [] { return true; },
+    [] {},
+    [&] {
+      uac2.recover();
+      return true;
     } );
 
-    uac2.start();
-    while ( loop.wait_next_event( -1 ) != EventLoop::Result::Exit ) {
-    }
-  } catch ( const exception& e ) {
-    cout << loop.summary() << "\n";
-    throw;
+  loop.add_rule( "exit on keystroke", input, Direction::In, [&] {
+    loopback_rule.cancel();
+    input.close();
+  } );
+
+  auto next_stats_print = steady_clock::now() + seconds( 3 );
+  loop.add_rule(
+    "print statistics",
+    [&] {
+      cout << "recov=" << uac2.statistics().recoveries;
+      cout << " skipped=" << uac2.statistics().samples_skipped;
+      cout << " empty=" << uac2.statistics().empty_wakeups << "/" << uac2.statistics().total_wakeups;
+      cout << " mic<=" << uac2.statistics().max_microphone_avail;
+      cout << " phone>=" << uac2.statistics().min_headphone_delay;
+      cout << " comb<=" << uac2.statistics().max_combined_samples;
+      cout << "\n";
+      cout << loop.summary() << "\n";
+      cout << global_timer().summary() << endl;
+      uac2.reset_statistics();
+      next_stats_print = steady_clock::now() + seconds( 3 );
+    },
+    [&] { return steady_clock::now() > next_stats_print; } );
+
+  uac2.start();
+  while ( loop.wait_next_event( -1 ) != EventLoop::Result::Exit ) {
   }
 
   cout << loop.summary() << "\n";

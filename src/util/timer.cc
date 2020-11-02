@@ -34,6 +34,11 @@ string Timer::summary() const
 
     out << "     [max=" << pp_ns( _records.at( i ).max_ns ) << "]";
     out << " [count=" << _records.at( i ).count << "]";
+
+    if ( _records.at( i ).count > 0 ) {
+      out << " [mean=" << Timer::pp_ns( _records.at( i ).total_ns / _records.at( i ).count ) << "]";
+    }
+
     out << "\n";
   }
 

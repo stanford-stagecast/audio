@@ -45,8 +45,13 @@ private:
     FileDescriptor fd;   //!< FileDescriptor to monitor for activity.
     Direction direction; //!< Direction::In for reading from fd, Direction::Out for writing to fd.
     CallbackT cancel;    //!< A callback that is called when the rule is cancelled (e.g. on hangup)
+    InterestT recover;   //!< A callback that is called when the fd is ERR. Returns true to keep rule.
 
-    FDRule( BasicRule&& base, FileDescriptor&& s_fd, const Direction s_direction, const CallbackT& s_cancel );
+    FDRule( BasicRule&& base,
+            FileDescriptor&& s_fd,
+            const Direction s_direction,
+            const CallbackT& s_cancel,
+            const InterestT& s_recover );
 
     //! Returns the number of times fd has been read or written, depending on the value of Rule::direction.
     //! \details This function is used internally by EventLoop; you will not need to call it
@@ -88,7 +93,8 @@ public:
     const Direction direction,
     const CallbackT& callback,
     const InterestT& interest = [] { return true; },
-    const CallbackT& cancel = [] {} );
+    const CallbackT& cancel = [] {},
+    const InterestT& recover = [] { return false; } );
 
   RuleHandle add_rule(
     const size_t category_id,
