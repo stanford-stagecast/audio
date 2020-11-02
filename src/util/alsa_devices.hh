@@ -59,7 +59,6 @@ class AudioInterface
 
   void copy_all_available_samples_to( AudioInterface& other );
 
-public:
   class Buffer
   {
     snd_pcm_t* pcm_;
@@ -85,6 +84,7 @@ public:
     unsigned int frame_count() const { return frame_count_; }
   };
 
+public:
   AudioInterface( const std::string_view interface_name,
                   const std::string_view annotation,
                   const snd_pcm_stream_t stream );
