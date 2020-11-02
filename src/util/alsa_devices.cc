@@ -541,7 +541,7 @@ unsigned int AudioInterface::copy_all_available_samples_to( AudioInterface& othe
 
     if ( other.delay() + amount_to_write > config_.skip_threshold and num_frames > 0 ) {
       amount_to_write--;
-      samples_skipped_++;
+      samples_skipped++;
     }
 
     write_buf.commit( amount_to_write );

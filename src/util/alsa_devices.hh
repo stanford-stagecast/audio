@@ -63,8 +63,6 @@ class AudioInterface
 
   snd_pcm_sframes_t avail_ {}, delay_ {};
 
-  unsigned int samples_skipped_ {};
-
   class Buffer
   {
     snd_pcm_t* pcm_;
