@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "file_descriptor.hh"
+#include "typed_ring_buffer.hh"
 
 class ALSADevices
 {
@@ -52,6 +53,16 @@ public:
   using FileDescriptor::FileDescriptor;
 
   using FileDescriptor::register_read;
+};
+
+struct AudioBuffer
+{
+  TypedRingBuffer<float> ch1, ch2;
+
+  AudioBuffer( const size_t capacity )
+    : ch1( capacity )
+    , ch2( capacity )
+  {}
 };
 
 class AudioInterface
@@ -115,7 +126,7 @@ public:
   void recover();
   bool update();
 
-  unsigned int copy_all_available_samples_to( AudioInterface& other );
+  unsigned int copy_all_available_samples_to( AudioInterface& other, AudioBuffer& output );
 
   const Configuration& config() const { return config_; }
   void set_config( const Configuration& other ) { config_ = other; }
@@ -173,7 +184,7 @@ public:
 
   void start() { microphone_.start(); }
   void recover();
-  void loopback();
+  void loopback( AudioBuffer& output );
 
   const Statistics& statistics() { return statistics_; }
   void reset_statistics()

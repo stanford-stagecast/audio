@@ -8,24 +8,13 @@
 #include <memory>
 #include <string>
 #include <thread>
+#include <tuple>
 
 #include "alsa_devices.hh"
 #include "exception.hh"
 
 using namespace std;
 using namespace std::chrono;
-
-template<typename T>
-inline T* notnull( const char* context, T* const x )
-{
-  return x ? x : throw runtime_error( string( context ) + ": returned null pointer" );
-}
-
-template<typename T>
-inline T* notnull( const string& context, T* const x )
-{
-  return notnull( context.c_str(), x );
-}
 
 struct DBusMem_deleter
 {
@@ -489,7 +478,7 @@ void AudioPair::recover()
   microphone_.start();
 }
 
-void AudioPair::loopback()
+void AudioPair::loopback( AudioBuffer& output )
 {
   statistics_.total_wakeups++;
   fd_.register_read();
@@ -518,10 +507,10 @@ void AudioPair::loopback()
   const unsigned int combined = microphone_.avail() + headphone_.delay();
   statistics_.max_combined_samples = max( statistics_.max_combined_samples, combined );
 
-  statistics_.samples_skipped += microphone_.copy_all_available_samples_to( headphone_ );
+  statistics_.samples_skipped += microphone_.copy_all_available_samples_to( headphone_, output );
 }
 
-unsigned int AudioInterface::copy_all_available_samples_to( AudioInterface& other )
+unsigned int AudioInterface::copy_all_available_samples_to( AudioInterface& other, AudioBuffer& output )
 {
   unsigned int samples_skipped = 0;
   unsigned int avail_remaining = avail();
@@ -532,10 +521,21 @@ unsigned int AudioInterface::copy_all_available_samples_to( AudioInterface& othe
 
     const unsigned int num_frames = write_buf.frame_count();
 
+    auto [ch1, ch2] = make_tuple( output.ch1.writable_region(), output.ch2.writable_region() );
+    if ( ch1.size() < num_frames or ch2.size() < num_frames ) {
+      throw runtime_error( "buffer overflow in output" );
+    }
+
     for ( unsigned int i = 0; i < num_frames; i++ ) {
       write_buf.sample( false, i ) = read_buf.sample( false, i );
       write_buf.sample( true, i ) = read_buf.sample( false, i );
+
+      ch1[i] = read_buf.sample( false, i ) / float( 1 << 24 );
+      ch2[i] = read_buf.sample( false, i ) / float( 1 << 24 );
     }
+
+    output.ch1.push( num_frames );
+    output.ch2.push( num_frames );
 
     unsigned int amount_to_write = num_frames;
 

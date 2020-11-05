@@ -18,6 +18,10 @@ pkg_check_modules ( DBus REQUIRED dbus-1 )
 include_directories ( ${DBus_INCLUDE_DIRS} )
 add_compile_options ( ${DBus_CFLAGS_OTHER} )
 
+pkg_check_modules ( Opus REQUIRED opus )
+include_directories ( ${Opus_INCLUDE_DIRS} )
+add_compile_options ( ${Opus_CFLAGS_OTHER} )
+
 include_directories ("${PROJECT_SOURCE_DIR}/src/util")
 
 add_subdirectory ("${PROJECT_SOURCE_DIR}/src/util")

@@ -57,12 +57,12 @@ RingBuffer::RingBuffer( const size_t capacity )
 
 std::string_view RingBuffer::writable_region() const
 {
-  return { virtual_address_space_.addr() + next_index_to_write_, capacity() - bytes_stored_ };
+  return { virtual_address_space_.addr() + next_index_to_write_, capacity() - bytes_stored() };
 }
 
 simple_string_span RingBuffer::writable_region()
 {
-  return { virtual_address_space_.addr() + next_index_to_write_, capacity() - bytes_stored_ };
+  return { virtual_address_space_.addr() + next_index_to_write_, capacity() - bytes_stored() };
 }
 
 void RingBuffer::push( const size_t num_bytes )
@@ -72,14 +72,14 @@ void RingBuffer::push( const size_t num_bytes )
   }
 
   next_index_to_write_ = ( next_index_to_write_ + num_bytes ) % capacity();
-  bytes_stored_ += num_bytes;
+  bytes_pushed_ += num_bytes;
 }
 
 std::string_view RingBuffer::readable_region() const
 {
-  const size_t next_index_to_read = ( next_index_to_write_ + capacity() - bytes_stored_ ) % capacity();
+  const size_t next_index_to_read = ( next_index_to_write_ + capacity() - bytes_stored() ) % capacity();
 
-  return { virtual_address_space_.addr() + next_index_to_read, bytes_stored_ };
+  return { virtual_address_space_.addr() + next_index_to_read, bytes_stored() };
 }
 
 void RingBuffer::pop( const size_t num_bytes )
@@ -88,17 +88,12 @@ void RingBuffer::pop( const size_t num_bytes )
     throw runtime_error( "RingBuffer::pop exceeded size of readable region" );
   }
 
-  bytes_stored_ -= num_bytes;
+  bytes_popped_ += num_bytes;
 }
 
-size_t RingBuffer::write( const string_view str )
+size_t RingBuffer::push_from_const_str( const string_view str )
 {
   const size_t bytes_written = writable_region().copy( str );
   push( bytes_written );
   return bytes_written;
-}
-
-void RingBuffer::read_from( string_view& str )
-{
-  str.remove_prefix( write( str ) );
 }

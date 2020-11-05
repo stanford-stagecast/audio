@@ -37,3 +37,9 @@ inline int CheckSystemCall( const std::string_view s_attempt, const int return_v
 
   throw unix_error( s_attempt );
 }
+
+template<typename T>
+inline T* notnull( const std::string_view context, T* const x )
+{
+  return x ? x : throw std::runtime_error( std::string( context ) + ": returned null pointer" );
+}

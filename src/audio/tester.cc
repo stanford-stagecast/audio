@@ -6,6 +6,7 @@
 #include "alsa_devices.hh"
 #include "eventloop.hh"
 #include "exception.hh"
+#include "typed_ring_buffer.hh"
 
 using namespace std;
 using namespace std::chrono;
@@ -58,6 +59,8 @@ void program_body()
     cout << "Failed to claim ownership: " << e.what() << "\n";
   }
 
+  AudioBuffer rb { 131072 };
+
   AudioPair uac2 { interface_name };
   uac2.initialize();
 
@@ -69,7 +72,7 @@ void program_body()
     "audio loopback",
     uac2.fd(),
     Direction::In,
-    [&] { uac2.loopback(); },
+    [&] { uac2.loopback( rb ); },
     [] { return true; },
     [] {},
     [&] {
@@ -86,7 +89,8 @@ void program_body()
   loop.add_rule(
     "print statistics",
     [&] {
-      cout << "recov=" << uac2.statistics().recoveries;
+      cout << "buffer size=" << rb.ch1.capacity() - rb.ch1.num_stored();
+      cout << " recov=" << uac2.statistics().recoveries;
       cout << " skipped=" << uac2.statistics().samples_skipped;
       cout << " empty=" << uac2.statistics().empty_wakeups << "/" << uac2.statistics().total_wakeups;
       cout << " mic<=" << uac2.statistics().max_microphone_avail;

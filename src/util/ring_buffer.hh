@@ -31,7 +31,7 @@ public:
 class RingBuffer
 {
   size_t next_index_to_write_ = 0;
-  size_t bytes_stored_ = 0;
+  size_t bytes_pushed_ = 0, bytes_popped_ = 0;
 
   FileDescriptor fd_;
   MMap_Region virtual_address_space_, first_mapping_, second_mapping_;
@@ -48,9 +48,13 @@ public:
   std::string_view readable_region() const;
   void pop( const size_t num_bytes );
 
-  void read_from( FileDescriptor& fd ) { push( fd.read( writable_region() ) ); }
-  void write_to( FileDescriptor& fd ) { pop( fd.write( readable_region() ) ); }
+  void push_from_fd( FileDescriptor& fd ) { push( fd.read( writable_region() ) ); }
+  void pop_to_fd( FileDescriptor& fd ) { pop( fd.write( readable_region() ) ); }
 
-  size_t write( const std::string_view str );
-  void read_from( std::string_view& str );
+  size_t push_from_const_str( const std::string_view str );
+  void read_from_str( std::string_view& str ) { str.remove_prefix( push_from_const_str( str ) ); }
+
+  size_t bytes_pushed() const { return bytes_pushed_; }
+  size_t bytes_popped() const { return bytes_popped_; }
+  size_t bytes_stored() const { return bytes_pushed_ - bytes_popped_; }
 };
