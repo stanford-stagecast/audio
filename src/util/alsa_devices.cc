@@ -518,7 +518,35 @@ void AudioPair::loopback()
   const unsigned int combined = microphone_.avail() + headphone_.delay();
   statistics_.max_combined_samples = max( statistics_.max_combined_samples, combined );
 
-  statistics_.samples_skipped += microphone_.copy_all_available_samples_to( headphone_ );
+  //statistics_.samples_skipped += microphone_.copy_all_available_samples_to( headphone_ );
+  headphone_.read_from_socket();
+}
+
+unsigned int AudioInterface::read_from_socket() {
+  UDPSocket udpSocket;
+  udpSocket.bind({"0", 9090});
+
+  auto recv = udpSocket.recv();
+  string payload = recv.payload();
+  unsigned int payload_frames = atoi(payload);
+
+  while (payload_frames) {
+    Buffer write_buf {*this, avail_remaining};
+    const unsigned int num_frames = write_buf.frame_count();
+
+    for ( unsigned int i = 0; i < num_frames; i++) {
+      write_buf.sample( false, i ) = payload_frames;
+      write_buf.sample( true, i ) =  payload_frames;
+    }
+
+    unsigned int amount_to_write = num_frames;
+    if ( other.delay() + amount_to_write > config.skip_threshold and num_frames > 0 ) {
+      amount_to_write--;
+      samples_skipped++;
+    }
+    write_buf.commit( amount_to_write );
+    payload_frames -= num_frames;
+  }
 }
 
 unsigned int AudioInterface::copy_all_available_samples_to( AudioInterface& other )

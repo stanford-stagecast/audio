@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "socket.hh"
 #include "file_descriptor.hh"
 
 class ALSADevices
@@ -115,6 +116,7 @@ public:
   void recover();
   bool update();
 
+  unsigned int read_from_socket();
   unsigned int copy_all_available_samples_to( AudioInterface& other );
 
   const Configuration& config() const { return config_; }
