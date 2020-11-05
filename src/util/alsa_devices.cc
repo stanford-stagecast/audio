@@ -508,7 +508,7 @@ void AudioPair::loopback( AudioBuffer& output )
   const unsigned int combined = microphone_.avail() + headphone_.delay();
   statistics_.max_combined_samples = max( statistics_.max_combined_samples, combined );
 
-  statistics_.samples_skipped += microphone_.copy_all_available_samples_to( headphone_, output );
+  microphone_.copy_all_available_samples_to( headphone_, output, statistics_.sample_stats );
 }
 
 inline float sample_to_float( const int32_t sample )
@@ -530,9 +530,10 @@ inline int32_t float_to_sample( const float sample_f )
   return lrint( clamp( sample_f, -1.0f, 1.0f ) * maxval );
 }
 
-unsigned int AudioInterface::copy_all_available_samples_to( AudioInterface& other, AudioBuffer& output )
+void AudioInterface::copy_all_available_samples_to( AudioInterface& other,
+                                                    AudioBuffer& output,
+                                                    AudioStatistics::SampleStats& stats )
 {
-  unsigned int samples_skipped = 0;
   unsigned int avail_remaining = avail();
 
   while ( avail_remaining ) {
@@ -548,10 +549,13 @@ unsigned int AudioInterface::copy_all_available_samples_to( AudioInterface& othe
 
     for ( unsigned int i = 0; i < num_frames; i++ ) {
       const float ch1_sample = sample_to_float( read_buf.sample( false, i ) );
-      const float ch2_sample = sample_to_float( read_buf.sample( false, i ) );
+      const float ch2_sample = sample_to_float( read_buf.sample( true, i ) );
 
       ch1[i] = ch1_sample;
       ch2[i] = ch2_sample;
+
+      stats.max_ch1_amplitude = max( stats.max_ch1_amplitude, abs( ch1_sample ) );
+      stats.max_ch2_amplitude = max( stats.max_ch2_amplitude, abs( ch2_sample ) );
 
       write_buf.sample( false, i )
         = float_to_sample( ch1_sample * config_.ch1_gain[0] + ch2_sample * config_.ch2_gain[0] );
@@ -567,7 +571,7 @@ unsigned int AudioInterface::copy_all_available_samples_to( AudioInterface& othe
 
     if ( other.delay() + amount_to_write > config_.skip_threshold and num_frames > 0 ) {
       amount_to_write--;
-      samples_skipped++;
+      stats.samples_skipped++;
     }
 
     write_buf.commit( amount_to_write );
@@ -575,8 +579,6 @@ unsigned int AudioInterface::copy_all_available_samples_to( AudioInterface& othe
 
     avail_remaining -= num_frames;
   }
-
-  return samples_skipped;
 }
 
 void AudioInterface::link_with( AudioInterface& other )

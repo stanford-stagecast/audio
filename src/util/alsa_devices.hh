@@ -1,6 +1,7 @@
 #pragma once
 
 #include <alsa/asoundlib.h>
+#include <cmath>
 #include <dbus/dbus.h>
 #include <memory>
 #include <optional>
@@ -63,6 +64,24 @@ struct AudioBuffer
     : ch1( capacity )
     , ch2( capacity )
   {}
+};
+
+struct AudioStatistics
+{
+  unsigned int recoveries;
+
+  unsigned int total_wakeups;
+  unsigned int empty_wakeups;
+
+  unsigned int max_microphone_avail;
+  unsigned int min_headphone_delay { std::numeric_limits<unsigned int>::max() };
+  unsigned int max_combined_samples;
+
+  struct SampleStats
+  {
+    unsigned int samples_skipped;
+    float max_ch1_amplitude, max_ch2_amplitude;
+  } sample_stats;
 };
 
 class AudioInterface
@@ -129,7 +148,9 @@ public:
   void recover();
   bool update();
 
-  unsigned int copy_all_available_samples_to( AudioInterface& other, AudioBuffer& output );
+  void copy_all_available_samples_to( AudioInterface& other,
+                                      AudioBuffer& output,
+                                      AudioStatistics::SampleStats& stats );
 
   const Configuration& config() const { return config_; }
   void set_config( const Configuration& other ) { config_ = other; }
@@ -156,20 +177,7 @@ class AudioPair
   AudioInterface::Configuration config_ {};
   PCMFD fd_ { microphone_.fd() };
 
-  struct Statistics
-  {
-    unsigned int recoveries;
-    unsigned int samples_skipped;
-
-    unsigned int total_wakeups;
-    unsigned int empty_wakeups;
-
-    unsigned int max_microphone_avail;
-    unsigned int min_headphone_delay { std::numeric_limits<unsigned int>::max() };
-    unsigned int max_combined_samples;
-  };
-
-  Statistics statistics_ {};
+  AudioStatistics statistics_ {};
 
 public:
   AudioPair( const std::string_view interface_name );
@@ -189,12 +197,17 @@ public:
   void recover();
   void loopback( AudioBuffer& output );
 
-  const Statistics& statistics() { return statistics_; }
+  const AudioStatistics& statistics() { return statistics_; }
   void reset_statistics()
   {
-    auto rec = statistics_.recoveries, skip = statistics_.samples_skipped;
+    auto rec = statistics_.recoveries, skip = statistics_.sample_stats.samples_skipped;
     statistics_ = {};
     statistics_.recoveries = rec;
-    statistics_.samples_skipped = skip;
+    statistics_.sample_stats.samples_skipped = skip;
   }
 };
+
+inline float float_to_dbfs( const float sample_f )
+{
+  return 20 * log10( sample_f );
+}

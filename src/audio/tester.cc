@@ -85,13 +85,23 @@ void program_body()
     input.close();
   } );
 
+  loop.add_rule(
+    "read from buffer",
+    [&] {
+      rb.ch1.pop( rb.ch1.num_stored() );
+      rb.ch2.pop( rb.ch2.num_stored() );
+    },
+    [&] { return rb.ch1.num_stored() > 0; } );
+
   auto next_stats_print = steady_clock::now() + seconds( 3 );
   loop.add_rule(
     "print statistics",
     [&] {
-      cout << "buffer size=" << rb.ch1.capacity() - rb.ch1.num_stored();
+      cout << "peak dBFS=[ " << float_to_dbfs( uac2.statistics().sample_stats.max_ch1_amplitude ) << ", "
+           << float_to_dbfs( uac2.statistics().sample_stats.max_ch2_amplitude ) << " ]";
+      cout << " buffer size=" << rb.ch1.capacity() - rb.ch1.num_stored();
       cout << " recov=" << uac2.statistics().recoveries;
-      cout << " skipped=" << uac2.statistics().samples_skipped;
+      cout << " skipped=" << uac2.statistics().sample_stats.samples_skipped;
       cout << " empty=" << uac2.statistics().empty_wakeups << "/" << uac2.statistics().total_wakeups;
       cout << " mic<=" << uac2.statistics().max_microphone_avail;
       cout << " phone>=" << uac2.statistics().min_headphone_delay;
