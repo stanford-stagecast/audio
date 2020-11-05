@@ -8,6 +8,10 @@
 #include "exception.hh"
 #include "typed_ring_buffer.hh"
 
+#ifndef NDBUS
+#include "audio_device_claim.hh"
+#endif
+
 using namespace std;
 using namespace std::chrono;
 
@@ -39,14 +43,9 @@ pair<string, string> find_device( const string_view expected_description )
   return { name, interface_name };
 }
 
-void program_body()
+#ifndef NDBUS
+optional<AudioDeviceClaim> try_claim_ownership( const string_view name )
 {
-  ios::sync_with_stdio( false );
-
-  const auto [name, interface_name] = find_device( "UAC-2, USB Audio" );
-
-  cout << "Found " << interface_name << " as " << name << "\n";
-
   try {
     AudioDeviceClaim ownership { name };
 
@@ -55,9 +54,26 @@ void program_body()
       cout << " from " << ownership.claimed_from().value();
     }
     cout << endl;
+
+    return ownership;
   } catch ( const exception& e ) {
     cout << "Failed to claim ownership: " << e.what() << "\n";
+    return {};
   }
+}
+#endif
+
+void program_body()
+{
+  ios::sync_with_stdio( false );
+
+  const auto [name, interface_name] = find_device( "UAC-2, USB Audio" );
+
+  cout << "Found " << interface_name << " as " << name << "\n";
+
+#ifndef NDBUS
+  auto ownership = try_claim_ownership( name );
+#endif
 
   AudioBuffer audio_output { 65536 }, audio_input { 65536 };
 
