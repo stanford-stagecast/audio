@@ -489,7 +489,7 @@ void AudioPair::recover()
   microphone_.start();
 }
 
-void AudioPair::loopback()
+void AudioPair::loopback(UDPSocket udpSocket)
 {
   statistics_.total_wakeups++;
   fd_.register_read();
@@ -519,13 +519,10 @@ void AudioPair::loopback()
   statistics_.max_combined_samples = max( statistics_.max_combined_samples, combined );
 
   //statistics_.samples_skipped += microphone_.copy_all_available_samples_to( headphone_ );
-  headphone_.read_from_socket();
+  headphone_.read_from_socket(udpSocket);
 }
 
-unsigned int AudioInterface::read_from_socket() {
-  UDPSocket udpSocket;
-  udpSocket.bind({"0", 9090});
-
+unsigned int AudioInterface::read_from_socket(UDPSocket udpSocket) {
   auto recv = udpSocket.recv();
   string payload = recv.payload();
   const char* bytes = payload.c_str();

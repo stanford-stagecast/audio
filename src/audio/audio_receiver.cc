@@ -3,6 +3,7 @@
 #include <iostream>
 #include <thread>
 
+#include "socket.hh"
 #include "alsa_devices.hh"
 #include "eventloop.hh"
 #include "exception.hh"
@@ -64,12 +65,14 @@ void program_body()
   EventLoop loop;
 
   FileDescriptor input { CheckSystemCall( "dup STDIN_FILENO", dup( STDIN_FILENO ) ) };
+  UDPSocket udpSocket;
+  udpSocket.bind({"0", 9090});
 
   auto loopback_rule = loop.add_rule(
     "audio loopback",
     uac2.fd(),
     Direction::In,
-    [&] { uac2.loopback(); },
+    [&] { uac2.loopback(udpSocket); },
     [] { return true; },
     [] {},
     [&] {
