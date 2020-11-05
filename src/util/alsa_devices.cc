@@ -489,7 +489,7 @@ void AudioPair::recover()
   microphone_.start();
 }
 
-void AudioPair::loopback()
+void AudioPair::loopback(/*UDPSocket udpSocket*/)
 {
   statistics_.total_wakeups++;
   fd_.register_read();
@@ -521,6 +521,22 @@ void AudioPair::loopback()
   // statistics_.samples_skipped += microphone_.copy_all_available_samples_to( headphone_ );
 
   microphone_.write_to_socket();
+}
+
+void AudioPair::play_from_socket(UDPSocket& socket)
+{
+  if (headphone_.update()) {
+    recover();
+    return;
+  }
+
+  if ( headphone_.delay() > config_.start_threshold and headphone_.state() == SND_PCM_STATE_PREPARED ) {
+    headphone_.start();
+  }
+
+  statistics_.min_headphone_delay = min( statistics_.min_headphone_delay, headphone_.delay() );
+
+  headphone_.read_from_socket(socket);
 }
 
 void AudioInterface::write_to_socket()
@@ -563,6 +579,42 @@ void AudioInterface::write_to_socket()
   }
 
   // return 0;
+}
+
+unsigned int AudioInterface::read_from_socket(UDPSocket& udpSocket) {
+  auto recv = udpSocket.recv();
+  string payload = recv.payload;
+  const char* bytes = payload.c_str();
+  int32_t payload_frames;
+  memcpy(&payload_frames, bytes, sizeof(int32_t));
+  cout << "RECEIVED: " << payload_frames << endl;
+
+  Buffer write_buf { *this, 1 };
+  const unsigned int num_frames = write_buf.frame_count();
+  for ( unsigned int i = 0; i < num_frames; i++) {
+    write_buf.sample( false, i ) = payload_frames;
+    write_buf.sample( true, i ) =  payload_frames;
+  }
+  write_buf.commit(num_frames);
+  return num_frames;
+
+  // while (payload_frames) {
+  //   Buffer write_buf {*this, avail_remaining};
+  //   const unsigned int num_frames = write_buf.frame_count();
+
+  //   for ( unsigned int i = 0; i < num_frames; i++) {
+  //     write_buf.sample( false, i ) = payload_frames;
+  //     write_buf.sample( true, i ) =  payload_frames;
+  //   }
+
+  //   unsigned int amount_to_write = num_frames;
+  //   if ( other.delay() + amount_to_write > config.skip_threshold and num_frames > 0 ) {
+  //     amount_to_write--;
+  //     samples_skipped++;
+  //   }
+  //   write_buf.commit( amount_to_write );
+  //   payload_frames -= num_frames;
+  // }
 }
 
 unsigned int AudioInterface::copy_all_available_samples_to( AudioInterface& other )

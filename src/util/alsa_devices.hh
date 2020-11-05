@@ -118,6 +118,7 @@ public:
   bool update();
 
   void write_to_socket();
+  unsigned int read_from_socket(UDPSocket& udpSocket);
   unsigned int copy_all_available_samples_to( AudioInterface& other );
 
   const Configuration& config() const { return config_; }
@@ -176,7 +177,8 @@ public:
 
   void start() { microphone_.start(); }
   void recover();
-  void loopback();
+  void loopback(/*UDPSocket udpSocket*/);
+  void play_from_socket(UDPSocket& socket);
 
   const Statistics& statistics() { return statistics_; }
   void reset_statistics()

@@ -2,7 +2,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <thread>
- 
+
 #include "socket.hh"
 #include "alsa_devices.hh"
 #include "eventloop.hh"
@@ -65,12 +65,14 @@ void program_body()
   EventLoop loop;
 
   FileDescriptor input { CheckSystemCall( "dup STDIN_FILENO", dup( STDIN_FILENO ) ) };
-  UDPSocket udpSocket; /*Dummy variables to satisfy interface change*/
+  UDPSocket udpSocket;
+  udpSocket.bind({"0", 9090});
+
   auto loopback_rule = loop.add_rule(
     "audio loopback",
     uac2.fd(),
     Direction::In,
-    [&] { uac2.loopback(); },
+    [&] { uac2.loopback(udpSocket); },
     [] { return true; },
     [] {},
     [&] {
@@ -78,33 +80,8 @@ void program_body()
       return true;
     } );
 
-  UDPSocket socket;
-  socket.set_blocking(false);
-  socket.bind( {"0", 9090 });
-
-  auto playback_rule = loop.add_rule(
-    "audio playback",
-    socket,
-    Direction::In,
-    [&] {
-      // auto recv = socket.recv();
-      // string payload = recv.payload;
-      // // cout << payload << endl;
-      // const char *bytes = payload.c_str();
-
-      // int32_t sample_value;
-      // memcpy(&sample_value, bytes, sizeof(int32_t));
-      // cout << "RECEIVED: " << sample_value << endl;
-
-      uac2.play_from_socket(socket);
-    },
-    [] { return true; } );
-
-
-
   loop.add_rule( "exit on keystroke", input, Direction::In, [&] {
     loopback_rule.cancel();
-    playback_rule.cancel();
     input.close();
   } );
 
@@ -125,7 +102,6 @@ void program_body()
       next_stats_print = steady_clock::now() + seconds( 3 );
     },
     [&] { return steady_clock::now() > next_stats_print; } );
-
 
   uac2.start();
   while ( loop.wait_next_event( -1 ) != EventLoop::Result::Exit ) {
