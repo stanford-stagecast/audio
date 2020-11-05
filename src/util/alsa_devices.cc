@@ -528,7 +528,9 @@ unsigned int AudioInterface::read_from_socket() {
 
   auto recv = udpSocket.recv();
   string payload = recv.payload();
-  unsigned int payload_frames = atoi(payload);
+  const char* bytes = payload.c_str();
+  int32_t payload_frames;
+  memcpy(&payload_frames, bytes, sizeof(int32_t));
 
   while (payload_frames) {
     Buffer write_buf {*this, avail_remaining};
