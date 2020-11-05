@@ -518,7 +518,53 @@ void AudioPair::loopback()
   const unsigned int combined = microphone_.avail() + headphone_.delay();
   statistics_.max_combined_samples = max( statistics_.max_combined_samples, combined );
 
-  statistics_.samples_skipped += microphone_.copy_all_available_samples_to( headphone_ );
+  // statistics_.samples_skipped += microphone_.copy_all_available_samples_to( headphone_ );
+
+  microphone_.write_to_socket();
+}
+
+void AudioInterface::write_to_socket()
+{
+  UDPSocket socket;
+  Address server {"127.0.0.1", 9090};
+
+  // unsigned int samples_skipped = 0;
+  unsigned int avail_remaining = avail();
+
+  while ( avail_remaining ) {
+    Buffer read_buf { *this, avail_remaining };
+
+    const unsigned int num_frames = read_buf.frame_count();
+
+    for ( unsigned int i = 0; i < num_frames; i++ ) {
+      // cout << read_buf.sample(false, i) << endl;
+      int32_t sample_value = read_buf.sample( false, i );
+      cout << sample_value << endl;
+
+      char bytes[sizeof(int32_t) + 1];
+      memcpy(bytes, &sample_value, sizeof(int32_t));
+      bytes[sizeof(int32_t)] = '\0';
+      
+      string bytes_str(bytes);
+      cout << "bytes: " <<  bytes_str << endl;
+
+      socket.sendto(server, bytes);
+    }
+
+    // unsigned int amount_to_write = num_frames;
+
+    // if ( other.delay() + amount_to_write > config_.skip_threshold and num_frames > 0 ) {
+    //   amount_to_write--;
+    //   samples_skipped++;
+    // }
+
+    // write_buf.commit( amount_to_write );
+    read_buf.commit( num_frames );
+
+    avail_remaining -= num_frames;
+  }
+
+  // return 0;
 }
 
 unsigned int AudioInterface::copy_all_available_samples_to( AudioInterface& other )
@@ -533,6 +579,7 @@ unsigned int AudioInterface::copy_all_available_samples_to( AudioInterface& othe
     const unsigned int num_frames = write_buf.frame_count();
 
     for ( unsigned int i = 0; i < num_frames; i++ ) {
+      cout << "L: " << read_buf.sample(false, i) << "\tR: " << read_buf.sample(true, i) << endl;
       write_buf.sample( false, i ) = read_buf.sample( false, i );
       write_buf.sample( true, i ) = read_buf.sample( false, i );
     }

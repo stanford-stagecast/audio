@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "file_descriptor.hh"
+#include "socket.hh"
 
 class ALSADevices
 {
@@ -63,6 +64,7 @@ class AudioInterface
 
   snd_pcm_sframes_t avail_ {}, delay_ {};
 
+public:
   class Buffer
   {
     snd_pcm_t* pcm_;
@@ -115,6 +117,7 @@ public:
   void recover();
   bool update();
 
+  void write_to_socket();
   unsigned int copy_all_available_samples_to( AudioInterface& other );
 
   const Configuration& config() const { return config_; }
