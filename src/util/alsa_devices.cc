@@ -537,18 +537,16 @@ void AudioInterface::write_to_socket()
     const unsigned int num_frames = read_buf.frame_count();
 
     for ( unsigned int i = 0; i < num_frames; i++ ) {
-      // cout << read_buf.sample(false, i) << endl;
+      // cout << "SENT: " << read_buf.sample(false, i) << endl;
       int32_t sample_value = read_buf.sample( false, i );
-      cout << sample_value << endl;
+      cout << "SENT: " << sample_value << endl;
 
       char bytes[sizeof(int32_t) + 1];
       memcpy(bytes, &sample_value, sizeof(int32_t));
       bytes[sizeof(int32_t)] = '\0';
-      
-      string bytes_str(bytes);
-      cout << "bytes: " <<  bytes_str << endl;
 
-      socket.sendto(server, bytes);
+      string payload(bytes, sizeof(int32_t));
+      socket.sendto(server, payload);
     }
 
     // unsigned int amount_to_write = num_frames;
