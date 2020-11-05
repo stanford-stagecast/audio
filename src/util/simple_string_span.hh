@@ -20,4 +20,9 @@ public:
     memcpy( mutable_data(), other.data(), amount_to_copy );
     return amount_to_copy;
   }
+
+  simple_string_span substr( const size_t s_pos, const size_t s_npos )
+  {
+    return std::string_view::substr( s_pos, s_npos );
+  }
 };
