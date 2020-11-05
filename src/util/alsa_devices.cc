@@ -489,36 +489,33 @@ void AudioPair::recover()
   microphone_.start();
 }
 
-void AudioPair::loopback()
+void AudioPair::loopback(UDPSocket udpSocket, string udp_interface_name)
 {
+  // TODO: Don't fully understand this
+  // Seems to be an update of a) statistics
+  // and then b) reads from the microphone!
   statistics_.total_wakeups++;
-  fd_.register_read();
+  //fd_.register_read(); ? TODO
 
-  if ( microphone_.update() ) {
-    recover();
-    return;
-  }
-
+  //Step 1: Create AudioInterface for UdpSocket
+  AudioInterface socket_listen_ = new AudioInterface( udp_interface_name, "SocketListen", SND_PCM_STREAM_PLAYBACK );
+  // When the headphone updates, recover
   if ( headphone_.update() ) {
     recover();
     return;
   }
 
-  if ( microphone_.avail() == 0 ) {
-    statistics_.empty_wakeups++;
-    return;
-  }
-
+  // TODO smth smth headphone starts??
   if ( headphone_.delay() > config_.start_threshold and headphone_.state() == SND_PCM_STATE_PREPARED ) {
     headphone_.start();
   }
 
-  statistics_.max_microphone_avail = max( statistics_.max_microphone_avail, microphone_.avail() );
+  // Statistics updating
   statistics_.min_headphone_delay = min( statistics_.min_headphone_delay, headphone_.delay() );
-  const unsigned int combined = microphone_.avail() + headphone_.delay();
+  const unsigned int combined = headphone_.delay();
   statistics_.max_combined_samples = max( statistics_.max_combined_samples, combined );
 
-  statistics_.samples_skipped += microphone_.copy_all_available_samples_to( headphone_ );
+  statistics_.samples_skipped += socket_listen_.copy_all_available_samples_to( headphone_ );
 }
 
 unsigned int AudioInterface::copy_all_available_samples_to( AudioInterface& other )
