@@ -129,8 +129,8 @@ public:
     unsigned int start_threshold { 24 };
     unsigned int skip_threshold { 64 };
 
-    std::array<float, 2> ch1_gain { 1.0, 1.0 };
-    std::array<float, 2> ch2_gain { 1.0, 1.0 };
+    std::array<float, 2> ch1_loopback_gain { 2.0, 2.0 };
+    std::array<float, 2> ch2_loopback_gain { 2.0, 2.0 };
   };
 
 private:

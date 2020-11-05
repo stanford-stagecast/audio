@@ -558,10 +558,10 @@ void AudioInterface::copy_all_available_samples_to( AudioInterface& other,
       stats.max_ch2_amplitude = max( stats.max_ch2_amplitude, abs( ch2_sample ) );
 
       write_buf.sample( false, i )
-        = float_to_sample( ch1_sample * config_.ch1_gain[0] + ch2_sample * config_.ch2_gain[0] );
+        = float_to_sample( ch1_sample * config_.ch1_loopback_gain[0] + ch2_sample * config_.ch2_loopback_gain[0] );
 
       write_buf.sample( true, i )
-        = float_to_sample( ch1_sample * config_.ch1_gain[1] + ch2_sample * config_.ch2_gain[1] );
+        = float_to_sample( ch1_sample * config_.ch1_loopback_gain[1] + ch2_sample * config_.ch2_loopback_gain[1] );
     }
 
     output.ch1.push( num_frames );

@@ -59,7 +59,7 @@ void program_body()
     cout << "Failed to claim ownership: " << e.what() << "\n";
   }
 
-  AudioBuffer rb { 131072 };
+  AudioBuffer audio_output { 65536 }, audio_input { 65536 };
 
   AudioPair uac2 { interface_name };
   uac2.initialize();
@@ -72,7 +72,7 @@ void program_body()
     "audio loopback",
     uac2.fd(),
     Direction::In,
-    [&] { uac2.loopback( rb ); },
+    [&] { uac2.loopback( audio_output ); },
     [] { return true; },
     [] {},
     [&] {
@@ -88,10 +88,10 @@ void program_body()
   loop.add_rule(
     "read from buffer",
     [&] {
-      rb.ch1.pop( rb.ch1.num_stored() );
-      rb.ch2.pop( rb.ch2.num_stored() );
+      audio_output.ch1.pop( audio_output.ch1.num_stored() );
+      audio_output.ch2.pop( audio_output.ch2.num_stored() );
     },
-    [&] { return rb.ch1.num_stored() > 0; } );
+    [&] { return audio_output.ch1.num_stored() > 0; } );
 
   auto next_stats_print = steady_clock::now() + seconds( 3 );
   loop.add_rule(
@@ -99,7 +99,7 @@ void program_body()
     [&] {
       cout << "peak dBFS=[ " << float_to_dbfs( uac2.statistics().sample_stats.max_ch1_amplitude ) << ", "
            << float_to_dbfs( uac2.statistics().sample_stats.max_ch2_amplitude ) << " ]";
-      cout << " buffer size=" << rb.ch1.capacity() - rb.ch1.num_stored();
+      cout << " buffer size=" << audio_output.ch1.capacity() - audio_output.ch1.num_stored();
       cout << " recov=" << uac2.statistics().recoveries;
       cout << " skipped=" << uac2.statistics().sample_stats.samples_skipped;
       cout << " empty=" << uac2.statistics().empty_wakeups << "/" << uac2.statistics().total_wakeups;
