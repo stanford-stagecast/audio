@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <alsa/asoundlib.h>
 #include <cmath>
 #include <cstdlib>
@@ -510,6 +511,25 @@ void AudioPair::loopback( AudioBuffer& output )
   statistics_.samples_skipped += microphone_.copy_all_available_samples_to( headphone_, output );
 }
 
+inline float sample_to_float( const int32_t sample )
+{
+  if ( sample & 0xff ) {
+    throw runtime_error( "invalid sample: " + to_string( sample ) );
+  }
+  constexpr float maxval = uint64_t( 1 ) << 32;
+  const float ret = sample / maxval;
+  if ( ret > 1.0 or ret < -1.0 ) {
+    throw runtime_error( "invalid sample: " + to_string( sample ) );
+  }
+  return ret;
+}
+
+inline int32_t float_to_sample( const float sample_f )
+{
+  constexpr float maxval = uint64_t( 1 ) << 32;
+  return lrint( clamp( sample_f, -1.0f, 1.0f ) * maxval );
+}
+
 unsigned int AudioInterface::copy_all_available_samples_to( AudioInterface& other, AudioBuffer& output )
 {
   unsigned int samples_skipped = 0;
@@ -527,11 +547,17 @@ unsigned int AudioInterface::copy_all_available_samples_to( AudioInterface& othe
     }
 
     for ( unsigned int i = 0; i < num_frames; i++ ) {
-      write_buf.sample( false, i ) = read_buf.sample( false, i );
-      write_buf.sample( true, i ) = read_buf.sample( false, i );
+      const float ch1_sample = sample_to_float( read_buf.sample( false, i ) );
+      const float ch2_sample = sample_to_float( read_buf.sample( false, i ) );
 
-      ch1[i] = read_buf.sample( false, i ) / float( 1 << 24 );
-      ch2[i] = read_buf.sample( false, i ) / float( 1 << 24 );
+      ch1[i] = ch1_sample;
+      ch2[i] = ch2_sample;
+
+      write_buf.sample( false, i )
+        = float_to_sample( ch1_sample * config_.ch1_gain[0] + ch2_sample * config_.ch2_gain[0] );
+
+      write_buf.sample( true, i )
+        = float_to_sample( ch1_sample * config_.ch1_gain[1] + ch2_sample * config_.ch2_gain[1] );
     }
 
     output.ch1.push( num_frames );
