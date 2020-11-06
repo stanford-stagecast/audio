@@ -323,7 +323,7 @@ inline float sample_to_float( const int32_t sample )
   if ( sample & 0xff ) {
     throw runtime_error( "invalid sample: " + to_string( sample ) );
   }
-  constexpr float maxval = uint64_t( 1 ) << 32;
+  constexpr float maxval = uint64_t( 1 ) << 31;
   const float ret = sample / maxval;
   if ( ret > 1.0 or ret < -1.0 ) {
     throw runtime_error( "invalid sample: " + to_string( sample ) );
@@ -333,7 +333,7 @@ inline float sample_to_float( const int32_t sample )
 
 inline int32_t float_to_sample( const float sample_f )
 {
-  constexpr float maxval = uint64_t( 1 ) << 32;
+  constexpr float maxval = uint64_t( 1 ) << 31;
   return lrint( clamp( sample_f, -1.0f, 1.0f ) * maxval );
 }
 
