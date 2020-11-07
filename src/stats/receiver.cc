@@ -69,7 +69,7 @@ void program_body( size_t num_packets, vector<double>& buffer_vals, vector<int>&
 
       if ( first_packet_received ) {
         num_samples += uac2.mic_avail();
-        , if ( num_samples >= SAMPLES_INTERVAL )
+        if ( num_samples >= SAMPLES_INTERVAL )
         {
           buffer -= static_cast<double>( num_samples ) / static_cast<double>( SAMPLE_RATE_MS );
           buffer_vals.push_back( buffer );
