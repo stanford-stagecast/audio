@@ -53,3 +53,14 @@ optional<AudioDeviceClaim> try_claim_ownership( const string_view name )
   }
 }
 #endif
+
+AudioPair claim_uac2() {
+  const auto [name, interface_name] = find_device( "UAC-2, USB Audio" );
+  cout << "Found " << interface_name << " as " << name << "\n";
+
+#ifndef NDBUS
+  auto ownership = try_claim_ownership( name );
+#endif
+
+  return { interface_name };
+}

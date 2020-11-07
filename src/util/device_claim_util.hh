@@ -11,3 +11,4 @@ using namespace std;
 
 pair<string, string> find_device( const string_view expected_description );
 optional<AudioDeviceClaim> try_claim_ownership( const string_view name );
+AudioPair claim_uac2();
