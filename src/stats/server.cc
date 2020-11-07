@@ -39,12 +39,10 @@ void pass_along_datagrams( UDPSocket& intermediate )
 
         if ( !client_addresses.empty() ) {
           for ( Address addr : client_addresses ) {
-            cout << "Forwarded to ";
             if ( addr != source_address ) {
+              cout << "Forwarded to " << addr << endl;
               intermediate.sendto( addr, payload );
-              cout << addr << ", ";
             }
-            cout << endl;
           }
         }
       }
