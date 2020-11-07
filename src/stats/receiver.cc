@@ -89,7 +89,8 @@ void program_body( size_t num_packets, vector<double>& buffer_vals, vector<int>&
   UDPSocket receive_sock;
   receive_sock.set_blocking( false );
   receive_sock.bind( { "0", 9090 } );
-  receive_sock.sendto(SOPHON_ADDR, "hello"); // TODO: timeout and resend b/c UDP unreliable
+  Address server = { SOPHON_ADDR, 9090 };
+  receive_sock.sendto(server, "hello"); // TODO: timeout and resend b/c UDP unreliable
 
   auto receive_rule = loop.add_rule(
     "Receive packets",
