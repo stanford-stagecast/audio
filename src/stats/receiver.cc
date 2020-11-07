@@ -65,16 +65,15 @@ void program_body( size_t num_packets, vector<double>& buffer_vals, vector<int>&
     uac2.fd(),
     Direction::In,
     [&] {
-
       uac2.loopback( audio_output );
 
-      if (first_packet_received) {
+      if ( first_packet_received ) {
         num_samples += uac2.mic_avail();
-
-        if ( num_samples >= SAMPLES_INTERVAL ) {
+        , if ( num_samples >= SAMPLES_INTERVAL )
+        {
           buffer -= static_cast<double>( num_samples ) / static_cast<double>( SAMPLE_RATE_MS );
           buffer_vals.push_back( buffer );
-          cout << buffer << endl;
+          // cout << buffer << endl;
           num_samples = 0;
         }
       }
@@ -90,7 +89,7 @@ void program_body( size_t num_packets, vector<double>& buffer_vals, vector<int>&
   receive_sock.set_blocking( false );
   receive_sock.bind( { "0", 9090 } );
   Address server = { SOPHON_ADDR, 9090 };
-  receive_sock.sendto(server, "hello"); // TODO: timeout and resend b/c UDP unreliable
+  receive_sock.sendto( server, "hello" ); // TODO: timeout and resend b/c UDP unreliable
 
   auto receive_rule = loop.add_rule(
     "Receive packets",
@@ -101,7 +100,7 @@ void program_body( size_t num_packets, vector<double>& buffer_vals, vector<int>&
       string payload = recv.payload;
       uint64_t packet_number = stoull( payload );
 
-      if (!first_packet_received) {
+      if ( !first_packet_received ) {
         cout << "first packet received: " << packet_number << endl;
         packet_counter = packet_number + 1; // don't know when we'll get the first packet
         first_packet_received = true;
@@ -137,7 +136,7 @@ void program_body( size_t num_packets, vector<double>& buffer_vals, vector<int>&
   cout << "TOTAL TIME: " << total_time.count() << " ms" << endl;
   cout << "BUFFER: " << buffer << " ms" << endl;
   cout << "# Silent packets: " << silent_packets << "("
-       << static_cast<double> (silent_packets) / static_cast<double> (num_packets) << "%)" << endl;
+       << static_cast<double>( silent_packets ) / static_cast<double>( num_packets ) << "%)" << endl;
 }
 
 /*Exports data about buffer sizes and packet drops*/
@@ -158,7 +157,7 @@ void export_data( vector<double>& buffer_vals, vector<int>& packets_received )
   fout.close();
 }
 
-int main(int argc, char* argv[])
+int main( int argc, char* argv[] )
 {
   try {
     global_timer();
@@ -177,7 +176,7 @@ int main(int argc, char* argv[])
 
     vector<double> buffer_values;
     vector<int> packets_received;
-    program_body(num_packets, buffer_values, packets_received );
+    program_body( num_packets, buffer_values, packets_received );
     export_data( buffer_values, packets_received );
     cout << global_timer().summary() << "\n";
   } catch ( const exception& e ) {

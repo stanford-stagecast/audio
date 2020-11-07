@@ -1,6 +1,6 @@
-#include <stdexcept>
 #include <cstdlib>
 #include <iostream>
+#include <stdexcept>
 
 #include "device_claim_util.hh"
 #include "exception.hh"

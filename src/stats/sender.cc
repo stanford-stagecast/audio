@@ -46,7 +46,7 @@ string build_packet( int packet_number )
  */
 void program_body( unsigned int num_packets )
 {
-  ios::sync_with_stdio(false);
+  ios::sync_with_stdio( false );
 
   cout << "Preparing to send " << num_packets << " packets" << endl;
 
@@ -80,14 +80,14 @@ void program_body( unsigned int num_packets )
     [&] {
       num_samples += uac2.mic_avail();
       uac2.loopback( audio_output );
-      if (num_samples >= SAMPLES_INTERVAL) {
-          auto cur_time = steady_clock::now();
-          chrono::duration<double, ratio<1, 1000>> diff = cur_time - start_time;
-          start_time = cur_time;
-          string packet_content = build_packet( packet_counter );
-          client_sock.sendto( server, packet_content );
-          num_samples = 0;
-          packet_counter++;
+      if ( num_samples >= SAMPLES_INTERVAL ) {
+        auto cur_time = steady_clock::now();
+        chrono::duration<double, ratio<1, 1000>> diff = cur_time - start_time;
+        start_time = cur_time;
+        string packet_content = build_packet( packet_counter );
+        client_sock.sendto( server, packet_content );
+        num_samples = 0;
+        packet_counter++;
       }
     },
     [&] { return packet_counter < num_packets; },
