@@ -171,6 +171,8 @@ public:
   void recover();
   void loopback( AudioBuffer& output );
 
+  unsigned int mic_avail() { return microphone_.avail(); }
+
   const AudioStatistics& statistics() { return statistics_; }
   void reset_statistics()
   {

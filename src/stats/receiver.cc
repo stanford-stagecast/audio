@@ -9,89 +9,122 @@
 #include <thread>
 #include <unistd.h>
 
+#include "alsa_devices.hh"
 #include "eventloop.hh"
 #include "exception.hh"
 #include "socket.hh"
 #include "timer.hh"
+#include "typed_ring_buffer.hh"
+
+#ifndef NDBUS
+#include "device_claim_util.hh"
+#endif
 
 using namespace std;
+using namespace chrono;
 
 const string HOME( getenv( "HOME" ) );
 
-const string BUFFER_CSV = HOME + "/audio/csv/buffer3M_wireless.csv";
-const string PACKET_CSV = HOME + "/audio/csv/packets3M_wireless.csv";
-const uint64_t NS_PER_MS { 1'000'000 };
-const uint64_t DELAY { 2'500'000 };
-const uint64_t MAX_NUM_PACKETS = 3000000;
+const string BUFFER_CSV = HOME + "/audio/csv/buffer_zoom_test.csv";
+const string PACKET_CSV = HOME + "/audio/csv/packets_zoom_test.csv";
 
-void program_body( vector<double>& buffer_vals, vector<int>& packets_received )
+const uint64_t DEFAULT_NUM_PACKETS = 10000;
+const uint32_t SAMPLE_RATE_MS = 48;
+const uint32_t SAMPLES_INTERVAL = 120;
+const string SOPHON_ADDR = "171.67.76.94";
+const string LOCALHOST_ADDR = "127.0.0.1";
+
+void program_body( size_t num_packets, vector<double>& buffer_vals, vector<int>& packets_received )
 {
-  (void)buffer_vals;
-  (void)packets_received;
-  EventLoop event_loop;
-  UDPSocket server_sock;
-  const uint64_t timeout = 1;
-  server_sock.set_blocking( false );
-  server_sock.bind( { "0", 9090 } );
+  cout << "Preparing to receive " << num_packets << " packets" << endl;
+  ios::sync_with_stdio( false );
 
-  auto prev_time = chrono::steady_clock::now();
-  auto prev_decrement_time = chrono::steady_clock::now();
-  uint64_t server_packet_counter = 0;
-  uint64_t silent_packets = 0;
+  const auto [name, interface_name] = find_device( "UAC-2, USB Audio" );
+  cout << "Found " << interface_name << " as " << name << "\n";
+
+#ifndef NDBUS
+  auto ownership = try_claim_ownership( name );
+#endif
+
+  AudioPair uac2 { interface_name };
+  uac2.initialize();
+
+  EventLoop loop;
+
+  uint64_t packet_counter = 0;
+  uint64_t num_samples = 0;
+
+  AudioBuffer audio_output { 65536 };
+
   double buffer = 0;
-  bool packet_zero_received = false;
-  double total_time = 0;
+  uint64_t silent_packets = 0;
 
-  event_loop.add_rule(
-    "Server receive packets and keep track of buffer",
-    server_sock,
+  auto loopback_rule = loop.add_rule(
+    "loopback",
+    uac2.fd(),
     Direction::In,
     [&] {
-      auto recv = server_sock.recv();
+      num_samples += uac2.mic_avail();
+      uac2.loopback( audio_output );
+
+      if ( num_samples >= SAMPLES_INTERVAL ) {
+        buffer -= static_cast<double>( num_samples ) / static_cast<double>( SAMPLE_RATE_MS );
+        buffer_vals.push_back( buffer );
+        cout << buffer << endl;
+        num_samples = 0;
+      }
+    },
+    [&] { return packet_counter < num_packets; },
+    [] {},
+    [&] {
+      uac2.recover();
+      return true;
+    } );
+
+  UDPSocket receive_sock;
+  receive_sock.set_blocking( false );
+  receive_sock.bind( { "0", 9090 } );
+
+  auto receive_rule = loop.add_rule(
+    "Receive packets",
+    receive_sock,
+    Direction::In,
+    [&] {
+      auto recv = receive_sock.recv();
       string payload = recv.payload;
       uint64_t packet_number = stoull( payload );
 
-      if ( packet_number == 0 ) {
-        prev_decrement_time = chrono::steady_clock::now();
-        server_packet_counter++;
-        packets_received.push_back( 1 );
-        packet_zero_received = true;
-      } else if ( packet_number >= server_packet_counter ) {
-        buffer += ( packet_number - server_packet_counter + 1 ) * 2.5;
-        for ( size_t i = server_packet_counter; i < packet_number; i++ ) {
+      if ( packet_number >= packet_counter ) {
+        buffer += ( packet_number - packet_counter + 1 ) * 2.5;
+        for ( size_t i = packet_counter; i < packet_number; i++ ) {
           packets_received.push_back( 0 );
           silent_packets++;
         }
         packets_received.push_back( 1 );
-        server_packet_counter = packet_number + 1;
+        packet_counter = packet_number + 1;
       }
-
-      buffer_vals.push_back( buffer );
-
-      /*Extra part of the event_loop to track the times as a consistency of check*/
-      chrono::duration<double, ratio<1, 1000>> diff = chrono::steady_clock::now() - prev_time;
-      if ( packet_number > 0 ) {
-        // cout << "diff: " << diff.count() << endl;
-        total_time += diff.count();
-      }
-      prev_time = chrono::steady_clock::now();
     },
-    [&] { return server_packet_counter < MAX_NUM_PACKETS; } );
+    [&] { return packet_counter < num_packets; } );
 
-  prev_time = chrono::steady_clock::now();
+  auto buffer_rule = loop.add_rule(
+    "read from buffer",
+    [&] {
+      audio_output.ch1.pop( audio_output.ch1.num_stored() );
+      audio_output.ch2.pop( audio_output.ch2.num_stored() );
+    },
+    [&] { return audio_output.ch1.num_stored() > 0 && packet_counter < num_packets; } );
 
-  while ( event_loop.wait_next_event( timeout ) != EventLoop::Result::Exit ) {
-    if ( packet_zero_received ) {
-      auto current_time = chrono::steady_clock::now();
-      chrono::duration<double, ratio<1, 1000>> time_since_decrement = current_time - prev_decrement_time;
-      buffer -= time_since_decrement.count();
-      prev_decrement_time = current_time;
-    }
+  uac2.start();
+  auto start_time = steady_clock::now();
+  while ( loop.wait_next_event( -1 ) != EventLoop::Result::Exit ) {
   }
-  cout << "Time from packet 0 to packet " << MAX_NUM_PACKETS << ": " << total_time << " ms" << endl;
-  cout << "Buffer: " << buffer << endl;
-  cout << "# Silent packets: " << silent_packets << "(" << (double)silent_packets / (double)MAX_NUM_PACKETS << "%)"
-       << endl;
+  cout << loop.summary() << "\n";
+  auto end_time = steady_clock::now();
+  duration<double, ratio<1, 1000>> total_time = end_time - start_time;
+  cout << "TOTAL TIME: " << total_time.count() << " ms" << endl;
+  cout << "BUFFER: " << buffer << " ms" << endl;
+  cout << "# Silent packets: " << silent_packets << "("
+       << static_cast<double> (silent_packets) / static_cast<double> (num_packets) << "%)" << endl;
 }
 
 /*Exports data about buffer sizes and packet drops*/
@@ -112,13 +145,26 @@ void export_data( vector<double>& buffer_vals, vector<int>& packets_received )
   fout.close();
 }
 
-int main()
+int main(int argc, char* argv[])
 {
   try {
     global_timer();
+
+    // Parse arguments for number of packets to send
+    unsigned int num_packets;
+    if ( argc < 2 ) {
+      num_packets = DEFAULT_NUM_PACKETS;
+    } else {
+      char* endptr;
+      num_packets = strtoul( argv[1], &endptr, 10 );
+      if ( *endptr != '\0' ) {
+        throw runtime_error( "Invalid number of packets provided" );
+      }
+    }
+
     vector<double> buffer_values;
     vector<int> packets_received;
-    program_body( buffer_values, packets_received );
+    program_body(num_packets, buffer_values, packets_received );
     export_data( buffer_values, packets_received );
     cout << global_timer().summary() << "\n";
   } catch ( const exception& e ) {
