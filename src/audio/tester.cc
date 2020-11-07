@@ -19,17 +19,9 @@ void program_body()
 {
   ios::sync_with_stdio( false );
 
-  const auto [name, interface_name] = find_device( "UAC-2, USB Audio" );
-
-  cout << "Found " << interface_name << " as " << name << "\n";
-
-#ifndef NDBUS
-  auto ownership = try_claim_ownership( name );
-#endif
-
   AudioBuffer audio_output { 65536 }, audio_input { 65536 };
 
-  AudioPair uac2 { interface_name };
+  AudioPair uac2 = claim_uac2();
   uac2.initialize();
 
   EventLoop loop;

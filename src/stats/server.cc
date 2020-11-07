@@ -1,8 +1,9 @@
-#include "unistd.h"
+#include <unistd.h>
 #include <iostream>
 #include <map>
 #include <queue>
 #include <vector>
+#include <set>
 
 #include "address.hh"
 #include "eventloop.hh"
@@ -14,7 +15,7 @@ using namespace std;
 void pass_along_datagrams( UDPSocket& intermediate )
 {
   EventLoop loop;
-  optional<Address> receiver_address = {};
+  set<Address> client_addresses;
 
   auto forward_rule = loop.add_rule(
     "forward datagrams",
@@ -22,14 +23,28 @@ void pass_along_datagrams( UDPSocket& intermediate )
     Direction::In,
     [&] {
       auto datagram = intermediate.recv();
+      Address source_address = datagram.source_address;
       string payload = datagram.payload;
+
+      uint64_t packet_number = stoull(payload);
+      if (packet_number % 1000 == 0) {
+        cout << "Source: " << source_address << " | Packet #" << packet_number << endl;
+      }
+
       if ( payload == "hello" ) {
-        receiver_address = datagram.source_address;
-        cout << "receiver address received: " << receiver_address.value() << endl;
-      } else if ( receiver_address.has_value() ) {
-        intermediate.sendto( receiver_address.value(), payload );
-      } else {
-        cout << "received from sender but no receiver set" << endl;
+        if (!client_addresses.count(source_address)) {
+          cout << "new client connected from Address: " << source_address << endl;
+        }
+        client_addresses.insert(source_address);
+      } else if ( !client_addresses.empty() ) {
+        cout << "Forwarded to: ";
+        for (Address addr : client_addresses) {
+          if (addr != source_address) {
+            intermediate.sendto (addr, payload);
+            cout << addr << ", ";
+          }
+          cout << endl;
+        }
       }
     },
     [&] { return true; } );

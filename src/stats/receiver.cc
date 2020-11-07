@@ -1,10 +1,8 @@
-#include <atomic>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
-#include <mutex>
 #include <pthread.h>
 #include <thread>
 #include <unistd.h>
@@ -39,14 +37,7 @@ void program_body( size_t num_packets, vector<double>& buffer_vals, vector<int>&
   cout << "Preparing to receive " << num_packets << " packets" << endl;
   ios::sync_with_stdio( false );
 
-  const auto [name, interface_name] = find_device( "UAC-2, USB Audio" );
-  cout << "Found " << interface_name << " as " << name << "\n";
-
-#ifndef NDBUS
-  auto ownership = try_claim_ownership( name );
-#endif
-
-  AudioPair uac2 { interface_name };
+  AudioPair uac2 = claim_uac2();
   uac2.initialize();
 
   EventLoop loop;
@@ -69,7 +60,7 @@ void program_body( size_t num_packets, vector<double>& buffer_vals, vector<int>&
 
       if ( first_packet_received ) {
         num_samples += uac2.mic_avail();
-        , if ( num_samples >= SAMPLES_INTERVAL )
+        if ( num_samples >= SAMPLES_INTERVAL )
         {
           buffer -= static_cast<double>( num_samples ) / static_cast<double>( SAMPLE_RATE_MS );
           buffer_vals.push_back( buffer );
@@ -105,8 +96,7 @@ void program_body( size_t num_packets, vector<double>& buffer_vals, vector<int>&
         packet_counter = packet_number + 1; // don't know when we'll get the first packet
         first_packet_received = true;
       }
-
-      if ( packet_number >= packet_counter ) {
+      else if ( packet_number >= packet_counter ) {
         buffer += ( packet_number - packet_counter + 1 ) * 2.5;
         for ( size_t i = packet_counter; i < packet_number; i++ ) {
           packets_received.push_back( 0 );

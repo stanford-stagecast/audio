@@ -53,14 +53,7 @@ void program_body( unsigned int num_packets )
   UDPSocket client_sock;
   client_sock.set_blocking( false );
 
-  const auto [name, interface_name] = find_device( "UAC-2, USB Audio" );
-  cout << "Found " << interface_name << " as " << name << "\n";
-
-#ifndef NDBUS
-  auto ownership = try_claim_ownership( name );
-#endif
-
-  AudioPair uac2 { interface_name };
+  AudioPair uac2 = claim_uac2();
   uac2.initialize();
 
   EventLoop loop;
