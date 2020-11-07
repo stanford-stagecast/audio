@@ -56,6 +56,9 @@ void pass_along_datagrams( UDPSocket& intermediate )
       else if (receiver_address.has_value()) {
         intermediate.sendto(receiver_address.value(), payload);
       }
+      else {
+        cout << "received from sender but no receiver set" << endl;
+      }
     },
     [&] { return true; }
   );

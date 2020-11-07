@@ -102,6 +102,7 @@ void program_body( size_t num_packets, vector<double>& buffer_vals, vector<int>&
       uint64_t packet_number = stoull( payload );
 
       if (!first_packet_received) {
+        cout << "first packet received: " << packet_number << endl;
         packet_counter = packet_number + 1; // don't know when we'll get the first packet
         first_packet_received = true;
       }
