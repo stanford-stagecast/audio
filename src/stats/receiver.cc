@@ -58,20 +58,25 @@ void program_body( size_t num_packets, vector<double>& buffer_vals, vector<int>&
 
   double buffer = 0;
   uint64_t silent_packets = 0;
+  bool first_packet_received = false;
 
   auto loopback_rule = loop.add_rule(
     "loopback",
     uac2.fd(),
     Direction::In,
     [&] {
-      num_samples += uac2.mic_avail();
+
       uac2.loopback( audio_output );
 
-      if ( num_samples >= SAMPLES_INTERVAL ) {
-        buffer -= static_cast<double>( num_samples ) / static_cast<double>( SAMPLE_RATE_MS );
-        buffer_vals.push_back( buffer );
-        cout << buffer << endl;
-        num_samples = 0;
+      if (first_packet_received) {
+        num_samples += uac2.mic_avail();
+
+        if ( num_samples >= SAMPLES_INTERVAL ) {
+          buffer -= static_cast<double>( num_samples ) / static_cast<double>( SAMPLE_RATE_MS );
+          buffer_vals.push_back( buffer );
+          cout << buffer << endl;
+          num_samples = 0;
+        }
       }
     },
     [&] { return packet_counter < num_packets; },
@@ -84,6 +89,7 @@ void program_body( size_t num_packets, vector<double>& buffer_vals, vector<int>&
   UDPSocket receive_sock;
   receive_sock.set_blocking( false );
   receive_sock.bind( { "0", 9090 } );
+  receive_sock.sendto(SOPHON_ADDR, "hello"); // TODO: timeout and resend b/c UDP unreliable
 
   auto receive_rule = loop.add_rule(
     "Receive packets",
@@ -93,6 +99,11 @@ void program_body( size_t num_packets, vector<double>& buffer_vals, vector<int>&
       auto recv = receive_sock.recv();
       string payload = recv.payload;
       uint64_t packet_number = stoull( payload );
+
+      if (!first_packet_received) {
+        packet_counter = packet_number + 1; // don't know when we'll get the first packet
+        first_packet_received = true;
+      }
 
       if ( packet_number >= packet_counter ) {
         buffer += ( packet_number - packet_counter + 1 ) * 2.5;
