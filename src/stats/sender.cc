@@ -116,8 +116,8 @@ void program_body( unsigned int num_packets )
 
   // FileDescriptor input { CheckSystemCall( "dup STDIN_FILENO", dup( STDIN_FILENO ) ) };
 
-  unsigned int packet_counter = 0;
-  unsigned int num_samples = 0;
+  uint32_t packet_counter = 0;
+  uint32_t num_samples = 0;
   auto start_time = steady_clock::now();
 
   AudioBuffer audio_output { 65536 };
