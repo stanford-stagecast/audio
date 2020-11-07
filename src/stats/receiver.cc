@@ -18,11 +18,11 @@ using namespace std;
 
 const string HOME( getenv( "HOME" ) );
 
-const string BUFFER_CSV = HOME + "/audio/csv/buffer3M_wireless.csv";
-const string PACKET_CSV = HOME + "/audio/csv/packets3M_wireless.csv";
+const string BUFFER_CSV = HOME + "/audio/csv/buffer_zoom_test.csv";
+const string PACKET_CSV = HOME + "/audio/csv/packets_zoom_test.csv";
 const uint64_t NS_PER_MS { 1'000'000 };
 const uint64_t DELAY { 2'500'000 };
-const uint64_t MAX_NUM_PACKETS = 3000000;
+const uint64_t MAX_NUM_PACKETS = 10000;
 
 void program_body( vector<double>& buffer_vals, vector<int>& packets_received )
 {
