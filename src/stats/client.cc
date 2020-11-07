@@ -50,6 +50,8 @@ void program_body()
   client_sock.set_blocking( false );
   client_sock.bind( { "0", 9091 });
 
+  client_sock.sendto(server, "hello");
+
   AudioBuffer audio_output { 65536 };
   EventLoop loop;
   bool first_packet_received = false;

@@ -1,9 +1,9 @@
-#include <unistd.h>
 #include <iostream>
 #include <map>
 #include <queue>
-#include <vector>
 #include <set>
+#include <unistd.h>
+#include <vector>
 
 #include "address.hh"
 #include "eventloop.hh"
@@ -26,24 +26,26 @@ void pass_along_datagrams( UDPSocket& intermediate )
       Address source_address = datagram.source_address;
       string payload = datagram.payload;
 
-      uint64_t packet_number = stoull(payload);
-      if (packet_number % 1000 == 0) {
-        cout << "Source: " << source_address << " | Packet #" << packet_number << endl;
-      }
-
       if ( payload == "hello" ) {
-        if (!client_addresses.count(source_address)) {
+        if ( !client_addresses.count( source_address ) ) {
           cout << "new client connected from Address: " << source_address << endl;
         }
-        client_addresses.insert(source_address);
-      } else if ( !client_addresses.empty() ) {
-        cout << "Forwarded to: ";
-        for (Address addr : client_addresses) {
-          if (addr != source_address) {
-            intermediate.sendto (addr, payload);
-            cout << addr << ", ";
+        client_addresses.insert( source_address );
+      } else {
+        uint64_t packet_number = stoull( payload );
+        if ( packet_number % 1000 == 0 ) {
+          cout << "Source: " << source_address << " | Packet #" << packet_number << endl;
+        }
+
+        if ( !client_addresses.empty() ) {
+          cout << "Forwarded to: ";
+          for ( Address addr : client_addresses ) {
+            if ( addr != source_address ) {
+              intermediate.sendto( addr, payload );
+              cout << addr << ", ";
+            }
+            cout << endl;
           }
-          cout << endl;
         }
       }
     },
