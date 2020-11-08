@@ -8,15 +8,12 @@
 #include <unistd.h>
 
 #include "alsa_devices.hh"
+#include "audio_device_claim.hh"
 #include "eventloop.hh"
 #include "exception.hh"
 #include "socket.hh"
 #include "timer.hh"
 #include "typed_ring_buffer.hh"
-
-#ifndef NDBUS
-#include "device_claim_util.hh"
-#endif
 
 using namespace std;
 using namespace chrono;
@@ -43,14 +40,16 @@ void program_body()
 {
   ios::sync_with_stdio( false );
 
-  AudioPair uac2 = claim_uac2();
+  const auto [name, interface_name] = ALSADevices::find_device( "UAC-2, USB Audio" );
+  const auto device_claim = AudioDeviceClaim::try_claim( name );
+  AudioPair uac2 { interface_name };
   uac2.initialize();
 
   UDPSocket client_sock;
   client_sock.set_blocking( false );
-  client_sock.bind( { "0", 9091 });
+  client_sock.bind( { "0", 9091 } );
 
-  client_sock.sendto(server, "hello");
+  client_sock.sendto( server, "hello" );
 
   AudioBuffer audio_output { 65536 };
   EventLoop loop;
@@ -68,13 +67,13 @@ void program_body()
       uac2.loopback( audio_output );
       num_samples += uac2.mic_avail();
 
-      if ( num_samples >= SAMPLES_INTERVAL )
-      {
+      if ( num_samples >= SAMPLES_INTERVAL ) {
         // TODO: playback 2.5 ms from buffer
         string packet_content = build_packet( send_packet_counter );
         client_sock.sendto( server, packet_content );
 
-        if (send_packet_counter % 1000 == 0) cout << "Sent client packet #" << send_packet_counter << endl;
+        if ( send_packet_counter % 1000 == 0 )
+          cout << "Sent client packet #" << send_packet_counter << endl;
         num_samples = 0;
         send_packet_counter++;
       }
@@ -94,13 +93,13 @@ void program_body()
       auto recv = client_sock.recv();
       string payload = recv.payload;
       uint64_t packet_number = stoull( payload );
-      if (!first_packet_received) {
+      if ( !first_packet_received ) {
         cout << "First packet received: " << packet_number << endl;
         receive_packet_counter = packet_number + 1;
         first_packet_received = true;
-      }
-      else if ( packet_number >= receive_packet_counter ) {
-        if (packet_number % 1000 == 0) cout << "Received server packet #" << packet_number << endl;
+      } else if ( packet_number >= receive_packet_counter ) {
+        if ( packet_number % 1000 == 0 )
+          cout << "Received server packet #" << packet_number << endl;
         buffer += ( packet_number - receive_packet_counter + 1 ) * 2.5;
         // for ( size_t i = receive_packet_counter; i < packet_number; i++ ) {
         //   packets_received.push_back( 0 );
@@ -129,7 +128,7 @@ void program_body()
   } );
 
   uac2.start();
-  while ( loop.wait_next_event( -1) != EventLoop::Result::Exit ) {
+  while ( loop.wait_next_event( -1 ) != EventLoop::Result::Exit ) {
   }
 
   cout << loop.summary() << "\n";

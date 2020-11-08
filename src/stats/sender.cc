@@ -7,15 +7,12 @@
 #include <unistd.h>
 
 #include "alsa_devices.hh"
+#include "audio_device_claim.hh"
 #include "eventloop.hh"
 #include "exception.hh"
 #include "socket.hh"
 #include "timer.hh"
 #include "typed_ring_buffer.hh"
-
-#ifndef NDBUS
-#include "device_claim_util.hh"
-#endif
 
 using namespace std;
 using namespace std::chrono;
@@ -53,7 +50,9 @@ void program_body( unsigned int num_packets )
   UDPSocket client_sock;
   client_sock.set_blocking( false );
 
-  AudioPair uac2 = claim_uac2();
+  const auto [name, interface_name] = ALSADevices::find_device( "UAC-2, USB Audio" );
+  const auto device_claim = AudioDeviceClaim::try_claim( name );
+  AudioPair uac2 { interface_name };
   uac2.initialize();
 
   EventLoop loop;

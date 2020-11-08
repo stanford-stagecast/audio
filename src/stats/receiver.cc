@@ -8,15 +8,12 @@
 #include <unistd.h>
 
 #include "alsa_devices.hh"
+#include "audio_device_claim.hh"
 #include "eventloop.hh"
 #include "exception.hh"
 #include "socket.hh"
 #include "timer.hh"
 #include "typed_ring_buffer.hh"
-
-#ifndef NDBUS
-#include "device_claim_util.hh"
-#endif
 
 using namespace std;
 using namespace chrono;
@@ -37,7 +34,9 @@ void program_body( size_t num_packets, vector<double>& buffer_vals, vector<int>&
   cout << "Preparing to receive " << num_packets << " packets" << endl;
   ios::sync_with_stdio( false );
 
-  AudioPair uac2 = claim_uac2();
+  const auto [name, interface_name] = ALSADevices::find_device( "UAC-2, USB Audio" );
+  const auto device_claim = AudioDeviceClaim::try_claim( name );
+  AudioPair uac2 { interface_name };
   uac2.initialize();
 
   EventLoop loop;
@@ -60,8 +59,7 @@ void program_body( size_t num_packets, vector<double>& buffer_vals, vector<int>&
 
       if ( first_packet_received ) {
         num_samples += uac2.mic_avail();
-        if ( num_samples >= SAMPLES_INTERVAL )
-        {
+        if ( num_samples >= SAMPLES_INTERVAL ) {
           buffer -= static_cast<double>( num_samples ) / static_cast<double>( SAMPLE_RATE_MS );
           buffer_vals.push_back( buffer );
           // cout << buffer << endl;
@@ -95,8 +93,7 @@ void program_body( size_t num_packets, vector<double>& buffer_vals, vector<int>&
         cout << "first packet received: " << packet_number << endl;
         packet_counter = packet_number + 1; // don't know when we'll get the first packet
         first_packet_received = true;
-      }
-      else if ( packet_number >= packet_counter ) {
+      } else if ( packet_number >= packet_counter ) {
         buffer += ( packet_number - packet_counter + 1 ) * 2.5;
         for ( size_t i = packet_counter; i < packet_number; i++ ) {
           packets_received.push_back( 0 );

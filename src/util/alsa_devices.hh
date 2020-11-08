@@ -20,6 +20,8 @@ public:
   };
 
   static std::vector<Device> list();
+
+  static std::pair<std::string, std::string> find_device( const std::string_view expected_description );
 };
 
 class PCMFD : public FileDescriptor
