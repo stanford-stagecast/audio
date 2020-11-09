@@ -107,11 +107,10 @@ void program_body( size_t num_packets, vector<double>& buffer_vals, vector<int>&
 
   auto buffer_rule = loop.add_rule(
     "read from buffer",
+    [&] { audio_output.pop( audio_output.next_index_to_write() - audio_output.range_begin() ); },
     [&] {
-      audio_output.ch1.pop( audio_output.ch1.num_stored() );
-      audio_output.ch2.pop( audio_output.ch2.num_stored() );
-    },
-    [&] { return audio_output.ch1.num_stored() > 0 && packet_counter < num_packets; } );
+      return audio_output.next_index_to_write() > audio_output.range_begin() and packet_counter < num_packets;
+    } );
 
   uac2.start();
   auto start_time = steady_clock::now();

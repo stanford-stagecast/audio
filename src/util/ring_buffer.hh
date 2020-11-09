@@ -28,20 +28,30 @@ public:
   size_t length() const { return length_; }
 };
 
-class RingBuffer
+class RingStorage
 {
-  size_t bytes_pushed_ = 0, bytes_popped_ = 0;
-
   FileDescriptor fd_;
   MMap_Region virtual_address_space_, first_mapping_, second_mapping_;
+
+protected:
+  string_span storage();
+  std::string_view storage() const;
+
+public:
+  explicit RingStorage( const size_t capacity );
+
+  size_t capacity() const { return first_mapping_.length(); }
+};
+
+class RingBuffer : public RingStorage
+{
+  size_t bytes_pushed_ = 0, bytes_popped_ = 0;
 
   size_t next_index_to_write() const;
   size_t next_index_to_read() const;
 
 public:
-  explicit RingBuffer( const size_t capacity );
-
-  size_t capacity() const { return first_mapping_.length(); }
+  using RingStorage::RingStorage;
 
   string_span writable_region();
   std::string_view writable_region() const;
@@ -59,8 +69,4 @@ public:
   size_t bytes_pushed() const { return bytes_pushed_; }
   size_t bytes_popped() const { return bytes_popped_; }
   size_t bytes_stored() const { return bytes_pushed_ - bytes_popped_; }
-
-  void pop_nocheck( const size_t num_bytes );
-  string_span rw_region();
-  std::string_view rw_region() const;
 };

@@ -113,11 +113,8 @@ void program_body()
 
   auto buffer_rule = loop.add_rule(
     "read from buffer",
-    [&] {
-      audio_output.ch1.pop( audio_output.ch1.num_stored() );
-      audio_output.ch2.pop( audio_output.ch2.num_stored() );
-    },
-    [&] { return audio_output.ch1.num_stored() > 0; } );
+    [&] { audio_output.pop( audio_output.next_index_to_write() - audio_output.range_begin() ); },
+    [&] { return audio_output.next_index_to_write() > audio_output.range_begin(); } );
 
   // End on keyboard input
   FileDescriptor input { CheckSystemCall( "dup STDIN_FILENO", dup( STDIN_FILENO ) ) };

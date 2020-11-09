@@ -44,13 +44,10 @@ void program_body()
     input.close();
   } );
 
-  loop.add_rule(
+  auto buffer_rule = loop.add_rule(
     "read from buffer",
-    [&] {
-      audio_output.ch1.pop( audio_output.ch1.num_stored() );
-      audio_output.ch2.pop( audio_output.ch2.num_stored() );
-    },
-    [&] { return audio_output.ch1.num_stored() > 0; } );
+    [&] { audio_output.pop( audio_output.next_index_to_write() - audio_output.range_begin() ); },
+    [&] { return audio_output.next_index_to_write() > audio_output.range_begin(); } );
 
   auto next_stats_print = steady_clock::now() + seconds( 3 );
   loop.add_rule(
@@ -58,7 +55,7 @@ void program_body()
     [&] {
       cout << "peak dBFS=[ " << float_to_dbfs( uac2.statistics().sample_stats.max_ch1_amplitude ) << ", "
            << float_to_dbfs( uac2.statistics().sample_stats.max_ch2_amplitude ) << " ]";
-      cout << " buffer size=" << audio_output.ch1.capacity() - audio_output.ch1.num_stored();
+      cout << " buffer range=" << audio_output.range_begin() / 48000.0;
       cout << " recov=" << uac2.statistics().recoveries;
       cout << " skipped=" << uac2.statistics().sample_stats.samples_skipped;
       cout << " empty=" << uac2.statistics().empty_wakeups << "/" << uac2.statistics().total_wakeups;

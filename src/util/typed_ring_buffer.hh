@@ -7,36 +7,27 @@
 #include <algorithm>
 
 template<typename T>
-class TypedRingBuffer
+class TypedRingStorage : public RingStorage
 {
-  RingBuffer storage_;
-
   static constexpr auto elem_size_ = sizeof( T );
 
+protected:
+  span<T> storage() { return span_view<T> { RingStorage::storage().data(), capacity() }; }
+  span_view<T> storage() const { return { RingStorage::storage().data(), capacity() }; }
+
 public:
-  explicit TypedRingBuffer( const size_t capacity )
-    : storage_( capacity * elem_size_ )
+  explicit TypedRingStorage( const size_t capacity )
+    : RingStorage( capacity * elem_size_ )
   {}
 
-  size_t capacity() const { return storage_.capacity() / elem_size_; }
-
-  span<T> writable_region() { return storage_.writable_region(); }
-  void push( const size_t num_elems ) { storage_.push( num_elems * elem_size_ ); }
-
-  span_view<T> readable_region() const { return storage_.readable_region(); }
-  void pop( const size_t num_elems ) { storage_.pop( num_elems * elem_size_ ); }
-
-  size_t num_pushed() const { return storage_.bytes_pushed() / elem_size_; }
-  size_t num_popped() const { return storage_.bytes_popped() / elem_size_; }
-  size_t num_stored() const { return storage_.bytes_stored() / elem_size_; }
-
-  span<T> rw_region() { return storage_.rw_region(); }
-  span_view<T> rw_region() const { return storage_.rw_region(); }
+  size_t capacity() const { return RingStorage::capacity() / elem_size_; }
 };
 
 template<typename T>
-class EndlessBuffer : TypedRingBuffer<T>
+class EndlessBuffer : TypedRingStorage<T>
 {
+  size_t num_popped_ = 0;
+
   void check_bounds( const size_t pos, const size_t count ) const
   {
     if ( pos < range_begin() ) {
@@ -50,21 +41,27 @@ class EndlessBuffer : TypedRingBuffer<T>
   }
 
 public:
-  using TypedRingBuffer<T>::TypedRingBuffer;
+  using TypedRingStorage<T>::TypedRingStorage;
 
   void pop( const size_t num_elems )
   {
-    TypedRingBuffer<T>::pop( num_elems );
-    auto region = TypedRingBuffer<T>::writable_region();
-    std::fill( region.end() - num_elems, region.end(), T {} );
+    auto region_to_erase = region( range_begin(), num_elems );
+    std::fill( region_to_erase.begin(), region_to_erase.end(), T {} );
+    num_popped_ += num_elems;
   }
 
-  size_t range_begin() const { return TypedRingBuffer<T>::num_popped(); }
-  size_t range_end() const { return range_begin() + TypedRingBuffer<T>::capacity(); }
+  size_t range_begin() const { return num_popped_; }
+  size_t range_end() const { return range_begin() + TypedRingStorage<T>::capacity(); }
 
   span<T> region( const size_t pos, const size_t count )
   {
     check_bounds( pos, count );
-    return TypedRingBuffer<T>::rw_region().substr( pos - range_begin(), count );
+    return TypedRingStorage<T>::storage().substr( pos - range_begin(), count );
+  }
+
+  span_view<T> region( const size_t pos, const size_t count ) const
+  {
+    check_bounds( pos, count );
+    return TypedRingStorage<T>::storage().substr( pos - range_begin(), count );
   }
 };
