@@ -171,7 +171,7 @@ EventLoop::Result EventLoop::wait_next_event( const int timeout_ms )
 
   // go through the poll results
   for ( auto [it, idx] = make_pair( _fd_rules.begin(), size_t( 0 ) ); it != _fd_rules.end(); ++idx ) {
-    const auto& this_pollfd = pollfds[idx];
+    const auto& this_pollfd = pollfds.at( idx );
     auto& this_rule = **it;
 
     const auto poll_error = static_cast<bool>( this_pollfd.revents & ( POLLERR | POLLNVAL ) );
@@ -179,6 +179,7 @@ EventLoop::Result EventLoop::wait_next_event( const int timeout_ms )
       /* recoverable error? */
       if ( not static_cast<bool>( this_pollfd.revents & POLLNVAL ) ) {
         if ( this_rule.recover() ) {
+          ++it;
           continue;
         }
       }

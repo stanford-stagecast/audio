@@ -60,7 +60,7 @@ std::string_view RingBuffer::writable_region() const
   return { virtual_address_space_.addr() + next_index_to_write_, capacity() - bytes_stored() };
 }
 
-simple_string_span RingBuffer::writable_region()
+string_span RingBuffer::writable_region()
 {
   return { virtual_address_space_.addr() + next_index_to_write_, capacity() - bytes_stored() };
 }

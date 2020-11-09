@@ -3,7 +3,7 @@
 #include <vector>
 
 #include "file_descriptor.hh"
-#include "simple_string_span.hh"
+#include "spans.hh"
 
 class MMap_Region
 {
@@ -41,7 +41,7 @@ public:
 
   size_t capacity() const { return first_mapping_.length(); }
 
-  simple_string_span writable_region();
+  string_span writable_region();
   std::string_view writable_region() const;
   void push( const size_t num_bytes );
 
