@@ -30,6 +30,8 @@ public:
       total_ns += time_ns;
       max_ns = std::max( max_ns, time_ns );
     }
+
+    void reset() { count = total_ns = max_ns = 0; }
   };
 
   enum class Category

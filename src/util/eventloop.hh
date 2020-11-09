@@ -61,6 +61,7 @@ private:
   std::vector<RuleCategory> _rule_categories {};
   std::list<std::shared_ptr<FDRule>> _fd_rules {};
   std::list<std::shared_ptr<BasicRule>> _non_fd_rules {};
+  Timer::Record _waiting {};
 
 public:
   //! Returned by each call to EventLoop::wait_next_event.
@@ -105,6 +106,7 @@ public:
   Result wait_next_event( const int timeout_ms );
 
   std::string summary() const;
+  void reset_statistics();
 
   // convenience function to add category and rule at the same time
   template<typename... Targs>

@@ -66,6 +66,7 @@ void program_body()
       cout << loop.summary() << "\n";
       cout << global_timer().summary() << endl;
       uac2.reset_statistics();
+      loop.reset_statistics();
       next_stats_print = steady_clock::now() + seconds( 3 );
     },
     [&] { return steady_clock::now() > next_stats_print; } );
