@@ -377,13 +377,14 @@ void AudioInterface::copy_all_available_samples_to( AudioInterface& other,
 
     const unsigned int num_frames = write_buf.frame_count();
 
+    /*
     const size_t write_index = output.ch1.range_begin();
     if ( write_index != output.ch2.range_begin() ) {
       throw runtime_error( "channel time mismatch" );
     }
+    */
 
-    auto [ch1, ch2] = make_tuple( output.ch1.writable_region( write_index, num_frames ),
-                                  output.ch2.writable_region( write_index, num_frames ) );
+    auto [ch1, ch2] = make_tuple( output.ch1.writable_region(), output.ch2.writable_region() );
     if ( ch1.size() < num_frames or ch2.size() < num_frames ) {
       throw runtime_error( "buffer overflow in output: " + to_string( ch1.size() ) + " < "
                            + to_string( num_frames ) );

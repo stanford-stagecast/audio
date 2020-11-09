@@ -30,11 +30,13 @@ public:
 
 class RingBuffer
 {
-  size_t next_index_to_write_ = 0;
   size_t bytes_pushed_ = 0, bytes_popped_ = 0;
 
   FileDescriptor fd_;
   MMap_Region virtual_address_space_, first_mapping_, second_mapping_;
+
+  size_t next_index_to_write() const;
+  size_t next_index_to_read() const;
 
 public:
   explicit RingBuffer( const size_t capacity );
@@ -57,4 +59,8 @@ public:
   size_t bytes_pushed() const { return bytes_pushed_; }
   size_t bytes_popped() const { return bytes_popped_; }
   size_t bytes_stored() const { return bytes_pushed_ - bytes_popped_; }
+
+  void pop_nocheck( const size_t num_bytes );
+  string_span rw_region();
+  std::string_view rw_region() const;
 };

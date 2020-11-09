@@ -34,7 +34,7 @@ public:
 
 struct AudioBuffer
 {
-  EndlessBuffer<float> ch1, ch2;
+  TypedRingBuffer<float> ch1, ch2;
 
   AudioBuffer( const size_t capacity )
     : ch1( capacity )

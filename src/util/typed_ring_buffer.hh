@@ -4,6 +4,8 @@
 #include "ring_buffer.hh"
 #include "spans.hh"
 
+#include <algorithm>
+
 template<typename T>
 class TypedRingBuffer
 {
@@ -27,12 +29,14 @@ public:
   size_t num_pushed() const { return storage_.bytes_pushed() / elem_size_; }
   size_t num_popped() const { return storage_.bytes_popped() / elem_size_; }
   size_t num_stored() const { return storage_.bytes_stored() / elem_size_; }
+
+  span<T> rw_region() { return storage_.rw_region(); }
+  span_view<T> rw_region() const { return storage_.rw_region(); }
 };
 
 template<typename T>
 class EndlessBuffer : TypedRingBuffer<T>
 {
-
   void check_bounds( const size_t pos, const size_t count ) const
   {
     if ( pos < range_begin() ) {
@@ -46,34 +50,21 @@ class EndlessBuffer : TypedRingBuffer<T>
   }
 
 public:
-  EndlessBuffer( const size_t s_capacity )
-    : TypedRingBuffer<T>( s_capacity )
-  {
-    auto writable = TypedRingBuffer<T>::writable_region();
-    memset( writable.mutable_data(), 0, writable.size() );
-  }
-
   using TypedRingBuffer<T>::TypedRingBuffer;
-  using TypedRingBuffer<T>::capacity;
-  using TypedRingBuffer<T>::num_pushed;
-  using TypedRingBuffer<T>::num_popped;
-  using TypedRingBuffer<T>::num_stored;
 
-  using TypedRingBuffer<T>::push;
-  using TypedRingBuffer<T>::pop;
-
-  size_t range_begin() const { return num_popped(); }
-  size_t range_end() const { return num_popped() + capacity(); }
-
-  span<T> writable_region( const size_t pos, const size_t count )
+  void pop( const size_t num_elems )
   {
-    check_bounds( pos, count );
-    return TypedRingBuffer<T>::writable_region().substr( pos - range_begin(), count );
+    TypedRingBuffer<T>::pop( num_elems );
+    auto region = TypedRingBuffer<T>::writable_region();
+    std::fill( region.end() - num_elems, region.end(), T {} );
   }
 
-  span_view<T> readable_region( const size_t pos, const size_t count ) const
+  size_t range_begin() const { return TypedRingBuffer<T>::num_popped(); }
+  size_t range_end() const { return range_begin() + TypedRingBuffer<T>::capacity(); }
+
+  span<T> region( const size_t pos, const size_t count )
   {
     check_bounds( pos, count );
-    return TypedRingBuffer<T>::readable_region().substr( pos - range_begin(), count );
+    return TypedRingBuffer<T>::rw_region().substr( pos - range_begin(), count );
   }
 };

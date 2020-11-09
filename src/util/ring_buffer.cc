@@ -55,31 +55,48 @@ RingBuffer::RingBuffer( const size_t capacity )
                      fd_.fd_num() )
 {}
 
+size_t RingBuffer::next_index_to_write() const
+{
+  return bytes_pushed_ % capacity();
+}
+
+size_t RingBuffer::next_index_to_read() const
+{
+  return bytes_popped_ % capacity();
+}
+
 std::string_view RingBuffer::writable_region() const
 {
-  return { virtual_address_space_.addr() + next_index_to_write_, capacity() - bytes_stored() };
+  return { virtual_address_space_.addr() + next_index_to_write(), capacity() - bytes_stored() };
 }
 
 string_span RingBuffer::writable_region()
 {
-  return { virtual_address_space_.addr() + next_index_to_write_, capacity() - bytes_stored() };
+  return { virtual_address_space_.addr() + next_index_to_write(), capacity() - bytes_stored() };
 }
 
 void RingBuffer::push( const size_t num_bytes )
 {
   if ( num_bytes > writable_region().length() ) {
-    throw runtime_error( "RingBuffer::wrote exceeded size of writable region" );
+    throw runtime_error( "RingBuffer::push exceeded size of writable region" );
   }
 
-  next_index_to_write_ = ( next_index_to_write_ + num_bytes ) % capacity();
   bytes_pushed_ += num_bytes;
 }
 
 std::string_view RingBuffer::readable_region() const
 {
-  const size_t next_index_to_read = ( next_index_to_write_ + capacity() - bytes_stored() ) % capacity();
+  return { virtual_address_space_.addr() + next_index_to_read(), bytes_stored() };
+}
 
-  return { virtual_address_space_.addr() + next_index_to_read, bytes_stored() };
+string_span RingBuffer::rw_region()
+{
+  return { virtual_address_space_.addr() + next_index_to_read(), capacity() };
+}
+
+string_view RingBuffer::rw_region() const
+{
+  return { virtual_address_space_.addr() + next_index_to_read(), capacity() };
 }
 
 void RingBuffer::pop( const size_t num_bytes )
@@ -88,6 +105,11 @@ void RingBuffer::pop( const size_t num_bytes )
     throw runtime_error( "RingBuffer::pop exceeded size of readable region" );
   }
 
+  bytes_popped_ += num_bytes;
+}
+
+void RingBuffer::pop_nocheck( const size_t num_bytes )
+{
   bytes_popped_ += num_bytes;
 }
 

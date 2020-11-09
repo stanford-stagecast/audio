@@ -55,6 +55,9 @@ public:
   {
     return storage_.substr( pos * elem_size_, count * elem_size_ );
   }
+
+  const T* begin() const { return &( *this )[0]; }
+  const T* end() const { return &( *this )[size()]; }
 };
 
 template<typename T>
@@ -62,6 +65,7 @@ class span : public span_view<T>
 {
 public:
   using span_view<T>::span_view;
+
   span( span_view<T> s )
     : span_view<T>( s )
   {}
@@ -70,15 +74,6 @@ public:
 
   T& operator[]( const size_t N ) { return *const_cast<T*>( span_view<T>::data() + N ); }
 
-  /*
-  size_t copy( const span<T> other )
-  {
-    const size_t amount_to_copy = std::min( span_view<T>::size(), other.size() );
-    for ( size_t i = 0; i < amount_to_copy; ++i ) {
-      operator[]( i ) = other[i];
-    }
-
-    return amount_to_copy;
-  }
-  */
+  T* begin() { return &( *this )[0]; }
+  T* end() { return &( *this )[span_view<T>::size()]; }
 };

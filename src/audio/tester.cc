@@ -61,8 +61,6 @@ void program_body()
       cout << " buffer size=" << audio_output.ch1.capacity() - audio_output.ch1.num_stored();
       cout << " recov=" << uac2.statistics().recoveries;
       cout << " skipped=" << uac2.statistics().sample_stats.samples_skipped;
-      cout << " range=[" << audio_output.ch1.range_begin() / 48000.0 << ".."
-           << audio_output.ch1.range_end() / 48000.0 << "]";
       cout << " empty=" << uac2.statistics().empty_wakeups << "/" << uac2.statistics().total_wakeups;
       cout << " mic<=" << uac2.statistics().max_microphone_avail;
       cout << " phone>=" << uac2.statistics().min_headphone_delay;
