@@ -39,7 +39,7 @@ string build_packet( int packet_number )
   return s + string( packet_size - s.length(), ' ' );
 }
 
-void program_body()
+void program_body(vector<int>& packets_received)
 {
   ios::sync_with_stdio( false );
 
@@ -102,11 +102,11 @@ void program_body()
       else if ( packet_number >= receive_packet_counter ) {
         if (packet_number % 1000 == 0) cout << "Received server packet #" << packet_number << endl;
         buffer += ( packet_number - receive_packet_counter + 1 ) * 2.5;
-        // for ( size_t i = receive_packet_counter; i < packet_number; i++ ) {
-        //   packets_received.push_back( 0 );
-        //   silent_packets++;
-        // }
-        // packets_received.push_back( 1 );
+        for ( size_t i = receive_packet_counter; i < packet_number; i++ ) {
+          packets_received.push_back( 0 );
+          silent_packets++;
+        }
+        packets_received.push_back( 1 );
         receive_packet_counter = packet_number + 1;
       }
     },
@@ -137,8 +137,9 @@ void program_body()
 
 int main()
 {
+  vector<int> packets_received;
   try {
-    program_body();
+    program_body(packets_received);
     cout << global_timer().summary() << "\n";
   } catch ( const exception& e ) {
     cout << "Exception: " << e.what() << "\n";
