@@ -32,12 +32,14 @@ string Timer::summary() const
     out << fixed << setw( 5 ) << setprecision( 1 ) << 100 * _records.at( i ).total_ns / double( elapsed ) << "%";
     accounted += _records.at( i ).total_ns;
 
-    out << "     [max=" << pp_ns( _records.at( i ).max_ns ) << "]";
-    out << " [count=" << _records.at( i ).count << "]";
-
     if ( _records.at( i ).count > 0 ) {
-      out << " [mean=" << Timer::pp_ns( _records.at( i ).total_ns / _records.at( i ).count ) << "]";
+      out << "   [mean=" << Timer::pp_ns( _records.at( i ).total_ns / _records.at( i ).count ) << "] ";
+    } else {
+      out << "                   ";
     }
+
+    out << "[max= " << pp_ns( _records.at( i ).max_ns ) << "]";
+    out << " [count=" << _records.at( i ).count << "]";
 
     out << "\n";
   }
