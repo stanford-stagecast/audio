@@ -1,11 +1,13 @@
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <pthread.h>
 #include <thread>
 #include <unistd.h>
+#include <climits>
 
 #include "alsa_devices.hh"
 #include "eventloop.hh"
@@ -26,7 +28,12 @@ const uint32_t SAMPLES_INTERVAL = 120;
 
 const string SOPHON_ADDR = "171.67.76.94";
 const string LOCALHOST_ADDR = "127.0.0.1";
-const Address server { SOPHON_ADDR, 9090 };
+const Address server { LOCALHOST_ADDR, 9090 };
+
+const string CSV_DIR = "../csv";
+const string BUFFER_BASE = "buffer_";
+const string PACKETS_BASE = "packets_";
+const string CSV_EXT = ".csv";
 
 /**
  * Converts the given packet number to a string and pads to 40 bytes with spaces.
@@ -39,7 +46,29 @@ string build_packet( int packet_number )
   return s + string( packet_size - s.length(), ' ' );
 }
 
-void program_body(vector<int>& packets_received)
+/* Exports data about buffer sizes and packet drops */
+void export_data( vector<double>& buffer_vals, vector<int>& packets_received, const string& name)
+{
+  filesystem::create_directory(CSV_DIR);
+  string buffer_filename = CSV_DIR + BUFFER_BASE + name + CSV_EXT;
+  string packets_filename = CSV_DIR + PACKETS_BASE + name + CSV_EXT;
+
+  cout << "EXPORTING TO " << buffer_filename << " AND " << packets_filename << endl;
+  std::fstream fout;
+  fout.open( buffer_filename, std::ios::out );
+  for ( size_t i = 0; i < buffer_vals.size(); i++ ) {
+    fout << buffer_vals.at( i ) << "\n";
+  }
+  fout.close();
+
+  fout.open( packets_filename, std::ios::out );
+  for ( size_t i = 0; i < packets_received.size(); i++ ) {
+    fout << packets_received.at( i ) << "\n";
+  }
+  fout.close();
+}
+
+void program_body()
 {
   ios::sync_with_stdio( false );
 
@@ -60,8 +89,12 @@ void program_body(vector<int>& packets_received)
   uint64_t receive_packet_counter = 0;
   uint64_t buffer = 0;
 
+  vector<double> buffer_vals;
+  vector<int> packets_received;
+  uint64_t silent_packets = 0;
+
   auto loopback_rule = loop.add_rule(
-    "loopback and send",
+    "send and simulate playback with zoom clock",
     uac2.fd(),
     Direction::In,
     [&] {
@@ -70,11 +103,15 @@ void program_body(vector<int>& packets_received)
 
       if ( num_samples >= SAMPLES_INTERVAL )
       {
-        // TODO: playback 2.5 ms from buffer
+        // "Playback" 2.5 ms from buffer
+        buffer -= static_cast<double> ( num_samples ) / static_cast<double>( SAMPLE_RATE_MS );
+        buffer_vals.push_back(buffer);
+
+        // Send 40 byte packet
         string packet_content = build_packet( send_packet_counter );
         client_sock.sendto( server, packet_content );
-
         if (send_packet_counter % 1000 == 0) cout << "Sent client packet #" << send_packet_counter << endl;
+        
         num_samples = 0;
         send_packet_counter++;
       }
@@ -133,13 +170,14 @@ void program_body(vector<int>& packets_received)
   }
 
   cout << loop.summary() << "\n";
+  cout << "# Silent packets: " << silent_packets << " / " << receive_packet_counter << endl;
+  export_data(buffer_vals, packets_received, "export_test");
 }
 
 int main()
 {
-  vector<int> packets_received;
   try {
-    program_body(packets_received);
+    program_body();
     cout << global_timer().summary() << "\n";
   } catch ( const exception& e ) {
     cout << "Exception: " << e.what() << "\n";

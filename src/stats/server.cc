@@ -39,9 +39,9 @@ void pass_along_datagrams( UDPSocket& intermediate )
 
         if ( !client_addresses.empty() ) {
           for ( Address addr : client_addresses ) {
-            if ( addr != source_address ) {
+            // if ( addr != source_address ) {
               intermediate.sendto( addr, payload );
-            }
+            // }
           }
         }
       }

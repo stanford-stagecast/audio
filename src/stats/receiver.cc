@@ -126,7 +126,7 @@ void program_body( size_t num_packets, vector<double>& buffer_vals, vector<int>&
   cout << "TOTAL TIME: " << total_time.count() << " ms" << endl;
   cout << "BUFFER: " << buffer << " ms" << endl;
   cout << "# Silent packets: " << silent_packets << "("
-       << static_cast<double>( silent_packets ) / static_cast<double>( num_packets ) << "%)" << endl;
+       << static_cast<double>( silent_packets ) / static_cast<double>( num_packets ) << ")" << endl;
 }
 
 /*Exports data about buffer sizes and packet drops*/
