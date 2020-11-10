@@ -31,7 +31,7 @@ const string LOCALHOST_ADDR = "127.0.0.1";
 
 const Address server { LOCALHOST_ADDR, 9090 };
 
-const string CSV_DIR = "../csv";
+const string CSV_DIR = "../csv/";
 const string BUFFER_BASE = "buffer_";
 const string PACKETS_BASE = "packets_";
 const string CSV_EXT = ".csv";
@@ -50,11 +50,10 @@ string build_packet( int packet_number )
 /* Exports data about buffer sizes and packet drops */
 void export_data( vector<double>& buffer_vals, vector<int>& packets_received, const string name)
 {
+  filesystem::create_directory(CSV_DIR);
   string buffer_filename = CSV_DIR + BUFFER_BASE + name + CSV_EXT;
   string packets_filename = CSV_DIR + PACKETS_BASE + name + CSV_EXT;
-
   cout << "EXPORTING TO " << buffer_filename << " AND " << packets_filename << endl;
-  filesystem::create_directory(CSV_DIR);
   std::fstream fout;
   fout.open( buffer_filename, std::ios::out );
   for ( size_t i = 0; i < buffer_vals.size(); i++ ) {
@@ -170,11 +169,8 @@ void program_body()
   uac2.start();
   while ( loop.wait_next_event( -1) != EventLoop::Result::Exit ) {
   }
-  cout << "END LOOP" << endl;
-  cout << loop.summary() << "\n";
-  cout << "YAY" << endl;
+  // cout << loop.summary() << "\n"; // TODO: commented out because it was raising an exception basic_string m_create
   cout << "# Silent packets: " << silent_packets << " / " << receive_packet_counter << endl;
-  cout << "BEGINNING EXPORT" << endl;
   export_data(buffer_vals, packets_received, "export_test");
 }
 
