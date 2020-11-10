@@ -20,6 +20,8 @@ public:
   };
 
   static std::vector<Device> list();
+
+  static std::pair<std::string, std::string> find_device( const std::string_view expected_description );
 };
 
 class PCMFD : public FileDescriptor
@@ -30,14 +32,37 @@ public:
   using FileDescriptor::register_read;
 };
 
-struct AudioBuffer
+class AudioBuffer
 {
   EndlessBuffer<float> ch1, ch2;
 
+  size_t next_index_to_write_ = 0;
+
+public:
   AudioBuffer( const size_t capacity )
     : ch1( capacity )
     , ch2( capacity )
   {}
+
+  size_t range_begin() const { return ch1.range_begin(); }
+  size_t next_index_to_write() const { return next_index_to_write_; }
+
+  std::pair<span<float>, span<float>> write_region( const size_t pos, const size_t count )
+  {
+    next_index_to_write_ = std::max( next_index_to_write_, pos + count );
+    return { ch1.region( pos, count ), ch2.region( pos, count ) };
+  }
+
+  std::pair<span_view<float>, span_view<float>> read_region( const size_t pos, const size_t count ) const
+  {
+    return { ch1.region( pos, count ), ch2.region( pos, count ) };
+  }
+
+  void pop( const size_t num_samples )
+  {
+    ch1.pop( num_samples );
+    ch2.pop( num_samples );
+  }
 };
 
 struct AudioStatistics

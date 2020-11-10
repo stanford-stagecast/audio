@@ -28,4 +28,6 @@ public:
   AudioDeviceClaim( const std::string_view name );
 
   const std::optional<std::string>& claimed_from() const { return claimed_from_; }
+
+  static std::optional<AudioDeviceClaim> try_claim( const std::string_view name );
 };

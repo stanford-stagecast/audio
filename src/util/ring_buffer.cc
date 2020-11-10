@@ -32,7 +32,7 @@ MMap_Region::~MMap_Region()
   }
 }
 
-RingBuffer::RingBuffer( const size_t capacity )
+RingStorage::RingStorage( const size_t capacity )
   : fd_( [&] {
     if ( capacity % sysconf( _SC_PAGESIZE ) ) {
       throw runtime_error( "RingBuffer capacity must be multiple of page size ("
@@ -55,31 +55,48 @@ RingBuffer::RingBuffer( const size_t capacity )
                      fd_.fd_num() )
 {}
 
-std::string_view RingBuffer::writable_region() const
+string_span RingStorage::storage()
 {
-  return { virtual_address_space_.addr() + next_index_to_write_, capacity() - bytes_stored() };
+  return { virtual_address_space_.addr(), capacity() };
 }
 
-simple_string_span RingBuffer::writable_region()
+string_view RingStorage::storage() const
 {
-  return { virtual_address_space_.addr() + next_index_to_write_, capacity() - bytes_stored() };
+  return { virtual_address_space_.addr(), capacity() };
+}
+
+size_t RingBuffer::next_index_to_write() const
+{
+  return bytes_pushed_ % capacity();
+}
+
+size_t RingBuffer::next_index_to_read() const
+{
+  return bytes_popped_ % capacity();
+}
+
+std::string_view RingBuffer::writable_region() const
+{
+  return storage().substr( next_index_to_write(), capacity() - bytes_stored() );
+}
+
+string_span RingBuffer::writable_region()
+{
+  return storage().substr( next_index_to_write(), capacity() - bytes_stored() );
 }
 
 void RingBuffer::push( const size_t num_bytes )
 {
   if ( num_bytes > writable_region().length() ) {
-    throw runtime_error( "RingBuffer::wrote exceeded size of writable region" );
+    throw runtime_error( "RingBuffer::push exceeded size of writable region" );
   }
 
-  next_index_to_write_ = ( next_index_to_write_ + num_bytes ) % capacity();
   bytes_pushed_ += num_bytes;
 }
 
 std::string_view RingBuffer::readable_region() const
 {
-  const size_t next_index_to_read = ( next_index_to_write_ + capacity() - bytes_stored() ) % capacity();
-
-  return { virtual_address_space_.addr() + next_index_to_read, bytes_stored() };
+  return storage().substr( next_index_to_read(), bytes_stored() );
 }
 
 void RingBuffer::pop( const size_t num_bytes )

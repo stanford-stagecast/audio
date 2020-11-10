@@ -98,6 +98,34 @@ vector<ALSADevices::Device> ALSADevices::list()
   return ret;
 }
 
+pair<string, string> ALSADevices::find_device( const string_view expected_description )
+{
+  ALSADevices devices;
+  bool found = false;
+
+  string name, interface_name;
+
+  for ( const auto& dev : devices.list() ) {
+    for ( const auto& interface : dev.interfaces ) {
+      if ( interface.second == expected_description ) {
+        if ( found ) {
+          throw runtime_error( "Multiple devices matching description" );
+        } else {
+          found = true;
+          name = dev.name;
+          interface_name = interface.first;
+        }
+      }
+    }
+  }
+
+  if ( not found ) {
+    throw runtime_error( "Device \"" + string( expected_description ) + "\" not found" );
+  }
+
+  return { name, interface_name };
+}
+
 AudioPair::AudioPair( const string_view interface_name )
   : headphone_( interface_name, "Headphone", SND_PCM_STREAM_PLAYBACK )
   , microphone_( interface_name, "Microphone", SND_PCM_STREAM_CAPTURE )
@@ -349,17 +377,9 @@ void AudioInterface::copy_all_available_samples_to( AudioInterface& other,
 
     const unsigned int num_frames = write_buf.frame_count();
 
-    const size_t write_index = output.ch1.range_begin();
-    if ( write_index != output.ch2.range_begin() ) {
-      throw runtime_error( "channel time mismatch" );
-    }
+    const size_t write_index = output.next_index_to_write();
 
-    auto [ch1, ch2] = make_tuple( output.ch1.writable_region( write_index, num_frames ),
-                                  output.ch2.writable_region( write_index, num_frames ) );
-    if ( ch1.size() < num_frames or ch2.size() < num_frames ) {
-      throw runtime_error( "buffer overflow in output: " + to_string( ch1.size() ) + " < "
-                           + to_string( num_frames ) );
-    }
+    auto [ch1, ch2] = output.write_region( write_index, num_frames );
 
     for ( unsigned int i = 0; i < num_frames; i++ ) {
       const float ch1_sample = sample_to_float( read_buf.sample( false, i ) );
@@ -377,9 +397,6 @@ void AudioInterface::copy_all_available_samples_to( AudioInterface& other,
       write_buf.sample( true, i )
         = float_to_sample( ch1_sample * config_.ch1_loopback_gain[1] + ch2_sample * config_.ch2_loopback_gain[1] );
     }
-
-    output.ch1.push( num_frames );
-    output.ch2.push( num_frames );
 
     unsigned int amount_to_write = num_frames;
 

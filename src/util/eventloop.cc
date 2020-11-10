@@ -163,7 +163,7 @@ EventLoop::Result EventLoop::wait_next_event( const int timeout_ms )
 
   // call poll -- wait until one of the fds satisfies one of the rules (writeable/readable)
   {
-    GlobalScopeTimer<Timer::Category::WaitingForEvent> timer;
+    RecordScopeTimer<Timer::Category::WaitingForEvent> record_timer { _waiting };
     if ( 0 == CheckSystemCall( "poll", ::poll( pollfds.data(), pollfds.size(), timeout_ms ) ) ) {
       return Result::Timeout;
     }
@@ -171,7 +171,7 @@ EventLoop::Result EventLoop::wait_next_event( const int timeout_ms )
 
   // go through the poll results
   for ( auto [it, idx] = make_pair( _fd_rules.begin(), size_t( 0 ) ); it != _fd_rules.end(); ++idx ) {
-    const auto& this_pollfd = pollfds[idx];
+    const auto& this_pollfd = pollfds.at( idx );
     auto& this_rule = **it;
 
     const auto poll_error = static_cast<bool>( this_pollfd.revents & ( POLLERR | POLLNVAL ) );
@@ -179,6 +179,7 @@ EventLoop::Result EventLoop::wait_next_event( const int timeout_ms )
       /* recoverable error? */
       if ( not static_cast<bool>( this_pollfd.revents & POLLNVAL ) ) {
         if ( this_rule.recover() ) {
+          ++it;
           continue;
         }
       }
@@ -242,12 +243,9 @@ string EventLoop::summary() const
 
   out << "EventLoop timing summary\n------------------------\n\n";
 
-  for ( const auto& rule : _rule_categories ) {
-    const auto& name = rule.name;
-    const auto& timer = rule.timer;
-
+  auto print_timer = [&]( const string_view name, const Timer::Record timer ) {
     if ( timer.count == 0 ) {
-      continue;
+      return;
     }
 
     out << "   " << name << ": ";
@@ -257,7 +255,24 @@ string EventLoop::summary() const
     out << "     [max=" << Timer::pp_ns( timer.max_ns ) << "]";
     out << " [count=" << timer.count << "]";
     out << "\n";
+  };
+
+  print_timer( "waiting for event", _waiting );
+
+  for ( const auto& rule : _rule_categories ) {
+    const auto& name = rule.name;
+    const auto& timer = rule.timer;
+
+    print_timer( name, timer );
   }
 
   return out.str();
+}
+
+void EventLoop::reset_statistics()
+{
+  _waiting.reset();
+  for ( auto& rule : _rule_categories ) {
+    rule.timer.reset();
+  }
 }

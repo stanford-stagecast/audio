@@ -8,8 +8,8 @@
 #include <thread>
 #include <unistd.h>
 #include <climits>
-
 #include "alsa_devices.hh"
+#include "audio_device_claim.hh"
 #include "eventloop.hh"
 #include "exception.hh"
 #include "socket.hh"
@@ -28,6 +28,7 @@ const uint32_t SAMPLES_INTERVAL = 120;
 
 const string SOPHON_ADDR = "171.67.76.94";
 const string LOCALHOST_ADDR = "127.0.0.1";
+
 const Address server { LOCALHOST_ADDR, 9090 };
 
 const string CSV_DIR = "../csv";
@@ -47,13 +48,13 @@ string build_packet( int packet_number )
 }
 
 /* Exports data about buffer sizes and packet drops */
-void export_data( vector<double>& buffer_vals, vector<int>& packets_received, const string& name)
+void export_data( vector<double>& buffer_vals, vector<int>& packets_received, const string name)
 {
-  filesystem::create_directory(CSV_DIR);
   string buffer_filename = CSV_DIR + BUFFER_BASE + name + CSV_EXT;
   string packets_filename = CSV_DIR + PACKETS_BASE + name + CSV_EXT;
 
   cout << "EXPORTING TO " << buffer_filename << " AND " << packets_filename << endl;
+  filesystem::create_directory(CSV_DIR);
   std::fstream fout;
   fout.open( buffer_filename, std::ios::out );
   for ( size_t i = 0; i < buffer_vals.size(); i++ ) {
@@ -72,7 +73,10 @@ void program_body()
 {
   ios::sync_with_stdio( false );
 
-  AudioPair uac2 = claim_uac2();
+  // AudioPair uac2 = claim_uac2();
+  const auto [name, interface_name] = ALSADevices::find_device( "UAC-2, USB Audio" );
+  const auto device_claim = AudioDeviceClaim::try_claim( name );
+  AudioPair uac2 { interface_name };
   uac2.initialize();
 
   UDPSocket client_sock;
@@ -131,6 +135,7 @@ void program_body()
       auto recv = client_sock.recv();
       string payload = recv.payload;
       uint64_t packet_number = stoull( payload );
+
       if (!first_packet_received) {
         cout << "First packet received: " << packet_number << endl;
         receive_packet_counter = packet_number + 1;
@@ -151,11 +156,8 @@ void program_body()
 
   auto buffer_rule = loop.add_rule(
     "read from buffer",
-    [&] {
-      audio_output.ch1.pop( audio_output.ch1.num_stored() );
-      audio_output.ch2.pop( audio_output.ch2.num_stored() );
-    },
-    [&] { return audio_output.ch1.num_stored() > 0; } );
+    [&] { audio_output.pop( audio_output.next_index_to_write() - audio_output.range_begin() ); },
+    [&] { return audio_output.next_index_to_write() > audio_output.range_begin(); } );
 
   // End on keyboard input
   FileDescriptor input { CheckSystemCall( "dup STDIN_FILENO", dup( STDIN_FILENO ) ) };
@@ -168,9 +170,11 @@ void program_body()
   uac2.start();
   while ( loop.wait_next_event( -1) != EventLoop::Result::Exit ) {
   }
-
+  cout << "END LOOP" << endl;
   cout << loop.summary() << "\n";
+  cout << "YAY" << endl;
   cout << "# Silent packets: " << silent_packets << " / " << receive_packet_counter << endl;
+  cout << "BEGINNING EXPORT" << endl;
   export_data(buffer_vals, packets_received, "export_test");
 }
 

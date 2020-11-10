@@ -59,7 +59,7 @@ FileDescriptor FileDescriptor::duplicate() const
 }
 
 //! \param[out] str is the string to be read
-size_t FileDescriptor::read( simple_string_span buffer )
+size_t FileDescriptor::read( string_span buffer )
 {
   if ( buffer.empty() ) {
     throw runtime_error( "FileDescriptor::read: no space to read" );

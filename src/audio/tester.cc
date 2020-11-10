@@ -4,13 +4,10 @@
 #include <thread>
 
 #include "alsa_devices.hh"
+#include "audio_device_claim.hh"
 #include "eventloop.hh"
 #include "exception.hh"
 #include "typed_ring_buffer.hh"
-
-#ifndef NDBUS
-#include "device_claim_util.hh"
-#endif
 
 using namespace std;
 using namespace std::chrono;
@@ -21,7 +18,10 @@ void program_body()
 
   AudioBuffer audio_output { 65536 }, audio_input { 65536 };
 
-  AudioPair uac2 = claim_uac2();
+  // AudioPair uac2 = claim_uac2();
+  const auto [name, interface_name] = ALSADevices::find_device( "UAC-2, USB Audio" );
+  const auto device_claim = AudioDeviceClaim::try_claim( name );
+  AudioPair uac2 { interface_name };
   uac2.initialize();
 
   EventLoop loop;
@@ -45,13 +45,10 @@ void program_body()
     input.close();
   } );
 
-  loop.add_rule(
+  auto buffer_rule = loop.add_rule(
     "read from buffer",
-    [&] {
-      audio_output.ch1.pop( audio_output.ch1.num_stored() );
-      audio_output.ch2.pop( audio_output.ch2.num_stored() );
-    },
-    [&] { return audio_output.ch1.num_stored() > 0; } );
+    [&] { audio_output.pop( audio_output.next_index_to_write() - audio_output.range_begin() ); },
+    [&] { return audio_output.next_index_to_write() > audio_output.range_begin(); } );
 
   auto next_stats_print = steady_clock::now() + seconds( 3 );
   loop.add_rule(
@@ -59,11 +56,9 @@ void program_body()
     [&] {
       cout << "peak dBFS=[ " << float_to_dbfs( uac2.statistics().sample_stats.max_ch1_amplitude ) << ", "
            << float_to_dbfs( uac2.statistics().sample_stats.max_ch2_amplitude ) << " ]";
-      cout << " buffer size=" << audio_output.ch1.capacity() - audio_output.ch1.num_stored();
+      cout << " buffer range=" << audio_output.range_begin() / 48000.0;
       cout << " recov=" << uac2.statistics().recoveries;
       cout << " skipped=" << uac2.statistics().sample_stats.samples_skipped;
-      cout << " range=[" << audio_output.ch1.range_begin() / 48000.0 << ".."
-           << audio_output.ch1.range_end() / 48000.0 << "]";
       cout << " empty=" << uac2.statistics().empty_wakeups << "/" << uac2.statistics().total_wakeups;
       cout << " mic<=" << uac2.statistics().max_microphone_avail;
       cout << " phone>=" << uac2.statistics().min_headphone_delay;
@@ -72,6 +67,7 @@ void program_body()
       cout << loop.summary() << "\n";
       cout << global_timer().summary() << endl;
       uac2.reset_statistics();
+      loop.reset_statistics();
       next_stats_print = steady_clock::now() + seconds( 3 );
     },
     [&] { return steady_clock::now() > next_stats_print; } );
