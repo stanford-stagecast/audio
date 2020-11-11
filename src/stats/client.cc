@@ -107,8 +107,10 @@ void program_body()
       if ( num_samples >= SAMPLES_INTERVAL )
       {
         // "Playback" 2.5 ms from buffer
-        buffer -= static_cast<double> ( num_samples ) / static_cast<double>( SAMPLE_RATE_MS );
-        buffer_vals.push_back(buffer);
+        if (first_packet_received) {
+          buffer -= static_cast<double> ( num_samples ) / static_cast<double>( SAMPLE_RATE_MS );
+          buffer_vals.push_back(buffer);
+        }
 
         // Send 40 byte packet
         string packet_content = build_packet( send_packet_counter );
