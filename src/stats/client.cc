@@ -29,7 +29,7 @@ const uint32_t SAMPLES_INTERVAL = 120;
 const string SOPHON_ADDR = "171.67.76.94";
 const string LOCALHOST_ADDR = "127.0.0.1";
 
-const Address server { LOCALHOST_ADDR, 9090 };
+const Address server { SOPHON_ADDR, 9090 };
 
 const string CSV_DIR = "../csv/";
 const string BUFFER_BASE = "buffer_";
