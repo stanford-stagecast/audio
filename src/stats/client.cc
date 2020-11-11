@@ -90,7 +90,7 @@ void program_body()
   uint32_t num_samples;
   uint64_t send_packet_counter = 0;
   uint64_t receive_packet_counter = 0;
-  uint64_t buffer = 0;
+  double buffer = 0;
 
   vector<double> buffer_vals;
   vector<int> packets_received;
