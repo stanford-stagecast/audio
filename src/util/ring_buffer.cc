@@ -55,16 +55,6 @@ RingStorage::RingStorage( const size_t capacity )
                      fd_.fd_num() )
 {}
 
-string_span RingStorage::storage( const size_t index )
-{
-  return { virtual_address_space_.addr() + index, capacity() };
-}
-
-string_view RingStorage::storage( const size_t index ) const
-{
-  return { virtual_address_space_.addr() + index, capacity() };
-}
-
 size_t RingBuffer::next_index_to_write() const
 {
   return bytes_pushed_ % capacity();

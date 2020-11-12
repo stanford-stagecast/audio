@@ -16,7 +16,10 @@ void program_body()
 {
   ios::sync_with_stdio( false );
 
-  AudioBuffer audio_output { 65536 }, audio_input { 65536 };
+  AudioBuffer audio_capture { 65536 }, audio_playback { 65536 };
+  size_t capture_index {}, playback_index {};
+
+  size_t capture_read_index {}, playback_write_index {};
 
   const auto [name, interface_name] = ALSADevices::find_device( "UAC-2, USB Audio" );
   const auto device_claim = AudioDeviceClaim::try_claim( name );
@@ -31,7 +34,7 @@ void program_body()
     "audio loopback",
     uac2.fd(),
     Direction::In,
-    [&] { uac2.loopback( audio_output ); },
+    [&] { uac2.loopback( audio_capture, capture_index, audio_playback, playback_index ); },
     [] { return true; },
     [] {},
     [&] {
@@ -39,15 +42,35 @@ void program_body()
       return true;
     } );
 
-  loop.add_rule( "exit on keystroke", input, Direction::In, [&] {
-    loopback_rule.cancel();
-    input.close();
+  string keyboard;
+  keyboard.resize( 256 );
+
+  loop.add_rule( "adjust capture index", input, Direction::In, [&] {
+    input.read( static_cast<string_view>( keyboard ) );
+    if ( not keyboard.empty() and keyboard.front() == '-' and capture_index > 48 ) {
+      capture_index -= 48;
+    }
+    if ( not keyboard.empty() and keyboard.front() == '+' ) {
+      capture_index += 48;
+    }
+
+    cout << "capture - playback = " << int64_t( capture_index - playback_index ) << endl;
   } );
 
-  auto buffer_rule = loop.add_rule(
-    "read from buffer",
-    [&] { audio_output.pop( audio_output.next_index_to_write() - audio_output.range_begin() ); },
-    [&] { return audio_output.next_index_to_write() > audio_output.range_begin(); } );
+  loop.add_rule(
+    "copy capture-> playback",
+    [&] {
+      while ( capture_read_index < capture_index ) {
+        audio_playback.safe_set( playback_write_index++, audio_capture.safe_get( capture_read_index++ ) );
+      }
+      audio_capture.pop( capture_index - audio_capture.range_begin() );
+    },
+    [&] { return capture_read_index < capture_index; } );
+
+  loop.add_rule(
+    "pop from playback",
+    [&] { audio_playback.pop( playback_index - audio_playback.range_begin() ); },
+    [&] { return playback_index > audio_playback.range_begin(); } );
 
   auto next_stats_print = steady_clock::now() + seconds( 3 );
   loop.add_rule(
@@ -55,7 +78,8 @@ void program_body()
     [&] {
       cout << "peak dBFS=[ " << float_to_dbfs( uac2.statistics().sample_stats.max_ch1_amplitude ) << ", "
            << float_to_dbfs( uac2.statistics().sample_stats.max_ch2_amplitude ) << " ]";
-      cout << " buffer range=" << audio_output.range_begin() / 48000.0;
+      cout << " delay= " << int64_t( capture_index - playback_index ) / 48000.0;
+      cout << " capture=" << capture_index / 48000.0 << " playback=" << playback_index / 48000.0;
       cout << " recov=" << uac2.statistics().recoveries;
       cout << " skipped=" << uac2.statistics().sample_stats.samples_skipped;
       cout << " empty=" << uac2.statistics().empty_wakeups << "/" << uac2.statistics().total_wakeups;

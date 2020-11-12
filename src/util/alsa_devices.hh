@@ -36,8 +36,6 @@ class AudioBuffer
 {
   EndlessBuffer<float> ch1, ch2;
 
-  size_t next_index_to_write_ = 0;
-
 public:
   AudioBuffer( const size_t capacity )
     : ch1( capacity )
@@ -45,11 +43,10 @@ public:
   {}
 
   size_t range_begin() const { return ch1.range_begin(); }
-  size_t next_index_to_write() const { return next_index_to_write_; }
+  size_t range_end() const { return ch1.range_end(); }
 
   std::pair<span<float>, span<float>> write_region( const size_t pos, const size_t count )
   {
-    next_index_to_write_ = std::max( next_index_to_write_, pos + count );
     return { ch1.region( pos, count ), ch2.region( pos, count ) };
   }
 
@@ -62,6 +59,26 @@ public:
   {
     ch1.pop( num_samples );
     ch2.pop( num_samples );
+  }
+
+  std::pair<float, float> safe_get( const size_t index ) const
+  {
+    if ( index < range_begin() or index >= range_end() ) {
+      return {};
+    }
+
+    const auto x = read_region( index, 1 );
+    return { x.first[0], x.second[0] };
+  }
+
+  void safe_set( const size_t index, const std::pair<float, float> val )
+  {
+    if ( index < range_begin() or index >= range_end() ) {
+      return;
+    }
+
+    auto x = write_region( index, 1 );
+    std::tie( x.first[0], x.second[0] ) = val;
   }
 };
 
@@ -148,7 +165,10 @@ public:
   bool update();
 
   void copy_all_available_samples_to( AudioInterface& other,
-                                      AudioBuffer& output,
+                                      AudioBuffer& capture_output,
+                                      size_t& capture_index,
+                                      const AudioBuffer& playback_input,
+                                      size_t& playback_index,
                                       AudioStatistics::SampleStats& stats );
 
   const Configuration& config() const { return config_; }
@@ -194,7 +214,10 @@ public:
 
   void start() { microphone_.start(); }
   void recover();
-  void loopback( AudioBuffer& output );
+  void loopback( AudioBuffer& capture_output,
+                 size_t& capture_index,
+                 const AudioBuffer& playback_input,
+                 size_t& playback_index );
 
   unsigned int mic_avail() { return microphone_.avail(); }
 

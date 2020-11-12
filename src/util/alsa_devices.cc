@@ -314,7 +314,10 @@ void AudioPair::recover()
   microphone_.start();
 }
 
-void AudioPair::loopback( AudioBuffer& output )
+void AudioPair::loopback( AudioBuffer& capture_output,
+                          size_t& capture_index,
+                          const AudioBuffer& playback_input,
+                          size_t& playback_index )
 {
   statistics_.total_wakeups++;
   fd_.register_read();
@@ -343,7 +346,8 @@ void AudioPair::loopback( AudioBuffer& output )
   const unsigned int combined = microphone_.avail() + headphone_.delay();
   statistics_.max_combined_samples = max( statistics_.max_combined_samples, combined );
 
-  microphone_.copy_all_available_samples_to( headphone_, output, statistics_.sample_stats );
+  microphone_.copy_all_available_samples_to(
+    headphone_, capture_output, capture_index, playback_input, playback_index, statistics_.sample_stats );
 }
 
 inline float sample_to_float( const int32_t sample )
@@ -366,7 +370,10 @@ inline int32_t float_to_sample( const float sample_f )
 }
 
 void AudioInterface::copy_all_available_samples_to( AudioInterface& other,
-                                                    AudioBuffer& output,
+                                                    AudioBuffer& capture_output,
+                                                    size_t& capture_index,
+                                                    const AudioBuffer& playback_input,
+                                                    size_t& playback_index,
                                                     AudioStatistics::SampleStats& stats )
 {
   unsigned int avail_remaining = avail();
@@ -377,25 +384,27 @@ void AudioInterface::copy_all_available_samples_to( AudioInterface& other,
 
     const unsigned int num_frames = write_buf.frame_count();
 
-    const size_t write_index = output.next_index_to_write();
-
-    auto [ch1, ch2] = output.write_region( write_index, num_frames );
-
     for ( unsigned int i = 0; i < num_frames; i++ ) {
       const float ch1_sample = sample_to_float( read_buf.sample( false, i ) );
       const float ch2_sample = sample_to_float( read_buf.sample( true, i ) );
 
-      ch1[i] = ch1_sample;
-      ch2[i] = ch2_sample;
+      /* capture into output buffer */
+      capture_output.safe_set( capture_index++, { ch1_sample, ch2_sample } );
 
+      /* track statistics */
       stats.max_ch1_amplitude = max( stats.max_ch1_amplitude, abs( ch1_sample ) );
       stats.max_ch2_amplitude = max( stats.max_ch2_amplitude, abs( ch2_sample ) );
 
+      /* play from input buffer + captured sample */
+      const auto playback_sample = playback_input.safe_get( playback_index++ );
+
       write_buf.sample( false, i )
-        = float_to_sample( ch1_sample * config_.ch1_loopback_gain[0] + ch2_sample * config_.ch2_loopback_gain[0] );
+        = float_to_sample( ch1_sample * config_.ch1_loopback_gain[0] + ch2_sample * config_.ch2_loopback_gain[0]
+                           + playback_sample.first );
 
       write_buf.sample( true, i )
-        = float_to_sample( ch1_sample * config_.ch1_loopback_gain[1] + ch2_sample * config_.ch2_loopback_gain[1] );
+        = float_to_sample( ch1_sample * config_.ch1_loopback_gain[1] + ch2_sample * config_.ch2_loopback_gain[1]
+                           + playback_sample.second );
     }
 
     unsigned int amount_to_write = num_frames;
