@@ -1,4 +1,5 @@
 #include <iostream>
+#include <limits>
 
 #include "audio_device_claim.hh"
 #include "exception.hh"

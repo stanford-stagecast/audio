@@ -3,6 +3,7 @@
 #include <array>
 #include <chrono>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <type_traits>
 
