@@ -8,6 +8,7 @@
 #include "audio_device_claim.hh"
 #include "eventloop.hh"
 #include "exception.hh"
+#include "opus.hh"
 #include "typed_ring_buffer.hh"
 
 using namespace std;
@@ -27,6 +28,8 @@ void program_body()
   const auto device_claim = AudioDeviceClaim::try_claim( name );
   AudioPair uac2 { interface_name };
   uac2.initialize();
+
+  OpusEncoder opus { 96000, 48000 };
 
   EventLoop loop;
 
