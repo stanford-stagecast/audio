@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "file_descriptor.hh"
+#include "jitter.hh"
 #include "typed_ring_buffer.hh"
 
 class ALSADevices
@@ -34,52 +35,40 @@ public:
 
 class AudioBuffer
 {
-  EndlessBuffer<float> ch1, ch2;
+  SafeEndlessBuffer<float> ch1, ch2;
+  JitterBuffer jitter;
 
 public:
   AudioBuffer( const size_t capacity )
     : ch1( capacity )
     , ch2( capacity )
+    , jitter( capacity )
   {}
 
   size_t range_begin() const { return ch1.range_begin(); }
   size_t range_end() const { return ch1.range_end(); }
 
-  std::pair<span<float>, span<float>> write_region( const size_t pos, const size_t count )
-  {
-    return { ch1.region( pos, count ), ch2.region( pos, count ) };
-  }
-
-  std::pair<span_view<float>, span_view<float>> read_region( const size_t pos, const size_t count ) const
-  {
-    return { ch1.region( pos, count ), ch2.region( pos, count ) };
-  }
-
   void pop( const size_t num_samples )
   {
     ch1.pop( num_samples );
     ch2.pop( num_samples );
+    jitter.pop( num_samples );
   }
 
   std::pair<float, float> safe_get( const size_t index ) const
   {
-    if ( index < range_begin() or index >= range_end() ) {
-      return {};
-    }
-
-    const auto x = read_region( index, 1 );
-    return { x.first[0], x.second[0] };
+    return { ch1.safe_get( index ), ch2.safe_get( index ) };
   }
 
   void safe_set( const size_t index, const std::pair<float, float> val )
   {
-    if ( index < range_begin() or index >= range_end() ) {
-      return;
-    }
-
-    auto x = write_region( index, 1 );
-    std::tie( x.first[0], x.second[0] ) = val;
+    ch1.safe_set( index, val.first );
+    ch2.safe_set( index, val.second );
+    jitter.safe_set( index, true );
   }
+
+  JitterBuffer& jitter_buffer() { return jitter; }
+  const JitterBuffer& jitter_buffer() const { return jitter; }
 };
 
 struct AudioStatistics
@@ -97,6 +86,7 @@ struct AudioStatistics
   {
     unsigned int samples_skipped;
     float max_ch1_amplitude, max_ch2_amplitude;
+    float playability { 1.0 };
   } sample_stats;
 };
 
@@ -224,10 +214,12 @@ public:
   const AudioStatistics& statistics() { return statistics_; }
   void reset_statistics()
   {
-    auto rec = statistics_.recoveries, skip = statistics_.sample_stats.samples_skipped;
+    const auto rec = statistics_.recoveries, skip = statistics_.sample_stats.samples_skipped;
+    const auto play = statistics_.sample_stats.playability;
     statistics_ = {};
     statistics_.recoveries = rec;
     statistics_.sample_stats.samples_skipped = skip;
+    statistics_.sample_stats.playability = play;
   }
 };
 

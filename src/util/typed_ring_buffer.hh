@@ -70,3 +70,28 @@ public:
     return readable_region().substr( pos - range_begin(), count );
   }
 };
+
+template<typename T>
+class SafeEndlessBuffer : public EndlessBuffer<T>
+{
+public:
+  using EndlessBuffer<T>::EndlessBuffer;
+
+  T safe_get( const size_t pos ) const
+  {
+    if ( pos < EndlessBuffer<T>::range_begin() or pos >= EndlessBuffer<T>::range_end() ) {
+      return {};
+    }
+
+    return EndlessBuffer<T>::region( pos, 1 )[0];
+  }
+
+  void safe_set( const size_t pos, const T& val )
+  {
+    if ( pos < EndlessBuffer<T>::range_begin() or pos >= EndlessBuffer<T>::range_end() ) {
+      return;
+    }
+
+    EndlessBuffer<T>::region( pos, 1 )[0] = val;
+  }
+};

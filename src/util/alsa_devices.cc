@@ -396,6 +396,9 @@ void AudioInterface::copy_all_available_samples_to( AudioInterface& other,
       stats.max_ch2_amplitude = max( stats.max_ch2_amplitude, abs( ch2_sample ) );
 
       /* play from input buffer + captured sample */
+      constexpr float ALPHA = 1.0 / 6000.0;
+      stats.playability
+        = ALPHA * playback_input.jitter_buffer().safe_get( playback_index ) + ( 1 - ALPHA ) * stats.playability;
       const auto playback_sample = playback_input.safe_get( playback_index++ );
 
       write_buf.sample( false, i )
