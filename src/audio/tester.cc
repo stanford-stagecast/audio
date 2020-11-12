@@ -45,6 +45,19 @@ void program_body()
     [&] {
       audio_playback.jitter_buffer().sample( playback_index, playback_index_offset );
       next_jitter_calculation += jitter_calculation_interval;
+
+      const auto best_offset = audio_playback.jitter_buffer().best_offset( 0.98 );
+      if ( best_offset.has_value() ) {
+        if ( best_offset.value() > int64_t( playback_index - capture_index ) + 23 ) {
+          playback_index++;
+          playback_index_offset++;
+        }
+
+        if ( best_offset.value() < int64_t( playback_index - capture_index ) ) {
+          playback_index--;
+          playback_index_offset--;
+        }
+      }
     },
     [&] { return steady_clock::now() >= next_jitter_calculation; } );
 
