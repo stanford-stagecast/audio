@@ -47,6 +47,10 @@ pkg_check_modules ( V4L REQUIRED libv4l2 libjpeg libswscale )
 include_directories ( ${V4L_INCLUDE_DIRS} )
 add_compile_options ( ${V4L_CFLAGS} )
 
+pkg_check_modules ( X264 REQUIRED x264 )
+include_directories ( ${X264_INCLUDE_DIRS} )
+add_compile_options ( ${X264_CFLAGS_OTHER} )
+
 include_directories ("${PROJECT_SOURCE_DIR}/src/util")
 include_directories ("${PROJECT_SOURCE_DIR}/src/crypto")
 include_directories ("${PROJECT_SOURCE_DIR}/src/http")
