@@ -35,40 +35,50 @@ public:
 
 class AudioBuffer
 {
-  SafeEndlessBuffer<float> ch1, ch2;
-  JitterBuffer jitter;
+  SafeEndlessBuffer<float> ch1_, ch2_;
+  JitterBuffer jitter_;
 
 public:
   AudioBuffer( const size_t capacity )
-    : ch1( capacity )
-    , ch2( capacity )
-    , jitter( capacity )
+    : ch1_( capacity )
+    , ch2_( capacity )
+    , jitter_( capacity )
   {}
 
-  size_t range_begin() const { return ch1.range_begin(); }
-  size_t range_end() const { return ch1.range_end(); }
+  size_t range_begin() const { return ch1_.range_begin(); }
+  size_t range_end() const { return ch1_.range_end(); }
 
   void pop( const size_t num_samples )
   {
-    ch1.pop( num_samples );
-    ch2.pop( num_samples );
-    jitter.pop( num_samples );
+    ch1_.pop( num_samples );
+    ch2_.pop( num_samples );
+    jitter_.pop( num_samples );
   }
 
   std::pair<float, float> safe_get( const size_t index ) const
   {
-    return { ch1.safe_get( index ), ch2.safe_get( index ) };
+    return { ch1_.safe_get( index ), ch2_.safe_get( index ) };
   }
 
   void safe_set( const size_t index, const std::pair<float, float> val )
   {
-    ch1.safe_set( index, val.first );
-    ch2.safe_set( index, val.second );
-    jitter.safe_set( index, true );
+    ch1_.safe_set( index, val.first );
+    ch2_.safe_set( index, val.second );
+    jitter_.safe_set( index, true );
   }
 
-  JitterBuffer& jitter_buffer() { return jitter; }
-  const JitterBuffer& jitter_buffer() const { return jitter; }
+  void touch( const size_t index, const size_t count )
+  {
+    for ( size_t i = index; i < index + count; i++ ) {
+      jitter_.safe_set( i, true );
+    }
+  }
+
+  JitterBuffer& jitter_buffer() { return jitter_; }
+  const JitterBuffer& jitter_buffer() const { return jitter_; }
+
+  SafeEndlessBuffer<float>& ch1() { return ch1_; }
+  SafeEndlessBuffer<float>& ch2() { return ch2_; }
 };
 
 struct AudioStatistics
@@ -135,8 +145,8 @@ public:
     unsigned int start_threshold { 24 };
     unsigned int skip_threshold { 64 };
 
-    std::array<float, 2> ch1_loopback_gain { 2.0, 2.0 };
-    std::array<float, 2> ch2_loopback_gain { 2.0, 2.0 };
+    std::array<float, 2> ch1_loopback_gain { 0.0, 0.0 };
+    std::array<float, 2> ch2_loopback_gain { 0.0, 0.0 };
   };
 
 private:

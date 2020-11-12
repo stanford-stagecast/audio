@@ -29,7 +29,8 @@ void program_body()
   AudioPair uac2 { interface_name };
   uac2.initialize();
 
-  OpusEncoder opus { 96000, 48000 };
+  OpusEncoder opusenc { 128000, 48000 };
+  OpusDecoder opusdec { 48000 };
 
   EventLoop loop;
 
@@ -96,15 +97,25 @@ void program_body()
     next_stats_print = steady_clock::now();
   } );
 
+  string opusframe;
+
   loop.add_rule(
     "copy capture-> playback",
     [&] {
-      while ( capture_read_index < capture_index ) {
-        audio_playback.safe_set( playback_write_index++, audio_capture.safe_get( capture_read_index++ ) );
-      }
-      audio_capture.pop( capture_index - audio_capture.range_begin() );
+      opusframe.resize( 131072 );
+      opusframe.resize( opusenc.encode( audio_capture.ch1().region( capture_read_index, 120 ),
+                                        static_cast<string_view>( opusframe ) ) );
+
+      const size_t samples_written = opusdec.decode( static_cast<string_view>( opusframe ),
+                                                     audio_playback.ch1().region( playback_write_index, 120 ) );
+
+      audio_playback.touch( playback_write_index, samples_written );
+
+      capture_read_index += 120;
+      playback_write_index += 120;
+      audio_capture.pop( 120 );
     },
-    [&] { return capture_read_index < capture_index; } );
+    [&] { return capture_index >= capture_read_index + 120; } );
 
   loop.add_rule(
     "pop from playback",
