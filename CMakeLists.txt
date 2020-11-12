@@ -20,10 +20,15 @@ pkg_check_modules ( Opus REQUIRED opus )
 include_directories ( ${Opus_INCLUDE_DIRS} )
 add_compile_options ( ${Opus_CFLAGS_OTHER} )
 
+pkg_check_modules ( X264 REQUIRED x264 )
+include_directories ( ${X264_INCLUDE_DIRS} )
+add_compile_options ( ${X264_CFLAGS_OTHER} )
+
 include_directories ("${PROJECT_SOURCE_DIR}/src/util")
 include_directories ("${PROJECT_SOURCE_DIR}/src/dbus")
 
 add_subdirectory ("${PROJECT_SOURCE_DIR}/src/util")
 add_subdirectory ("${PROJECT_SOURCE_DIR}/src/dbus")
 #add_subdirectory ("${PROJECT_SOURCE_DIR}/src/stats")
+add_subdirectory ("${PROJECT_SOURCE_DIR}/src/video")
 add_subdirectory ("${PROJECT_SOURCE_DIR}/src/audio")
