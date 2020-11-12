@@ -55,14 +55,14 @@ RingStorage::RingStorage( const size_t capacity )
                      fd_.fd_num() )
 {}
 
-string_span RingStorage::storage()
+string_span RingStorage::storage( const size_t index )
 {
-  return { virtual_address_space_.addr(), capacity() };
+  return { virtual_address_space_.addr() + index, capacity() };
 }
 
-string_view RingStorage::storage() const
+string_view RingStorage::storage( const size_t index ) const
 {
-  return { virtual_address_space_.addr(), capacity() };
+  return { virtual_address_space_.addr() + index, capacity() };
 }
 
 size_t RingBuffer::next_index_to_write() const
@@ -77,12 +77,12 @@ size_t RingBuffer::next_index_to_read() const
 
 std::string_view RingBuffer::writable_region() const
 {
-  return storage().substr( next_index_to_write(), capacity() - bytes_stored() );
+  return storage( next_index_to_write() ).substr( 0, capacity() - bytes_stored() );
 }
 
 string_span RingBuffer::writable_region()
 {
-  return storage().substr( next_index_to_write(), capacity() - bytes_stored() );
+  return storage( next_index_to_write() ).substr( 0, capacity() - bytes_stored() );
 }
 
 void RingBuffer::push( const size_t num_bytes )
@@ -96,7 +96,7 @@ void RingBuffer::push( const size_t num_bytes )
 
 std::string_view RingBuffer::readable_region() const
 {
-  return storage().substr( next_index_to_read(), bytes_stored() );
+  return storage( next_index_to_read() ).substr( 0, bytes_stored() );
 }
 
 void RingBuffer::pop( const size_t num_bytes )

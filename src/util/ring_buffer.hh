@@ -34,8 +34,8 @@ class RingStorage
   MMap_Region virtual_address_space_, first_mapping_, second_mapping_;
 
 protected:
-  string_span storage();
-  std::string_view storage() const;
+  string_span storage( const size_t index );
+  std::string_view storage( const size_t index ) const;
 
 public:
   explicit RingStorage( const size_t capacity );
