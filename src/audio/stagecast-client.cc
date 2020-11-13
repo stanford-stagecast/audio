@@ -5,16 +5,18 @@
 #include <thread>
 
 #include "alsa_devices.hh"
-#include "audio_device_claim.hh"
 #include "eventloop.hh"
 #include "exception.hh"
 #include "opus.hh"
+#include "socket.hh"
 #include "typed_ring_buffer.hh"
+
+#include "network.hh"
 
 using namespace std;
 using namespace std::chrono;
 
-void program_body()
+void program_body( const string host, const string port )
 {
   ios::sync_with_stdio( false );
 
@@ -23,13 +25,16 @@ void program_body()
   size_t capture_read_index {}, playback_write_index {};
   int playback_offset = 0;
 
+  UDPSocket sock;
+  sock.set_blocking( false );
+  Address server { host, port };
+
   const auto [name, interface_name] = ALSADevices::find_device( "UAC-2, USB Audio" );
-  const auto device_claim = AudioDeviceClaim::try_claim( name );
   AudioPair uac2 { interface_name };
   uac2.initialize();
 
-  OpusEncoder opusenc { 128000, 48000 };
-  OpusDecoder opusdec { 48000 };
+  OpusEncoder opusenc1 { 128000, 48000 }, opusenc2 { 128000, 48000 };
+  OpusDecoder opusdec1 { 48000 }, opusdec2 { 48000 };
 
   EventLoop loop;
 
@@ -69,7 +74,11 @@ void program_body()
     "audio loopback",
     uac2.fd(),
     Direction::In,
-    [&] { uac2.loopback( audio_capture, capture_index, audio_playback, playback_index ); },
+    [&] {
+      uac2.loopback( audio_capture, capture_index, audio_playback, playback_index );
+
+      playback_write_index = max( playback_write_index, playback_index );
+    },
     [] { return true; },
     [] {},
     [&] {
@@ -95,29 +104,46 @@ void program_body()
     next_stats_print = steady_clock::now();
   } );
 
-  string opusframe;
+  Packet pack;
 
   loop.add_rule(
-    "copy capture-> playback",
+    "compress and send",
+    sock,
+    Direction::Out,
     [&] {
-      opusframe.resize( 131072 );
-      opusframe.resize( opusenc.encode( audio_capture.ch1().region( capture_read_index, 120 ),
-                                        static_cast<string_view>( opusframe ) ) );
+      pack.size_1 = opusenc1.encode( audio_capture.ch1().region( capture_read_index, 120 ), pack.f1() );
+      pack.size_2 = opusenc1.encode( audio_capture.ch2().region( capture_read_index, 120 ), pack.f2() );
 
-      const size_t samples_written = opusdec.decode( static_cast<string_view>( opusframe ),
-                                                     audio_playback.ch1().region( playback_write_index, 120 ) );
-
-      if ( samples_written != 120 ) {
-        throw runtime_error( "bad opus frame" );
-      }
-
-      audio_playback.touch( playback_write_index, 120 );
+      sock.sendto( server, pack );
 
       capture_read_index += 120;
-      playback_write_index += 120;
+      //      playback_write_index += 120;
       audio_capture.pop( 120 );
     },
     [&] { return capture_index >= capture_read_index + 120; } );
+
+  UDPSocket::received_datagram dg_in { { "0", "0" }, {} };
+
+  loop.add_rule( "receive and decompress", sock, Direction::In, [&] {
+    sock.recv( dg_in );
+    if ( dg_in.payload.size() != sizeof( Packet ) ) {
+      return;
+    }
+
+    memcpy( &pack, dg_in.payload.data(), sizeof( Packet ) );
+
+    const size_t samples_written1
+      = opusdec1.decode( pack.f1(), audio_playback.ch1().region( playback_write_index, 120 ) );
+    const size_t samples_written2
+      = opusdec2.decode( pack.f2(), audio_playback.ch2().region( playback_write_index, 120 ) );
+
+    if ( samples_written1 != 120 or samples_written2 != 120 ) {
+      throw runtime_error( "bad opus frame" );
+    }
+
+    audio_playback.touch( playback_write_index, 120 );
+    playback_write_index += 120;
+  } );
 
   loop.add_rule(
     "pop from playback",
@@ -144,7 +170,7 @@ void program_body()
       if ( off.has_value() ) {
         cout << " best_offset=" << off.value();
       } else {
-        cout << "BAD";
+        cout << " BAD";
       }
       cout << " offset= " << int64_t( capture_index - playback_index );
       cout << " quality=" << setw( 4 ) << fixed << setprecision( 1 )
@@ -166,10 +192,15 @@ void program_body()
   cout << loop.summary() << "\n";
 }
 
-int main()
+int main( int argc, char* argv[] )
 {
   try {
-    program_body();
+    if ( argc != 3 ) {
+      cerr << "Usage.\n";
+      return EXIT_FAILURE;
+    }
+
+    program_body( argv[1], argv[2] );
     cout << global_timer().summary() << "\n";
   } catch ( const exception& e ) {
     cout << "Exception: " << e.what() << "\n";
