@@ -84,38 +84,35 @@ EventLoop::Result EventLoop::wait_next_event( const int timeout_ms )
 {
   // first, handle the non-file-descriptor-related rules
   {
-    unsigned int iterations = 0;
-    while ( true ) {
-      ++iterations;
+    for ( auto it = _non_fd_rules.begin(); it != _non_fd_rules.end(); ) {
+      auto& this_rule = **it;
       bool rule_fired = false;
-      for ( auto it = _non_fd_rules.begin(); it != _non_fd_rules.end(); ) {
-        auto& this_rule = **it;
 
-        if ( this_rule.cancel_requested ) {
-          it = _non_fd_rules.erase( it );
-          continue;
-        }
-
-        if ( this_rule.interest() ) {
-          if ( iterations > 128 ) {
-            throw runtime_error( "EventLoop: busy wait detected: rule \""
-                                 + _rule_categories.at( this_rule.category_id ).name
-                                 + "\" is still interested after " + to_string( iterations ) + " iterations" );
-          }
-
-          rule_fired = true;
-          RecordScopeTimer<Timer::Category::Nonblock> record_timer {
-            _rule_categories.at( this_rule.category_id ).timer
-          };
-          this_rule.callback();
-        }
-
-        ++it;
+      if ( this_rule.cancel_requested ) {
+        it = _non_fd_rules.erase( it );
+        continue;
       }
 
-      if ( not rule_fired ) {
-        break;
+      uint8_t iterations = 0;
+      while ( this_rule.interest() ) {
+        if ( iterations++ >= 128 ) {
+          throw runtime_error( "EventLoop: busy wait detected: rule \""
+                               + _rule_categories.at( this_rule.category_id ).name + "\" is still interested after "
+                               + to_string( iterations ) + " iterations" );
+        }
+
+        rule_fired = true;
+        RecordScopeTimer<Timer::Category::Nonblock> record_timer {
+          _rule_categories.at( this_rule.category_id ).timer
+        };
+        this_rule.callback();
       }
+
+      if ( rule_fired ) {
+        return Result::Success; /* only serve one rule on each iteration */
+      }
+
+      ++it;
     }
   }
 
@@ -229,6 +226,8 @@ EventLoop::Result EventLoop::wait_next_event( const int timeout_ms )
                              + _rule_categories.at( this_rule.category_id ).name
                              + "\" did not read/write fd and is still interested" );
       }
+
+      return Result::Success; /* only serve one rule on each iteration */
     }
 
     ++it; // if we got here, it means we didn't call _fd_rules.erase()
@@ -255,16 +254,18 @@ void EventLoop::summary( ostringstream& out ) const
 
     out << "   " << name << ": ";
     out << string( 27 - name.size(), ' ' );
-    out << "mean " << Timer::pp_ns( timer.total_ns / timer.count );
+    out << "mean ";
+    Timer::pp_ns( out, timer.total_ns / timer.count );
 
-    out << "  [" << Timer::pp_ns( timer.min_ns );
-    out << ".." << Timer::pp_ns( timer.max_ns ) << "]";
+    out << "  [";
+    Timer::pp_ns( out, timer.min_ns );
+    out << "..";
+    Timer::pp_ns( out, timer.max_ns );
+    out << "]";
 
     out << " N=" << timer.count;
     out << "\n";
   };
-
-  print_timer( "waiting for event", _waiting );
 
   for ( const auto& rule : _rule_categories ) {
     const auto& name = rule.name;
@@ -272,6 +273,8 @@ void EventLoop::summary( ostringstream& out ) const
 
     print_timer( name, timer );
   }
+
+  print_timer( "waiting for event", _waiting );
 }
 
 void EventLoop::reset_statistics()

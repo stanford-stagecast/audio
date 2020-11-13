@@ -306,12 +306,22 @@ void AudioInterface::prepare()
   check_state( SND_PCM_STATE_PREPARED );
 }
 
-void AudioPair::recover()
+void AudioPair::recover( const size_t cursor )
 {
   statistics_.recoveries++;
+  statistics_.last_recovery = cursor;
   microphone_.recover();
   headphone_.recover();
   microphone_.start();
+}
+
+bool AudioPair::mic_has_samples()
+{
+  if ( microphone_.update() ) {
+    return false;
+  }
+
+  return microphone_.avail();
 }
 
 void AudioPair::loopback( AudioBuffer& capture_output, const AudioBuffer& playback_input, size_t& cursor )
@@ -320,16 +330,17 @@ void AudioPair::loopback( AudioBuffer& capture_output, const AudioBuffer& playba
   fd_.register_read();
 
   if ( microphone_.update() ) {
-    recover();
+    recover( cursor );
     return;
   }
 
   if ( headphone_.update() ) {
-    recover();
+    recover( cursor );
     return;
   }
 
   if ( microphone_.avail() == 0 ) {
+    statistics_.empty_wakeups++;
     return;
   }
 
@@ -387,6 +398,9 @@ void AudioInterface::copy_all_available_samples_to( AudioInterface& other,
       capture_output.safe_set( cursor, { ch1_sample, ch2_sample } );
 
       /* track statistics */
+      stats.samples_counted++;
+      stats.ssa_ch1 += stats.max_ch1_amplitude * stats.max_ch1_amplitude;
+      stats.ssa_ch2 += stats.max_ch2_amplitude * stats.max_ch2_amplitude;
       stats.max_ch1_amplitude = max( stats.max_ch1_amplitude, abs( ch1_sample ) );
       stats.max_ch2_amplitude = max( stats.max_ch2_amplitude, abs( ch2_sample ) );
 

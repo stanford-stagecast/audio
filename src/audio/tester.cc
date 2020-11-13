@@ -74,7 +74,15 @@ void program_body()
   RingBuffer output_rb { 65536 };
 
   loop.add_rule(
-    "audio loopback",
+    "audio loopback [fast path]",
+    [&] {
+      uac2.loopback( audio_capture, audio_playback, uac2_cursor );
+      audio_playback.pop( uac2_cursor - audio_playback.range_begin() );
+    },
+    [&] { return uac2.mic_has_samples(); } );
+
+  loop.add_rule(
+    "audio loopback [slow path]",
     uac2.fd(),
     Direction::In,
     [&] {
@@ -84,56 +92,104 @@ void program_body()
     [] { return true; },
     [] {},
     [&] {
-      uac2.recover();
+      uac2.recover( uac2_cursor );
       return true;
     } );
 
   OpusEncoder encoder1 { 128000, 48000 }, encoder2 { 128000, 48000 };
   opus_frame frame1, frame2;
+  size_t enc1_encode_cursor {}, enc2_encode_cursor {};
 
   loop.add_rule(
-    "encode",
+    "encode [ch1]",
     [&] {
-      encoder1.encode( audio_capture.ch1().region( audio_capture.range_begin(), 120 ), frame1 );
-      encoder2.encode( audio_capture.ch2().region( audio_capture.range_begin(), 120 ), frame2 );
-      audio_capture.pop( 120 );
+      encoder1.encode( audio_capture.ch1().region( enc1_encode_cursor, 120 ), frame1 );
+      enc1_encode_cursor += 120;
     },
-    [&] { return uac2_cursor >= audio_capture.range_begin() + 120; } );
+    [&] { return uac2_cursor >= enc1_encode_cursor + 120; } );
+
+  loop.add_rule(
+    "encode [ch2]",
+    [&] {
+      encoder2.encode( audio_capture.ch2().region( enc2_encode_cursor, 120 ), frame2 );
+      enc2_encode_cursor += 120;
+      const size_t min_encode_cursor = min( enc1_encode_cursor, enc2_encode_cursor );
+      if ( min_encode_cursor > audio_capture.range_begin() ) {
+        audio_capture.pop( min_encode_cursor - audio_capture.range_begin() );
+      }
+    },
+    [&] { return uac2_cursor >= enc2_encode_cursor + 120; } );
 
   auto next_stats_print = steady_clock::now();
   const auto stats_interval = milliseconds( 500 );
+
+  auto next_stats_reset = steady_clock::now();
+  const auto stats_reset_interval = seconds( 10 );
 
   ostringstream update;
 
   loop.add_rule(
     "generate statistics",
     [&] {
-      update << "peak dBFS=[ " << setw( 3 ) << setprecision( 1 ) << fixed
-             << float_to_dbfs( uac2.statistics().sample_stats.max_ch1_amplitude ) << ", " << setw( 3 )
-             << setprecision( 1 ) << fixed << float_to_dbfs( uac2.statistics().sample_stats.max_ch2_amplitude )
-             << " ]";
+      if ( uac2.statistics().sample_stats.samples_counted ) {
+        update << "dB = [ " << setw( 3 ) << setprecision( 1 ) << fixed
+               << float_to_dbfs( sqrt( uac2.statistics().sample_stats.ssa_ch1
+                                       / uac2.statistics().sample_stats.samples_counted ) )
+               << "/" << setw( 3 ) << setprecision( 1 ) << fixed
+               << float_to_dbfs( uac2.statistics().sample_stats.max_ch1_amplitude ) << ", ";
+
+        update << setw( 3 ) << setprecision( 1 ) << fixed
+               << float_to_dbfs( sqrt( uac2.statistics().sample_stats.ssa_ch2
+                                       / uac2.statistics().sample_stats.samples_counted ) )
+               << "/" << setw( 3 ) << setprecision( 1 ) << fixed
+               << float_to_dbfs( uac2.statistics().sample_stats.max_ch2_amplitude ) << " ]";
+      }
+
       update << " cursor=";
       pp_samples( update, uac2_cursor );
-      update << " capture=";
-      pp_samples( update, uac2_cursor - audio_capture.range_begin() );
+      if ( uac2_cursor - audio_capture.range_begin() > 120 ) {
+        update << " capture=";
+        pp_samples( update, uac2_cursor - audio_capture.range_begin() );
+      }
       if ( uac2_cursor != audio_playback.range_begin() ) {
         update << " playback=";
         pp_samples( update, uac2_cursor - audio_playback.range_begin() );
       }
-      update << " recov=" << uac2.statistics().recoveries;
-      update << " skipped=" << uac2.statistics().sample_stats.samples_skipped;
-      if ( uac2.statistics().max_microphone_avail > 30 ) {
+
+      if ( uac2.statistics().last_recovery and ( uac2_cursor - uac2.statistics().last_recovery < 48000 * 60 ) ) {
+        update << " last recovery=";
+        pp_samples( update, uac2_cursor - uac2.statistics().last_recovery );
+        update << " recoveries=" << uac2.statistics().recoveries;
+        update << " skipped=" << uac2.statistics().sample_stats.samples_skipped;
+      }
+
+      if ( uac2.statistics().max_microphone_avail > 32 ) {
         update << " mic<=" << uac2.statistics().max_microphone_avail << "!";
       }
-      if ( uac2.statistics().min_headphone_delay < 12 ) {
+      if ( uac2.statistics().min_headphone_delay <= 6 ) {
         update << " phone>=" << uac2.statistics().min_headphone_delay << "!";
       }
       if ( uac2.statistics().max_combined_samples > 64 ) {
         update << " combined<=" << uac2.statistics().max_combined_samples << "!";
       }
+      if ( uac2.statistics().empty_wakeups ) {
+        update << " empty=" << uac2.statistics().empty_wakeups << "/" << uac2.statistics().total_wakeups << "!";
+      }
+
       update << "\n";
+      uac2.reset_statistics();
 
       loop.summary( update );
+      update << "\n";
+      const auto now = steady_clock::now();
+      next_stats_print = now + stats_interval;
+      if ( now > next_stats_reset ) {
+        loop.reset_statistics();
+        next_stats_reset = now + stats_reset_interval;
+      }
+
+      global_timer().summary( update );
+      update << "\n";
 
       const auto& str = update.str();
       if ( output_rb.writable_region().size() >= str.size() ) {
@@ -142,10 +198,6 @@ void program_body()
       output_rb.pop_to_fd( output );
       update.str( {} );
       update.clear();
-
-      uac2.reset_statistics();
-      loop.reset_statistics();
-      next_stats_print = steady_clock::now() + stats_interval;
     },
     [&] { return steady_clock::now() > next_stats_print; } );
 

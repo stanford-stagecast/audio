@@ -68,9 +68,11 @@ public:
 
 struct AudioStatistics
 {
+  size_t last_recovery;
   unsigned int recoveries;
 
   unsigned int total_wakeups;
+  unsigned int empty_wakeups;
 
   unsigned int max_microphone_avail;
   unsigned int min_headphone_delay { std::numeric_limits<unsigned int>::max() };
@@ -78,8 +80,10 @@ struct AudioStatistics
 
   struct SampleStats
   {
+    unsigned int samples_counted;
     unsigned int samples_skipped;
     float max_ch1_amplitude, max_ch2_amplitude;
+    float ssa_ch1, ssa_ch2;
   } sample_stats;
 };
 
@@ -195,18 +199,21 @@ public:
   PCMFD& fd() { return fd_; }
 
   void start() { microphone_.start(); }
-  void recover();
+  void recover( const size_t cursor );
   void loopback( AudioBuffer& capture_output, const AudioBuffer& playback_input, size_t& cursor );
 
+  bool mic_has_samples();
   unsigned int mic_avail() { return microphone_.avail(); }
 
   const AudioStatistics& statistics() { return statistics_; }
   void reset_statistics()
   {
     const auto rec = statistics_.recoveries, skip = statistics_.sample_stats.samples_skipped;
+    const auto last_recovery = statistics_.last_recovery;
     statistics_ = {};
     statistics_.recoveries = rec;
     statistics_.sample_stats.samples_skipped = skip;
+    statistics_.last_recovery = last_recovery;
   }
 };
 
