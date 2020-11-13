@@ -23,15 +23,21 @@ public:
     uint64_t count;
     uint64_t total_ns;
     uint64_t max_ns;
+    uint64_t min_ns = std::numeric_limits<uint64_t>::max();
 
     void log( const uint64_t time_ns )
     {
       count++;
       total_ns += time_ns;
       max_ns = std::max( max_ns, time_ns );
+      min_ns = std::min( min_ns, time_ns );
     }
 
-    void reset() { count = total_ns = max_ns = 0; }
+    void reset()
+    {
+      count = total_ns = max_ns = 0;
+      min_ns = std::numeric_limits<uint64_t>::max();
+    }
   };
 
   enum class Category

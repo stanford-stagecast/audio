@@ -240,7 +240,12 @@ EventLoop::Result EventLoop::wait_next_event( const int timeout_ms )
 string EventLoop::summary() const
 {
   ostringstream out;
+  summary( out );
+  return out.str();
+}
 
+void EventLoop::summary( ostringstream& out ) const
+{
   out << "EventLoop timing summary\n------------------------\n\n";
 
   auto print_timer = [&]( const string_view name, const Timer::Record timer ) {
@@ -252,8 +257,10 @@ string EventLoop::summary() const
     out << string( 27 - name.size(), ' ' );
     out << "mean " << Timer::pp_ns( timer.total_ns / timer.count );
 
-    out << "     [max=" << Timer::pp_ns( timer.max_ns ) << "]";
-    out << " [count=" << timer.count << "]";
+    out << "  [" << Timer::pp_ns( timer.min_ns );
+    out << ".." << Timer::pp_ns( timer.max_ns ) << "]";
+
+    out << " N=" << timer.count;
     out << "\n";
   };
 
@@ -265,8 +272,6 @@ string EventLoop::summary() const
 
     print_timer( name, timer );
   }
-
-  return out.str();
 }
 
 void EventLoop::reset_statistics()

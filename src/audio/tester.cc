@@ -20,7 +20,7 @@ void program_body()
   ios::sync_with_stdio( false );
 
   AudioBuffer audio_capture { 65536 }, audio_playback { 65536 };
-  size_t capture_index {}, playback_index {};
+  size_t uac2_cursor = 0;
 
   const auto [name, interface_name] = ALSADevices::find_device( "UAC-2, USB Audio" );
   const auto device_claim = AudioDeviceClaim::try_claim( name );
@@ -40,7 +40,10 @@ void program_body()
     "audio loopback",
     uac2.fd(),
     Direction::In,
-    [&] { uac2.loopback( audio_capture, capture_index, audio_playback, playback_index ); },
+    [&] {
+      uac2.loopback( audio_capture, audio_playback, uac2_cursor );
+      audio_playback.pop( uac2_cursor - audio_playback.range_begin() );
+    },
     [] { return true; },
     [] {},
     [&] {
@@ -58,7 +61,7 @@ void program_body()
       encoder2.encode( audio_capture.ch2().region( audio_capture.range_begin(), 120 ), frame2 );
       audio_capture.pop( 120 );
     },
-    [&] { return capture_index >= audio_capture.range_begin() + 120; } );
+    [&] { return uac2_cursor >= audio_capture.range_begin() + 120; } );
 
   auto next_stats_print = steady_clock::now();
   const auto stats_interval = milliseconds( 500 );
@@ -68,27 +71,29 @@ void program_body()
   loop.add_rule(
     "generate statistics",
     [&] {
-      update << "peak dBFS=[ " << float_to_dbfs( uac2.statistics().sample_stats.max_ch1_amplitude ) << ", "
-             << float_to_dbfs( uac2.statistics().sample_stats.max_ch2_amplitude ) << " ]";
-      update << " capture range= " << audio_capture.range_begin();
-      update << " playback range= " << audio_playback.range_begin();
-      update << " capture=" << capture_index << " playback=" << playback_index;
+      update << "peak dBFS=[ " << setw( 3 ) << setprecision( 1 ) << fixed
+             << float_to_dbfs( uac2.statistics().sample_stats.max_ch1_amplitude ) << ", " << setw( 3 )
+             << setprecision( 1 ) << fixed << float_to_dbfs( uac2.statistics().sample_stats.max_ch2_amplitude )
+             << " ]";
+      update << " capture=" << audio_capture.range_begin();
+      update << " playback=" << audio_playback.range_begin();
+      update << " cursor=" << uac2_cursor;
       update << " recov=" << uac2.statistics().recoveries;
       update << " skipped=" << uac2.statistics().sample_stats.samples_skipped;
       update << " empty=" << uac2.statistics().empty_wakeups << "/" << uac2.statistics().total_wakeups;
       update << " mic<=" << uac2.statistics().max_microphone_avail;
       update << " phone>=" << uac2.statistics().min_headphone_delay;
       update << " comb<=" << uac2.statistics().max_combined_samples;
-
       update << "\n";
 
-      update << loop.summary() << "\n";
-      update << global_timer().summary() << endl;
+      loop.summary( update );
 
       const auto str = update.str();
       if ( output_rb.writable_region().size() >= str.size() ) {
         output_rb.push_from_const_str( str );
       }
+      output_rb.pop_to_fd( output );
+      update.str( {} );
       update.clear();
 
       uac2.reset_statistics();

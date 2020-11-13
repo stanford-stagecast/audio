@@ -150,9 +150,8 @@ public:
 
   void copy_all_available_samples_to( AudioInterface& other,
                                       AudioBuffer& capture_output,
-                                      size_t& capture_index,
-                                      AudioBuffer& playback_input,
-                                      size_t& playback_index,
+                                      const AudioBuffer& playback_input,
+                                      size_t& cursor,
                                       AudioStatistics::SampleStats& stats );
 
   const Configuration& config() const { return config_; }
@@ -198,10 +197,7 @@ public:
 
   void start() { microphone_.start(); }
   void recover();
-  void loopback( AudioBuffer& capture_output,
-                 size_t& capture_index,
-                 AudioBuffer& playback_input,
-                 size_t& playback_index );
+  void loopback( AudioBuffer& capture_output, const AudioBuffer& playback_input, size_t& cursor );
 
   unsigned int mic_avail() { return microphone_.avail(); }
 

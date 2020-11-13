@@ -106,6 +106,7 @@ public:
   Result wait_next_event( const int timeout_ms );
 
   std::string summary() const;
+  void summary( std::ostringstream& os ) const;
   void reset_statistics();
 
   // convenience function to add category and rule at the same time

@@ -314,10 +314,7 @@ void AudioPair::recover()
   microphone_.start();
 }
 
-void AudioPair::loopback( AudioBuffer& capture_output,
-                          size_t& capture_index,
-                          AudioBuffer& playback_input,
-                          size_t& playback_index )
+void AudioPair::loopback( AudioBuffer& capture_output, const AudioBuffer& playback_input, size_t& cursor )
 {
   statistics_.total_wakeups++;
   fd_.register_read();
@@ -347,7 +344,7 @@ void AudioPair::loopback( AudioBuffer& capture_output,
   statistics_.max_combined_samples = max( statistics_.max_combined_samples, combined );
 
   microphone_.copy_all_available_samples_to(
-    headphone_, capture_output, capture_index, playback_input, playback_index, statistics_.sample_stats );
+    headphone_, capture_output, playback_input, cursor, statistics_.sample_stats );
 }
 
 inline float sample_to_float( const int32_t sample )
@@ -371,9 +368,8 @@ inline int32_t float_to_sample( const float sample_f )
 
 void AudioInterface::copy_all_available_samples_to( AudioInterface& other,
                                                     AudioBuffer& capture_output,
-                                                    size_t& capture_index,
-                                                    AudioBuffer& playback_input,
-                                                    size_t& playback_index,
+                                                    const AudioBuffer& playback_input,
+                                                    size_t& cursor,
                                                     AudioStatistics::SampleStats& stats )
 {
   unsigned int avail_remaining = avail();
@@ -389,14 +385,14 @@ void AudioInterface::copy_all_available_samples_to( AudioInterface& other,
       const float ch2_sample = sample_to_float( read_buf.sample( true, i ) );
 
       /* capture into output buffer */
-      capture_output.safe_set( capture_index++, { ch1_sample, ch2_sample } );
+      capture_output.safe_set( cursor, { ch1_sample, ch2_sample } );
 
       /* track statistics */
       stats.max_ch1_amplitude = max( stats.max_ch1_amplitude, abs( ch1_sample ) );
       stats.max_ch2_amplitude = max( stats.max_ch2_amplitude, abs( ch2_sample ) );
 
       /* play from input buffer + captured sample */
-      const auto playback_sample = playback_input.safe_get( playback_index++ );
+      const auto playback_sample = playback_input.safe_get( cursor );
 
       write_buf.sample( false, i )
         = float_to_sample( ch1_sample * config_.ch1_loopback_gain[0] + ch2_sample * config_.ch2_loopback_gain[0]
@@ -405,6 +401,8 @@ void AudioInterface::copy_all_available_samples_to( AudioInterface& other,
       write_buf.sample( true, i )
         = float_to_sample( ch1_sample * config_.ch1_loopback_gain[1] + ch2_sample * config_.ch2_loopback_gain[1]
                            + playback_sample.second );
+
+      cursor++;
     }
 
     unsigned int amount_to_write = num_frames;
@@ -419,8 +417,6 @@ void AudioInterface::copy_all_available_samples_to( AudioInterface& other,
 
     avail_remaining -= num_frames;
   }
-
-  playback_input.pop( playback_index - playback_input.range_begin() );
 }
 
 void AudioInterface::link_with( AudioInterface& other )
