@@ -8,7 +8,6 @@
 #include <vector>
 
 #include "file_descriptor.hh"
-#include "jitter.hh"
 #include "typed_ring_buffer.hh"
 
 class ALSADevices
@@ -36,13 +35,11 @@ public:
 class AudioBuffer
 {
   SafeEndlessBuffer<float> ch1_, ch2_;
-  JitterBuffer jitter_;
 
 public:
   AudioBuffer( const size_t capacity )
     : ch1_( capacity )
     , ch2_( capacity )
-    , jitter_( capacity )
   {}
 
   size_t range_begin() const { return ch1_.range_begin(); }
@@ -52,7 +49,6 @@ public:
   {
     ch1_.pop( num_samples );
     ch2_.pop( num_samples );
-    jitter_.pop( num_samples );
   }
 
   std::pair<float, float> safe_get( const size_t index ) const
@@ -64,18 +60,7 @@ public:
   {
     ch1_.safe_set( index, val.first );
     ch2_.safe_set( index, val.second );
-    jitter_.safe_set( index, true );
   }
-
-  void touch( const size_t index, const size_t count )
-  {
-    for ( size_t i = index; i < index + count; i++ ) {
-      jitter_.safe_set( i, true );
-    }
-  }
-
-  JitterBuffer& jitter_buffer() { return jitter_; }
-  const JitterBuffer& jitter_buffer() const { return jitter_; }
 
   SafeEndlessBuffer<float>& ch1() { return ch1_; }
   SafeEndlessBuffer<float>& ch2() { return ch2_; }
@@ -96,7 +81,6 @@ struct AudioStatistics
   {
     unsigned int samples_skipped;
     float max_ch1_amplitude, max_ch2_amplitude;
-    float playability { 1.0 };
   } sample_stats;
 };
 
@@ -167,7 +151,7 @@ public:
   void copy_all_available_samples_to( AudioInterface& other,
                                       AudioBuffer& capture_output,
                                       size_t& capture_index,
-                                      const AudioBuffer& playback_input,
+                                      AudioBuffer& playback_input,
                                       size_t& playback_index,
                                       AudioStatistics::SampleStats& stats );
 
@@ -216,7 +200,7 @@ public:
   void recover();
   void loopback( AudioBuffer& capture_output,
                  size_t& capture_index,
-                 const AudioBuffer& playback_input,
+                 AudioBuffer& playback_input,
                  size_t& playback_index );
 
   unsigned int mic_avail() { return microphone_.avail(); }
@@ -225,11 +209,9 @@ public:
   void reset_statistics()
   {
     const auto rec = statistics_.recoveries, skip = statistics_.sample_stats.samples_skipped;
-    const auto play = statistics_.sample_stats.playability;
     statistics_ = {};
     statistics_.recoveries = rec;
     statistics_.sample_stats.samples_skipped = skip;
-    statistics_.sample_stats.playability = play;
   }
 };
 

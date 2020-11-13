@@ -1,6 +1,7 @@
-#include "opus.hh"
-
 #include <iostream>
+#include <opus/opus.h>
+
+#include "opus.hh"
 
 using namespace std;
 
@@ -11,6 +12,15 @@ int opus_check( const int retval )
   }
 
   return retval;
+}
+
+void opus_frame::resize( const uint8_t new_length )
+{
+  if ( new_length > MAX_LENGTH ) {
+    throw std::out_of_range( std::to_string( new_length ) + " > " + std::to_string( MAX_LENGTH ) );
+  }
+
+  length_ = new_length;
 }
 
 void OpusEncoder::encoder_deleter::operator()( OpusEncoder* x ) const
@@ -47,20 +57,10 @@ OpusEncoder::OpusEncoder( const int bit_rate, const int sample_rate )
   cerr << "Opus lookahead: " << out << "\n";
 }
 
-size_t OpusEncoder::encode( const span_view<float> samples, string_span encoded_output )
+void OpusEncoder::encode( const span_view<float> samples, opus_frame& encoded_output )
 {
-  const size_t bytes_written
-    = opus_check( opus_encode_float( encoder_.get(),
-                                     samples.data(),
-                                     samples.size(),
-                                     reinterpret_cast<unsigned char*>( encoded_output.mutable_data() ),
-                                     encoded_output.size() ) );
-  if ( bytes_written > encoded_output.size() ) {
-    throw runtime_error( "Opus wrote too much: " + to_string( bytes_written ) + " > "
-                         + to_string( encoded_output.size() ) );
-  }
-
-  return bytes_written;
+  encoded_output.resize( opus_check( opus_encode_float(
+    encoder_.get(), samples.data(), samples.size(), encoded_output.data(), opus_frame::MAX_LENGTH ) ) );
 }
 
 void OpusDecoder::decoder_deleter::operator()( OpusDecoder* x ) const
@@ -71,20 +71,14 @@ void OpusDecoder::decoder_deleter::operator()( OpusDecoder* x ) const
 OpusDecoder::OpusDecoder( const int sample_rate )
 {
   int out;
-
   decoder_.reset( notnull( "opus_decoder_create", opus_decoder_create( sample_rate, 1, &out ) ) );
   opus_check( out );
 }
 
-size_t OpusDecoder::decode( const string_span encoded_input, span<float> samples )
+size_t OpusDecoder::decode( const opus_frame& encoded_input, span<float> samples )
 {
-  const size_t samples_written
-    = opus_check( opus_decode_float( decoder_.get(),
-                                     reinterpret_cast<const unsigned char*>( encoded_input.data() ),
-                                     encoded_input.size(),
-                                     samples.mutable_data(),
-                                     samples.size(),
-                                     0 ) );
+  const size_t samples_written = opus_check( opus_decode_float(
+    decoder_.get(), encoded_input.data(), encoded_input.length(), samples.mutable_data(), samples.size(), 0 ) );
 
   return samples_written;
 }

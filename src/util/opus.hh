@@ -6,6 +6,25 @@
 #include "exception.hh"
 #include "spans.hh"
 
+class opus_frame
+{
+public:
+  static constexpr uint8_t MAX_LENGTH = 63;
+
+private:
+  std::array<char, MAX_LENGTH> storage_ {};
+  uint8_t length_ { MAX_LENGTH };
+
+public:
+  operator std::string_view() const { return { storage_.data(), length_ }; }
+  uint8_t* data() { return reinterpret_cast<uint8_t*>( storage_.data() ); }
+  const uint8_t* data() const { return reinterpret_cast<const uint8_t*>( storage_.data() ); }
+  uint8_t length() const { return length_; }
+  void resize( const uint8_t new_length = MAX_LENGTH );
+};
+
+static_assert( sizeof( opus_frame ) == 64 );
+
 class OpusEncoder
 {
   struct encoder_deleter
@@ -17,7 +36,7 @@ class OpusEncoder
 
 public:
   OpusEncoder( const int bit_rate, const int sample_rate );
-  size_t encode( const span_view<float> samples, string_span encoded_output );
+  void encode( const span_view<float> samples, opus_frame& encoded_output );
 };
 
 class OpusDecoder
@@ -31,5 +50,5 @@ class OpusDecoder
 
 public:
   OpusDecoder( const int sample_rate );
-  size_t decode( const string_span encoded_input, span<float> samples );
+  size_t decode( const opus_frame& encoded_input, span<float> samples );
 };

@@ -316,7 +316,7 @@ void AudioPair::recover()
 
 void AudioPair::loopback( AudioBuffer& capture_output,
                           size_t& capture_index,
-                          const AudioBuffer& playback_input,
+                          AudioBuffer& playback_input,
                           size_t& playback_index )
 {
   statistics_.total_wakeups++;
@@ -372,7 +372,7 @@ inline int32_t float_to_sample( const float sample_f )
 void AudioInterface::copy_all_available_samples_to( AudioInterface& other,
                                                     AudioBuffer& capture_output,
                                                     size_t& capture_index,
-                                                    const AudioBuffer& playback_input,
+                                                    AudioBuffer& playback_input,
                                                     size_t& playback_index,
                                                     AudioStatistics::SampleStats& stats )
 {
@@ -396,9 +396,6 @@ void AudioInterface::copy_all_available_samples_to( AudioInterface& other,
       stats.max_ch2_amplitude = max( stats.max_ch2_amplitude, abs( ch2_sample ) );
 
       /* play from input buffer + captured sample */
-      constexpr float ALPHA = 1.0 / 6000.0;
-      stats.playability
-        = ALPHA * playback_input.jitter_buffer().safe_get( playback_index ) + ( 1 - ALPHA ) * stats.playability;
       const auto playback_sample = playback_input.safe_get( playback_index++ );
 
       write_buf.sample( false, i )
@@ -422,6 +419,8 @@ void AudioInterface::copy_all_available_samples_to( AudioInterface& other,
 
     avail_remaining -= num_frames;
   }
+
+  playback_input.pop( playback_index - playback_input.range_begin() );
 }
 
 void AudioInterface::link_with( AudioInterface& other )

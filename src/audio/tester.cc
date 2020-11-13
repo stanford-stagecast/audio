@@ -2,6 +2,7 @@
 #include <cstdlib>
 #include <iomanip>
 #include <iostream>
+#include <sstream>
 #include <thread>
 
 #include "alsa_devices.hh"
@@ -20,50 +21,20 @@ void program_body()
 
   AudioBuffer audio_capture { 65536 }, audio_playback { 65536 };
   size_t capture_index {}, playback_index {};
-  size_t capture_read_index {}, playback_write_index {};
-  int playback_offset = 0;
 
   const auto [name, interface_name] = ALSADevices::find_device( "UAC-2, USB Audio" );
   const auto device_claim = AudioDeviceClaim::try_claim( name );
   AudioPair uac2 { interface_name };
   uac2.initialize();
 
-  OpusEncoder opusenc { 128000, 48000 };
-  OpusDecoder opusdec { 48000 };
-
   EventLoop loop;
 
   FileDescriptor input { CheckSystemCall( "dup STDIN_FILENO", dup( STDIN_FILENO ) ) };
+  FileDescriptor output { CheckSystemCall( "dup STDOUT_FILENO", dup( STDOUT_FILENO ) ) };
+  input.set_blocking( false );
+  output.set_blocking( false );
 
-  const auto jitter_calculation_interval = milliseconds( 50 );
-
-  auto next_jitter_calculation = steady_clock::now() + jitter_calculation_interval;
-
-  for ( int i = -300; i < 300; i++ ) {
-    audio_playback.jitter_buffer().add_sample_point( i * 48 );
-  }
-
-  loop.add_rule(
-    "calculate jitter",
-    [&] {
-      audio_playback.jitter_buffer().sample( playback_index, playback_offset );
-      next_jitter_calculation += jitter_calculation_interval;
-
-      const auto best_offset = audio_playback.jitter_buffer().best_offset( 0.98 );
-      if ( best_offset.has_value() ) {
-        if ( best_offset.value() - 48 < int64_t( playback_index - capture_index ) and playback_index >= 24 ) {
-          // fix underflows aggressively
-          playback_index -= 24;
-          playback_offset -= 24;
-        }
-
-        if ( best_offset.value() - 48 > int64_t( playback_index - capture_index ) ) {
-          playback_index++;
-          playback_offset++;
-        }
-      }
-    },
-    [&] { return steady_clock::now() >= next_jitter_calculation; } );
+  RingBuffer output_rb { 65536 };
 
   loop.add_rule(
     "audio loopback",
@@ -77,87 +48,61 @@ void program_body()
       return true;
     } );
 
-  string keyboard;
-  keyboard.resize( 256 );
-
-  auto next_stats_print = steady_clock::now();
-  const auto stats_interval = milliseconds( 250 );
-
-  loop.add_rule( "adjust playback index", input, Direction::In, [&] {
-    input.read( static_cast<string_view>( keyboard ) );
-    if ( not keyboard.empty() and keyboard.front() == '+' and playback_index > 48 ) {
-      playback_index -= 48;
-    }
-    if ( not keyboard.empty() and keyboard.front() == '-' ) {
-      playback_index += 48;
-    }
-
-    next_stats_print = steady_clock::now();
-  } );
-
-  string opusframe;
+  OpusEncoder encoder1 { 128000, 48000 }, encoder2 { 128000, 48000 };
+  opus_frame frame1, frame2;
 
   loop.add_rule(
-    "copy capture-> playback",
+    "encode",
     [&] {
-      opusframe.resize( 131072 );
-      opusframe.resize( opusenc.encode( audio_capture.ch1().region( capture_read_index, 120 ),
-                                        static_cast<string_view>( opusframe ) ) );
-
-      const size_t samples_written = opusdec.decode( static_cast<string_view>( opusframe ),
-                                                     audio_playback.ch1().region( playback_write_index, 120 ) );
-
-      if ( samples_written != 120 ) {
-        throw runtime_error( "bad opus frame" );
-      }
-
-      audio_playback.touch( playback_write_index, 120 );
-
-      capture_read_index += 120;
-      playback_write_index += 120;
+      encoder1.encode( audio_capture.ch1().region( audio_capture.range_begin(), 120 ), frame1 );
+      encoder2.encode( audio_capture.ch2().region( audio_capture.range_begin(), 120 ), frame2 );
       audio_capture.pop( 120 );
     },
-    [&] { return capture_index >= capture_read_index + 120; } );
+    [&] { return capture_index >= audio_capture.range_begin() + 120; } );
+
+  auto next_stats_print = steady_clock::now();
+  const auto stats_interval = milliseconds( 500 );
+
+  ostringstream update;
 
   loop.add_rule(
-    "pop from playback",
-    [&] { audio_playback.pop( playback_index - audio_playback.range_begin() - 48000 ); },
-    [&] { return playback_index > audio_playback.range_begin() + 48000; } );
-
-  loop.add_rule(
-    "print statistics",
+    "generate statistics",
     [&] {
-      cout << "peak dBFS=[ " << float_to_dbfs( uac2.statistics().sample_stats.max_ch1_amplitude ) << ", "
-           << float_to_dbfs( uac2.statistics().sample_stats.max_ch2_amplitude ) << " ]";
-      cout << " capture range= " << audio_capture.range_begin();
-      cout << " playback range= " << audio_playback.range_begin();
-      cout << " capture=" << capture_index << " playback=" << playback_index;
-      cout << " capture-playback=" << capture_index - playback_index << "\n";
-      cout << " recov=" << uac2.statistics().recoveries;
-      cout << " skipped=" << uac2.statistics().sample_stats.samples_skipped;
-      cout << " empty=" << uac2.statistics().empty_wakeups << "/" << uac2.statistics().total_wakeups;
-      cout << " mic<=" << uac2.statistics().max_microphone_avail;
-      cout << " phone>=" << uac2.statistics().min_headphone_delay;
-      cout << " comb<=" << uac2.statistics().max_combined_samples;
+      update << "peak dBFS=[ " << float_to_dbfs( uac2.statistics().sample_stats.max_ch1_amplitude ) << ", "
+             << float_to_dbfs( uac2.statistics().sample_stats.max_ch2_amplitude ) << " ]";
+      update << " capture range= " << audio_capture.range_begin();
+      update << " playback range= " << audio_playback.range_begin();
+      update << " capture=" << capture_index << " playback=" << playback_index;
+      update << " recov=" << uac2.statistics().recoveries;
+      update << " skipped=" << uac2.statistics().sample_stats.samples_skipped;
+      update << " empty=" << uac2.statistics().empty_wakeups << "/" << uac2.statistics().total_wakeups;
+      update << " mic<=" << uac2.statistics().max_microphone_avail;
+      update << " phone>=" << uac2.statistics().min_headphone_delay;
+      update << " comb<=" << uac2.statistics().max_combined_samples;
 
-      auto off = audio_playback.jitter_buffer().best_offset( 0.98 );
-      if ( off.has_value() ) {
-        cout << " best_offset=" << off.value();
-      } else {
-        cout << "BAD";
+      update << "\n";
+
+      update << loop.summary() << "\n";
+      update << global_timer().summary() << endl;
+
+      const auto str = update.str();
+      if ( output_rb.writable_region().size() >= str.size() ) {
+        output_rb.push_from_const_str( str );
       }
-      cout << " offset= " << int64_t( capture_index - playback_index );
-      cout << " quality=" << setw( 4 ) << fixed << setprecision( 1 )
-           << lrint( 1000 * uac2.statistics().sample_stats.playability ) / 10.0;
-      cout << "\n";
+      update.clear();
 
-      cout << loop.summary() << "\n";
-      cout << global_timer().summary() << endl;
       uac2.reset_statistics();
       loop.reset_statistics();
       next_stats_print = steady_clock::now() + stats_interval;
     },
     [&] { return steady_clock::now() > next_stats_print; } );
+
+  loop.add_rule(
+    "print statistics",
+    output,
+    Direction::Out,
+    [&] { output_rb.pop_to_fd( output ); },
+    [&] { return output_rb.bytes_stored() > 0; } );
 
   uac2.start();
   while ( loop.wait_next_event( -1 ) != EventLoop::Result::Exit ) {
