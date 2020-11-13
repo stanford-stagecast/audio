@@ -227,7 +227,7 @@ void AudioInterface::initialize()
 
     snd_pcm_uframes_t thresh;
     alsa_check_easy( snd_pcm_sw_params_get_stop_threshold( params.get(), &thresh ) );
-    cerr << name() << ": stop threshold = " << thresh << "\n";
+    //    cerr << name() << ": stop threshold = " << thresh << "\n";
   }
 
   check_state( SND_PCM_STATE_PREPARED );
@@ -238,7 +238,7 @@ bool AudioInterface::update()
   const auto ret = snd_pcm_avail_delay( pcm_, &avail_, &delay_ );
 
   if ( ret < 0 ) {
-    cerr << name() << ": " << snd_strerror( ret ) << "\n";
+    //    cerr << name() << ": " << snd_strerror( ret ) << "\n";
     return true;
   }
 
@@ -330,7 +330,6 @@ void AudioPair::loopback( AudioBuffer& capture_output, const AudioBuffer& playba
   }
 
   if ( microphone_.avail() == 0 ) {
-    statistics_.empty_wakeups++;
     return;
   }
 

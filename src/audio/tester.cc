@@ -15,6 +15,43 @@
 using namespace std;
 using namespace std::chrono;
 
+inline void pp_samples( ostringstream& out, const int64_t sample_count )
+{
+  int64_t s = sample_count;
+  bool negative = false;
+
+  if ( s < 0 ) {
+    out << "-{";
+    negative = true;
+    s = -s;
+  }
+
+  const size_t minutes = s / ( 48000 * 60 );
+  s = s % ( 48000 * 60 );
+
+  const size_t seconds = s / 48000;
+  s = s % 48000;
+
+  const size_t ms = s / 48;
+  s = s % 48;
+
+  if ( minutes ) {
+    out << setw( 2 ) << setfill( '0' ) << minutes << "m";
+  }
+
+  out << setw( 2 ) << setfill( '0' ) << seconds << "s";
+  out << setw( 3 ) << setfill( '0' ) << ms;
+  if ( s ) {
+    out << "+" << setw( 2 ) << setfill( '0' ) << s;
+  } else {
+    out << "   ";
+  }
+
+  if ( negative ) {
+    out << "}";
+  }
+}
+
 void program_body()
 {
   ios::sync_with_stdio( false );
@@ -75,20 +112,30 @@ void program_body()
              << float_to_dbfs( uac2.statistics().sample_stats.max_ch1_amplitude ) << ", " << setw( 3 )
              << setprecision( 1 ) << fixed << float_to_dbfs( uac2.statistics().sample_stats.max_ch2_amplitude )
              << " ]";
-      update << " capture=" << audio_capture.range_begin();
-      update << " playback=" << audio_playback.range_begin();
-      update << " cursor=" << uac2_cursor;
+      update << " cursor=";
+      pp_samples( update, uac2_cursor );
+      update << " capture=";
+      pp_samples( update, uac2_cursor - audio_capture.range_begin() );
+      if ( uac2_cursor != audio_playback.range_begin() ) {
+        update << " playback=";
+        pp_samples( update, uac2_cursor - audio_playback.range_begin() );
+      }
       update << " recov=" << uac2.statistics().recoveries;
       update << " skipped=" << uac2.statistics().sample_stats.samples_skipped;
-      update << " empty=" << uac2.statistics().empty_wakeups << "/" << uac2.statistics().total_wakeups;
-      update << " mic<=" << uac2.statistics().max_microphone_avail;
-      update << " phone>=" << uac2.statistics().min_headphone_delay;
-      update << " comb<=" << uac2.statistics().max_combined_samples;
+      if ( uac2.statistics().max_microphone_avail > 30 ) {
+        update << " mic<=" << uac2.statistics().max_microphone_avail << "!";
+      }
+      if ( uac2.statistics().min_headphone_delay < 12 ) {
+        update << " phone>=" << uac2.statistics().min_headphone_delay << "!";
+      }
+      if ( uac2.statistics().max_combined_samples > 64 ) {
+        update << " combined<=" << uac2.statistics().max_combined_samples << "!";
+      }
       update << "\n";
 
       loop.summary( update );
 
-      const auto str = update.str();
+      const auto& str = update.str();
       if ( output_rb.writable_region().size() >= str.size() ) {
         output_rb.push_from_const_str( str );
       }

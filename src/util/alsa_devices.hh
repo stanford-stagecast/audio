@@ -71,7 +71,6 @@ struct AudioStatistics
   unsigned int recoveries;
 
   unsigned int total_wakeups;
-  unsigned int empty_wakeups;
 
   unsigned int max_microphone_avail;
   unsigned int min_headphone_delay { std::numeric_limits<unsigned int>::max() };
