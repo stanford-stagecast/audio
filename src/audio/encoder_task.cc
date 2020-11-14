@@ -58,4 +58,16 @@ size_t OpusEncoderProcess::cursor() const
   return output_.num_pushed() * samples_per_frame;
 }
 
+void OpusEncoderProcess::reset( const int bit_rate, const int sample_rate )
+{
+  enc_ = { bit_rate, sample_rate };
+}
+
+template<class AudioSource>
+void OpusEncoderTask<AudioSource>::reset( const int bit_rate, const int sample_rate )
+{
+  enc1_.reset( bit_rate, sample_rate );
+  enc2_.reset( bit_rate, sample_rate );
+}
+
 template class OpusEncoderTask<AudioDeviceTask>;

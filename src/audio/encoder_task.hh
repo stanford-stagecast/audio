@@ -23,6 +23,8 @@ public:
 
   TypedRingBuffer<opus_frame>& output() { return output_; }
   const TypedRingBuffer<opus_frame>& output() const { return output_; }
+
+  void reset( const int bit_rate, const int sample_rate );
 };
 
 template<class AudioSource>
@@ -45,4 +47,6 @@ public:
     enc1_.output().pop( 1 );
     enc2_.output().pop( 1 );
   }
+
+  void reset( const int bit_rate, const int sample_rate );
 };
