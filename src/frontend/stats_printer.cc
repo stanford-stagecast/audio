@@ -8,8 +8,8 @@ StatsPrinterTask::StatsPrinterTask( const shared_ptr<AudioDeviceTask> device, co
   , loop_( loop )
   , standard_output_( CheckSystemCall( "dup STDOUT_FILENO", dup( STDOUT_FILENO ) ) )
   , output_rb_( 65536 )
-  , next_stats_print( steady_clock::now() )
-  , next_stats_reset( steady_clock::now() )
+  , next_stats_print( steady_clock::now() + stats_print_interval )
+  , next_stats_reset( steady_clock::now() + stats_reset_interval )
 {
   loop_->add_rule(
     "generate+print statistics",

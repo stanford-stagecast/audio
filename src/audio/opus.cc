@@ -54,7 +54,9 @@ OpusEncoder::OpusEncoder( const int bit_rate, const int sample_rate )
 
   /* check lookahead */
   opus_check( opus_encoder_ctl( encoder_.get(), OPUS_GET_LOOKAHEAD( &out ) ) );
-  cerr << "Opus lookahead: " << out << "\n";
+  if ( out != 120 ) {
+    throw runtime_error( "unexpected Opus lookahead value:" + to_string( out ) );
+  }
 }
 
 void OpusEncoder::encode( const span_view<float> samples, opus_frame& encoded_output )
