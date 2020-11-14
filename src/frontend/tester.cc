@@ -57,7 +57,6 @@ void program_body()
   ios::sync_with_stdio( false );
 
   AudioBuffer audio_capture { 65536 }, audio_playback { 65536 };
-  size_t uac2_cursor = 0;
 
   const auto [name, interface_name] = ALSADevices::find_device( "UAC-2, USB Audio" );
   const auto device_claim = AudioDeviceClaim::try_claim( name );
@@ -76,8 +75,8 @@ void program_body()
   loop.add_rule(
     "audio loopback [fast path]",
     [&] {
-      uac2.loopback( audio_capture, audio_playback, uac2_cursor );
-      audio_playback.pop( uac2_cursor - audio_playback.range_begin() );
+      uac2.loopback( audio_capture, audio_playback );
+      audio_playback.pop( uac2.cursor() - audio_playback.range_begin() );
     },
     [&] { return uac2.mic_has_samples(); } );
 
@@ -86,13 +85,13 @@ void program_body()
     uac2.fd(),
     Direction::In,
     [&] {
-      uac2.loopback( audio_capture, audio_playback, uac2_cursor );
-      audio_playback.pop( uac2_cursor - audio_playback.range_begin() );
+      uac2.loopback( audio_capture, audio_playback );
+      audio_playback.pop( uac2.cursor() - audio_playback.range_begin() );
     },
     [] { return true; },
     [] {},
     [&] {
-      uac2.recover( uac2_cursor );
+      uac2.recover();
       return true;
     } );
 
@@ -106,7 +105,7 @@ void program_body()
       encoder1.encode( audio_capture.ch1().region( enc1_encode_cursor, 120 ), frame1 );
       enc1_encode_cursor += 120;
     },
-    [&] { return uac2_cursor >= enc1_encode_cursor + 120; } );
+    [&] { return uac2.cursor() >= enc1_encode_cursor + 120; } );
 
   loop.add_rule(
     "encode [ch2]",
@@ -118,7 +117,7 @@ void program_body()
         audio_capture.pop( min_encode_cursor - audio_capture.range_begin() );
       }
     },
-    [&] { return uac2_cursor >= enc2_encode_cursor + 120; } );
+    [&] { return uac2.cursor() >= enc2_encode_cursor + 120; } );
 
   auto next_stats_print = steady_clock::now();
   const auto stats_interval = milliseconds( 500 );
@@ -146,19 +145,19 @@ void program_body()
       }
 
       update << " cursor=";
-      pp_samples( update, uac2_cursor );
-      if ( uac2_cursor - audio_capture.range_begin() > 120 ) {
+      pp_samples( update, uac2.cursor() );
+      if ( uac2.cursor() - audio_capture.range_begin() > 120 ) {
         update << " capture=";
-        pp_samples( update, uac2_cursor - audio_capture.range_begin() );
+        pp_samples( update, uac2.cursor() - audio_capture.range_begin() );
       }
-      if ( uac2_cursor != audio_playback.range_begin() ) {
+      if ( uac2.cursor() != audio_playback.range_begin() ) {
         update << " playback=";
-        pp_samples( update, uac2_cursor - audio_playback.range_begin() );
+        pp_samples( update, uac2.cursor() - audio_playback.range_begin() );
       }
 
-      if ( uac2.statistics().last_recovery and ( uac2_cursor - uac2.statistics().last_recovery < 48000 * 60 ) ) {
+      if ( uac2.statistics().last_recovery and ( uac2.cursor() - uac2.statistics().last_recovery < 48000 * 60 ) ) {
         update << " last recovery=";
-        pp_samples( update, uac2_cursor - uac2.statistics().last_recovery );
+        pp_samples( update, uac2.cursor() - uac2.statistics().last_recovery );
         update << " recoveries=" << uac2.statistics().recoveries;
         update << " skipped=" << uac2.statistics().sample_stats.samples_skipped;
       }

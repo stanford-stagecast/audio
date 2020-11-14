@@ -96,6 +96,8 @@ class AudioInterface
 
   snd_pcm_sframes_t avail_ {}, delay_ {};
 
+  size_t cursor_ {};
+
   class Buffer
   {
     snd_pcm_t* pcm_;
@@ -154,7 +156,6 @@ public:
   void copy_all_available_samples_to( AudioInterface& other,
                                       AudioBuffer& capture_output,
                                       const AudioBuffer& playback_input,
-                                      size_t& cursor,
                                       AudioStatistics::SampleStats& stats );
 
   const Configuration& config() const { return config_; }
@@ -166,6 +167,8 @@ public:
 
   std::string name() const;
   PCMFD fd();
+
+  size_t cursor() const { return cursor_; }
 
   ~AudioInterface();
 
@@ -199,11 +202,13 @@ public:
   PCMFD& fd() { return fd_; }
 
   void start() { microphone_.start(); }
-  void recover( const size_t cursor );
-  void loopback( AudioBuffer& capture_output, const AudioBuffer& playback_input, size_t& cursor );
+  void recover();
+  void loopback( AudioBuffer& capture_output, const AudioBuffer& playback_input );
 
   bool mic_has_samples();
   unsigned int mic_avail() { return microphone_.avail(); }
+
+  size_t cursor() const { return microphone_.cursor(); }
 
   const AudioStatistics& statistics() { return statistics_; }
   void reset_statistics()

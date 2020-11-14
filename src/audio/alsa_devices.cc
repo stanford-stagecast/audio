@@ -306,10 +306,10 @@ void AudioInterface::prepare()
   check_state( SND_PCM_STATE_PREPARED );
 }
 
-void AudioPair::recover( const size_t cursor )
+void AudioPair::recover()
 {
   statistics_.recoveries++;
-  statistics_.last_recovery = cursor;
+  statistics_.last_recovery = cursor();
   microphone_.recover();
   headphone_.recover();
   microphone_.start();
@@ -324,18 +324,18 @@ bool AudioPair::mic_has_samples()
   return microphone_.avail();
 }
 
-void AudioPair::loopback( AudioBuffer& capture_output, const AudioBuffer& playback_input, size_t& cursor )
+void AudioPair::loopback( AudioBuffer& capture_output, const AudioBuffer& playback_input )
 {
   statistics_.total_wakeups++;
   fd_.register_read();
 
   if ( microphone_.update() ) {
-    recover( cursor );
+    recover();
     return;
   }
 
   if ( headphone_.update() ) {
-    recover( cursor );
+    recover();
     return;
   }
 
@@ -353,8 +353,7 @@ void AudioPair::loopback( AudioBuffer& capture_output, const AudioBuffer& playba
   const unsigned int combined = microphone_.avail() + headphone_.delay();
   statistics_.max_combined_samples = max( statistics_.max_combined_samples, combined );
 
-  microphone_.copy_all_available_samples_to(
-    headphone_, capture_output, playback_input, cursor, statistics_.sample_stats );
+  microphone_.copy_all_available_samples_to( headphone_, capture_output, playback_input, statistics_.sample_stats );
 }
 
 inline float sample_to_float( const int32_t sample )
@@ -379,7 +378,6 @@ inline int32_t float_to_sample( const float sample_f )
 void AudioInterface::copy_all_available_samples_to( AudioInterface& other,
                                                     AudioBuffer& capture_output,
                                                     const AudioBuffer& playback_input,
-                                                    size_t& cursor,
                                                     AudioStatistics::SampleStats& stats )
 {
   unsigned int avail_remaining = avail();
@@ -395,7 +393,7 @@ void AudioInterface::copy_all_available_samples_to( AudioInterface& other,
       const float ch2_sample = sample_to_float( read_buf.sample( true, i ) );
 
       /* capture into output buffer */
-      capture_output.safe_set( cursor, { ch1_sample, ch2_sample } );
+      capture_output.safe_set( cursor_, { ch1_sample, ch2_sample } );
 
       /* track statistics */
       stats.samples_counted++;
@@ -405,7 +403,7 @@ void AudioInterface::copy_all_available_samples_to( AudioInterface& other,
       stats.max_ch2_amplitude = max( stats.max_ch2_amplitude, abs( ch2_sample ) );
 
       /* play from input buffer + captured sample */
-      const auto playback_sample = playback_input.safe_get( cursor );
+      const auto playback_sample = playback_input.safe_get( cursor_ );
 
       write_buf.sample( false, i )
         = float_to_sample( ch1_sample * config_.ch1_loopback_gain[0] + ch2_sample * config_.ch2_loopback_gain[0]
@@ -415,7 +413,7 @@ void AudioInterface::copy_all_available_samples_to( AudioInterface& other,
         = float_to_sample( ch1_sample * config_.ch1_loopback_gain[1] + ch2_sample * config_.ch2_loopback_gain[1]
                            + playback_sample.second );
 
-      cursor++;
+      cursor_++;
     }
 
     unsigned int amount_to_write = num_frames;
