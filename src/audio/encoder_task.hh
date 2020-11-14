@@ -13,8 +13,6 @@ class OpusEncoderProcess
   TypedRingBuffer<opus_frame> output_ { 4096 }; /* 4096 * 120 / 48000 = 10.24 seconds */
 
 public:
-  static constexpr unsigned int samples_per_frame = 120; /* 2.5 ms at 48 kHz */
-
   OpusEncoderProcess( const int bit_rate, const int sample_rate );
 
   bool can_encode_frame( const size_t source_cursor ) const;
@@ -49,4 +47,9 @@ public:
   }
 
   void reset( const int bit_rate, const int sample_rate );
+
+  size_t frame_index() const { return enc1_.output().num_popped(); }
+
+  const opus_frame& front_ch1() const { return enc1_.output().readable_region().at( 0 ); }
+  const opus_frame& front_ch2() const { return enc2_.output().readable_region().at( 0 ); }
 };

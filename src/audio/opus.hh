@@ -9,18 +9,21 @@
 class opus_frame
 {
 public:
+  static constexpr unsigned int NUM_SAMPLES = 120; /* 2.5 ms at 48 kHz */
   static constexpr uint8_t MAX_LENGTH = 63;
 
 private:
   std::array<char, MAX_LENGTH> storage_ {};
-  uint8_t length_ { MAX_LENGTH };
+  uint8_t length_ = 0;
 
 public:
-  operator std::string_view() const { return { storage_.data(), length_ }; }
+  std::string_view as_string_view() const { return { storage_.data(), length_ }; }
+  string_span as_string_span() const { return { storage_.data(), length_ }; }
   uint8_t* data() { return reinterpret_cast<uint8_t*>( storage_.data() ); }
   const uint8_t* data() const { return reinterpret_cast<const uint8_t*>( storage_.data() ); }
   uint8_t length() const { return length_; }
-  void resize( const uint8_t new_length = MAX_LENGTH );
+  uint8_t& mutable_length() { return length_; }
+  void resize( const uint8_t new_length );
 };
 
 static_assert( sizeof( opus_frame ) == 64 );

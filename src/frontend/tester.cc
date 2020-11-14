@@ -9,6 +9,8 @@
 #include "encoder_task.hh"
 #include "stats_printer.hh"
 
+#include "formats.hh"
+
 using namespace std;
 
 void program_body()
@@ -26,8 +28,19 @@ void program_body()
   OpusEncoderTask encoder { 128000, 48000, uac2, *loop };
 
   /* We should transmit the frames over the Internet, but ignore them for now */
+  AudioMessage message;
+  string s;
   loop->add_rule(
-    "pop Opus frames", [&] { encoder.pop_frame(); }, [&] { return encoder.has_frame(); } );
+    "transmit Opus frames",
+    [&] {
+      message.frame_index = encoder.frame_index();
+      message.ch1 = encoder.front_ch1();
+      message.ch2 = encoder.front_ch2();
+      s.resize( message.serialized_length() );
+      message.serialize( string_span::from_view( s ) );
+      encoder.pop_frame();
+    },
+    [&] { return encoder.has_frame(); } );
 
   /* Print out statistics to terminal */
   StatsPrinterTask stats_printer { uac2, loop };
