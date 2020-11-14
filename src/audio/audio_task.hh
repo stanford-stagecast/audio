@@ -21,4 +21,10 @@ public:
   AudioPair& device() { return device_; }
   AudioBuffer& capture() { return capture_; }
   AudioBuffer& playback() { return playback_; }
+
+  const AudioPair& device() const { return device_; }
+  const AudioBuffer& capture() const { return capture_; }
+  const AudioBuffer& playback() const { return playback_; }
+
+  size_t cursor() const { return device().cursor(); }
 };

@@ -1,4 +1,4 @@
-add_executable (tester "tester.cc")
+add_executable (tester "tester.cc" "stats_printer.cc")
 target_link_libraries ("tester" util)
 target_link_libraries ("tester" audio)
 target_link_libraries ("tester" dbus)

@@ -72,7 +72,7 @@ std::string_view RingBuffer::writable_region() const
 
 string_span RingBuffer::writable_region()
 {
-  return storage( next_index_to_write() ).substr( 0, capacity() - bytes_stored() );
+  return mutable_storage( next_index_to_write() ).substr( 0, capacity() - bytes_stored() );
 }
 
 void RingBuffer::push( const size_t num_bytes )
