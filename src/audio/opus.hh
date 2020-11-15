@@ -4,6 +4,7 @@
 #include <opus/opus.h>
 
 #include "exception.hh"
+#include "parser.hh"
 #include "spans.hh"
 
 class opus_frame
@@ -19,11 +20,17 @@ private:
 public:
   std::string_view as_string_view() const { return { storage_.data(), length_ }; }
   string_span as_string_span() const { return { storage_.data(), length_ }; }
-  uint8_t* data() { return reinterpret_cast<uint8_t*>( storage_.data() ); }
+
   const uint8_t* data() const { return reinterpret_cast<const uint8_t*>( storage_.data() ); }
+  uint8_t* data() { return reinterpret_cast<uint8_t*>( storage_.data() ); }
+
   uint8_t length() const { return length_; }
-  uint8_t& mutable_length() { return length_; }
+
   void resize( const uint8_t new_length );
+
+  uint8_t serialized_length() const { return 1 + length_; }
+  void serialize( Serializer& s ) const;
+  void parse( Parser& p );
 };
 
 static_assert( sizeof( opus_frame ) == 64 );

@@ -17,10 +17,27 @@ int opus_check( const int retval )
 void opus_frame::resize( const uint8_t new_length )
 {
   if ( new_length > MAX_LENGTH ) {
-    throw std::out_of_range( std::to_string( new_length ) + " > " + std::to_string( MAX_LENGTH ) );
+    throw std::out_of_range( "opus_frame::resize: " + std::to_string( new_length ) + " > "
+                             + std::to_string( MAX_LENGTH ) );
   }
 
   length_ = new_length;
+}
+
+void opus_frame::parse( Parser& p )
+{
+  p.integer( length_ );
+  if ( length_ > MAX_LENGTH ) {
+    p.set_error();
+    return;
+  }
+  p.string( as_string_span() );
+}
+
+void opus_frame::serialize( Serializer& s ) const
+{
+  s.integer( length_ );
+  s.string( as_string_span() );
 }
 
 void OpusEncoder::encoder_deleter::operator()( OpusEncoder* x ) const

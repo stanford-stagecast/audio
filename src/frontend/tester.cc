@@ -34,22 +34,36 @@ void program_body()
     [&] {
       {
         Packet packet;
-        packet.num_frames = 8;
+        packet.frames.length = 8;
         for ( uint8_t i = 0; i < 8; i++ ) {
-          packet.frames.at( i ) = { uint32_t( encoder.frame_index() ), encoder.front_ch1(), encoder.front_ch2() };
+          packet.frames.elements.at( i )
+            = { uint32_t( encoder.frame_index() ), encoder.front_ch1(), encoder.front_ch2() };
         }
         s.resize( packet.serialized_length() );
-        packet.serialize( string_span::from_view( s ) );
-        encoder.pop_frame();
+        Serializer serializer { string_span::from_view( s ) };
+        packet.serialize( serializer );
       }
 
       Packet packet2;
-      if ( 0 == packet2.parse( s ) ) {
-        cerr << "audio parse error\n";
+      Parser parser { s };
+      parser.object( packet2 );
+      if ( parser.error() ) {
+        cerr << "parse error\n";
       }
-      if ( 8 != packet2.num_frames ) {
-        cerr << "another error\n";
+
+      if ( packet2.frames.length != 8 ) {
+        abort();
       }
+
+      if ( packet2.frames.elements.at( 2 ).frame_index != encoder.frame_index() ) {
+        abort();
+      }
+
+      if ( packet2.frames.elements.at( 2 ).ch1.as_string_view() != encoder.front_ch1().as_string_view() ) {
+        abort();
+      }
+
+      encoder.pop_frame();
     },
     [&] { return encoder.has_frame(); } );
 
