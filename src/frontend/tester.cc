@@ -28,17 +28,28 @@ void program_body()
   OpusEncoderTask encoder { 128000, 48000, uac2, *loop };
 
   /* We should transmit the frames over the Internet, but ignore them for now */
-  AudioMessage message;
   string s;
   loop->add_rule(
     "transmit Opus frames",
     [&] {
-      message.frame_index = encoder.frame_index();
-      message.ch1 = encoder.front_ch1();
-      message.ch2 = encoder.front_ch2();
-      s.resize( message.serialized_length() );
-      message.serialize( string_span::from_view( s ) );
-      encoder.pop_frame();
+      {
+        Packet packet;
+        packet.num_frames = 8;
+        for ( uint8_t i = 0; i < 8; i++ ) {
+          packet.frames.at( i ) = { uint32_t( encoder.frame_index() ), encoder.front_ch1(), encoder.front_ch2() };
+        }
+        s.resize( packet.serialized_length() );
+        packet.serialize( string_span::from_view( s ) );
+        encoder.pop_frame();
+      }
+
+      Packet packet2;
+      if ( 0 == packet2.parse( s ) ) {
+        cerr << "audio parse error\n";
+      }
+      if ( 8 != packet2.num_frames ) {
+        cerr << "another error\n";
+      }
     },
     [&] { return encoder.has_frame(); } );
 
