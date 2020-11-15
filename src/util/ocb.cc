@@ -1075,7 +1075,7 @@ int ae_decrypt(ae_ctx     *ctx,
 	union { uint32_t u32[4]; uint8_t u8[16]; block bl; } tmp;
     block offset, checksum;
     unsigned i, k;
-    block       *ctp = (block *)ct;
+    const block       *ctp = (const block *)ct;
     block       *ptp = (block *)pt;
 
 	/* Reduce ct_len tag bundled in ct */
