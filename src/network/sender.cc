@@ -63,6 +63,10 @@ void NetworkSender::push_one_frame()
 
 void NetworkSender::send_packet()
 {
+  if ( frames_.range_begin() != frame_status_.range_begin() ) {
+    throw runtime_error( "NetworkSender internal error" );
+  }
+
   Packet p;
 
   p.sequence_number = next_sequence_number_;
@@ -87,11 +91,10 @@ void NetworkSender::send_packet()
     = frames_.region( frame_status_.range_begin(), next_frame_index_ - frame_status_.range_begin() );
   for ( uint32_t i = 0; i < statuses.size(); i++ ) {
     auto& status = statuses[i];
-    const auto& frame = frames[i];
 
     if ( status.needs_send() ) {
       p.frames.length = next_index_to_fill + 1;
-      p.frames.elements[next_index_to_fill] = frame;
+      p.frames.elements[next_index_to_fill] = frames[i];
       status.in_flight = true;
       next_index_to_fill++;
 
@@ -102,7 +105,7 @@ void NetworkSender::send_packet()
   }
 
   /* now, send the packet */
-  array<char, 1500> packet_buf;
+  array<char, 1400> packet_buf;
   Serializer s { { packet_buf.data(), packet_buf.size() } };
   s.object( p );
   socket_.sendto( server_, { packet_buf.data(), s.bytes_written() } );
