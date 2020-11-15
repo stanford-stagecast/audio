@@ -11,7 +11,7 @@ class opus_frame
 {
 public:
   static constexpr unsigned int NUM_SAMPLES = 120; /* 2.5 ms at 48 kHz */
-  static constexpr uint8_t MAX_LENGTH = 63;
+  static constexpr uint8_t MAX_LENGTH = 61;
 
 private:
   std::array<char, MAX_LENGTH> storage_ {};
@@ -33,7 +33,7 @@ public:
   void parse( Parser& p );
 };
 
-static_assert( sizeof( opus_frame ) == 64 );
+static_assert( sizeof( opus_frame ) == 62 );
 
 class OpusEncoder
 {

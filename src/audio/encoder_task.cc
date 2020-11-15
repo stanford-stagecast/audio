@@ -49,18 +49,14 @@ OpusEncoderProcess::Channel::Channel( const int bit_rate, const int sample_rate 
 
 bool OpusEncoderProcess::Channel::can_encode_frame( const size_t source_cursor ) const
 {
-  return ( source_cursor > cursor() + opus_frame::NUM_SAMPLES ) and ( output_.writable_region().size() > 0 );
+  return ( source_cursor >= cursor() + opus_frame::NUM_SAMPLES ) and ( not output_.has_value() );
 }
 
 void OpusEncoderProcess::Channel::encode_one_frame( const AudioChannel& channel )
 {
-  enc_.encode( channel.region( cursor(), opus_frame::NUM_SAMPLES ), output_.writable_region().at( 0 ) );
-  output_.push( 1 );
-}
-
-size_t OpusEncoderProcess::Channel::cursor() const
-{
-  return output_.num_pushed() * opus_frame::NUM_SAMPLES;
+  output_.emplace();
+  enc_.encode( channel.region( cursor(), opus_frame::NUM_SAMPLES ), output_.value() );
+  num_pushed_++;
 }
 
 void OpusEncoderProcess::Channel::reset( const int bit_rate, const int sample_rate )

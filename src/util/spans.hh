@@ -62,6 +62,8 @@ public:
     return *( data() + N );
   }
 
+  const T& operator[]( const size_t N ) const { return *( data() + N ); }
+
   void remove_prefix( const size_t N ) { storage_.remove_prefix( N * elem_size_ ); }
 
   span_view substr( const size_t pos, const size_t count ) const
@@ -86,6 +88,8 @@ public:
   static span from_view( span_view<T> s ) { return { s }; }
 
   T* mutable_data() { return const_cast<T*>( span_view<T>::data() ); }
+
+  T& operator[]( const size_t N ) { return *( mutable_data() + N ); }
 
   T& at( const size_t N )
   {
