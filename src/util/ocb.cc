@@ -76,7 +76,7 @@
 /* Includes and compiler specific definitions                              */
 /* ----------------------------------------------------------------------- */
 
-#include "config.h"
+//#include "config.h"
 #include "ae.h"
 #include <stdlib.h>
 #include <string.h>
@@ -801,7 +801,7 @@ int ae_init(ae_ctx *ctx, const void *key, int key_len, int nonce_len, int tag_le
     #if (OCB_KEY_LEN > 0)
     key_len = OCB_KEY_LEN;
     #endif
-    AES_set_encrypt_key((unsigned char *)key, key_len*8, &ctx->encrypt_key);
+    AES_set_encrypt_key(/*(unsigned char *)*/key, key_len*8, &ctx->encrypt_key);
     #if USE_AES_NI
     AES_set_decrypt_key_fast(&ctx->decrypt_key,&ctx->encrypt_key);
     #else
