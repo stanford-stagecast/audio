@@ -7,8 +7,8 @@
 #include <string>
 #include <vector>
 
+#include "audio_buffer.hh"
 #include "file_descriptor.hh"
-#include "typed_ring_buffer.hh"
 
 class ALSADevices
 {
@@ -20,6 +20,8 @@ public:
   };
 
   static std::vector<Device> list();
+
+  static std::pair<std::string, std::string> find_device( const std::string_view expected_description );
 };
 
 class PCMFD : public FileDescriptor
@@ -30,18 +32,9 @@ public:
   using FileDescriptor::register_read;
 };
 
-struct AudioBuffer
-{
-  EndlessBuffer<float> ch1, ch2;
-
-  AudioBuffer( const size_t capacity )
-    : ch1( capacity )
-    , ch2( capacity )
-  {}
-};
-
 struct AudioStatistics
 {
+  size_t last_recovery;
   unsigned int recoveries;
 
   unsigned int total_wakeups;
@@ -53,8 +46,10 @@ struct AudioStatistics
 
   struct SampleStats
   {
+    unsigned int samples_counted;
     unsigned int samples_skipped;
     float max_ch1_amplitude, max_ch2_amplitude;
+    float ssa_ch1, ssa_ch2;
   } sample_stats;
 };
 
@@ -66,6 +61,8 @@ class AudioInterface
   void check_state( const snd_pcm_state_t expected_state );
 
   snd_pcm_sframes_t avail_ {}, delay_ {};
+
+  size_t cursor_ {};
 
   class Buffer
   {
@@ -103,8 +100,8 @@ public:
     unsigned int start_threshold { 24 };
     unsigned int skip_threshold { 64 };
 
-    std::array<float, 2> ch1_loopback_gain { 2.0, 2.0 };
-    std::array<float, 2> ch2_loopback_gain { 2.0, 2.0 };
+    std::array<float, 2> ch1_loopback_gain { 1.0, 1.0 };
+    std::array<float, 2> ch2_loopback_gain { 1.0, 1.0 };
   };
 
 private:
@@ -123,7 +120,8 @@ public:
   bool update();
 
   void copy_all_available_samples_to( AudioInterface& other,
-                                      AudioBuffer& output,
+                                      AudioBuffer& capture_output,
+                                      const AudioBuffer& playback_input,
                                       AudioStatistics::SampleStats& stats );
 
   const Configuration& config() const { return config_; }
@@ -135,6 +133,8 @@ public:
 
   std::string name() const;
   PCMFD fd();
+
+  size_t cursor() const { return cursor_; }
 
   ~AudioInterface();
 
@@ -169,17 +169,22 @@ public:
 
   void start() { microphone_.start(); }
   void recover();
-  void loopback( AudioBuffer& output );
+  void loopback( AudioBuffer& capture_output, const AudioBuffer& playback_input );
 
+  bool mic_has_samples();
   unsigned int mic_avail() { return microphone_.avail(); }
+
+  size_t cursor() const { return microphone_.cursor(); }
 
   const AudioStatistics& statistics() { return statistics_; }
   void reset_statistics()
   {
-    auto rec = statistics_.recoveries, skip = statistics_.sample_stats.samples_skipped;
+    const auto rec = statistics_.recoveries, skip = statistics_.sample_stats.samples_skipped;
+    const auto last_recovery = statistics_.last_recovery;
     statistics_ = {};
     statistics_.recoveries = rec;
     statistics_.sample_stats.samples_skipped = skip;
+    statistics_.last_recovery = last_recovery;
   }
 };
 

@@ -84,38 +84,35 @@ EventLoop::Result EventLoop::wait_next_event( const int timeout_ms )
 {
   // first, handle the non-file-descriptor-related rules
   {
-    unsigned int iterations = 0;
-    while ( true ) {
-      ++iterations;
+    for ( auto it = _non_fd_rules.begin(); it != _non_fd_rules.end(); ) {
+      auto& this_rule = **it;
       bool rule_fired = false;
-      for ( auto it = _non_fd_rules.begin(); it != _non_fd_rules.end(); ) {
-        auto& this_rule = **it;
 
-        if ( this_rule.cancel_requested ) {
-          it = _non_fd_rules.erase( it );
-          continue;
-        }
-
-        if ( this_rule.interest() ) {
-          if ( iterations > 128 ) {
-            throw runtime_error( "EventLoop: busy wait detected: rule \""
-                                 + _rule_categories.at( this_rule.category_id ).name
-                                 + "\" is still interested after " + to_string( iterations ) + " iterations" );
-          }
-
-          rule_fired = true;
-          RecordScopeTimer<Timer::Category::Nonblock> record_timer {
-            _rule_categories.at( this_rule.category_id ).timer
-          };
-          this_rule.callback();
-        }
-
-        ++it;
+      if ( this_rule.cancel_requested ) {
+        it = _non_fd_rules.erase( it );
+        continue;
       }
 
-      if ( not rule_fired ) {
-        break;
+      uint8_t iterations = 0;
+      while ( this_rule.interest() ) {
+        if ( iterations++ >= 128 ) {
+          throw runtime_error( "EventLoop: busy wait detected: rule \""
+                               + _rule_categories.at( this_rule.category_id ).name + "\" is still interested after "
+                               + to_string( iterations ) + " iterations" );
+        }
+
+        rule_fired = true;
+        RecordScopeTimer<Timer::Category::Nonblock> record_timer {
+          _rule_categories.at( this_rule.category_id ).timer
+        };
+        this_rule.callback();
       }
+
+      if ( rule_fired ) {
+        return Result::Success; /* only serve one rule on each iteration */
+      }
+
+      ++it;
     }
   }
 
@@ -163,7 +160,7 @@ EventLoop::Result EventLoop::wait_next_event( const int timeout_ms )
 
   // call poll -- wait until one of the fds satisfies one of the rules (writeable/readable)
   {
-    GlobalScopeTimer<Timer::Category::WaitingForEvent> timer;
+    RecordScopeTimer<Timer::Category::WaitingForEvent> record_timer { _waiting };
     if ( 0 == CheckSystemCall( "poll", ::poll( pollfds.data(), pollfds.size(), timeout_ms ) ) ) {
       return Result::Timeout;
     }
@@ -171,7 +168,7 @@ EventLoop::Result EventLoop::wait_next_event( const int timeout_ms )
 
   // go through the poll results
   for ( auto [it, idx] = make_pair( _fd_rules.begin(), size_t( 0 ) ); it != _fd_rules.end(); ++idx ) {
-    const auto& this_pollfd = pollfds[idx];
+    const auto& this_pollfd = pollfds.at( idx );
     auto& this_rule = **it;
 
     const auto poll_error = static_cast<bool>( this_pollfd.revents & ( POLLERR | POLLNVAL ) );
@@ -179,6 +176,7 @@ EventLoop::Result EventLoop::wait_next_event( const int timeout_ms )
       /* recoverable error? */
       if ( not static_cast<bool>( this_pollfd.revents & POLLNVAL ) ) {
         if ( this_rule.recover() ) {
+          ++it;
           continue;
         }
       }
@@ -228,6 +226,8 @@ EventLoop::Result EventLoop::wait_next_event( const int timeout_ms )
                              + _rule_categories.at( this_rule.category_id ).name
                              + "\" did not read/write fd and is still interested" );
       }
+
+      return Result::Success; /* only serve one rule on each iteration */
     }
 
     ++it; // if we got here, it means we didn't call _fd_rules.erase()
@@ -239,25 +239,48 @@ EventLoop::Result EventLoop::wait_next_event( const int timeout_ms )
 string EventLoop::summary() const
 {
   ostringstream out;
+  summary( out );
+  return out.str();
+}
 
+void EventLoop::summary( ostringstream& out ) const
+{
   out << "EventLoop timing summary\n------------------------\n\n";
+
+  auto print_timer = [&]( const string_view name, const Timer::Record timer ) {
+    if ( timer.count == 0 ) {
+      return;
+    }
+
+    out << "   " << name << ": ";
+    out << string( 27 - name.size(), ' ' );
+    out << "mean ";
+    Timer::pp_ns( out, timer.total_ns / timer.count );
+
+    out << "  [";
+    Timer::pp_ns( out, timer.min_ns );
+    out << "..";
+    Timer::pp_ns( out, timer.max_ns );
+    out << "]";
+
+    out << " N=" << timer.count;
+    out << "\n";
+  };
 
   for ( const auto& rule : _rule_categories ) {
     const auto& name = rule.name;
     const auto& timer = rule.timer;
 
-    if ( timer.count == 0 ) {
-      continue;
-    }
-
-    out << "   " << name << ": ";
-    out << string( 27 - name.size(), ' ' );
-    out << "mean " << Timer::pp_ns( timer.total_ns / timer.count );
-
-    out << "     [max=" << Timer::pp_ns( timer.max_ns ) << "]";
-    out << " [count=" << timer.count << "]";
-    out << "\n";
+    print_timer( name, timer );
   }
 
-  return out.str();
+  print_timer( "waiting for event", _waiting );
+}
+
+void EventLoop::reset_statistics()
+{
+  _waiting.reset();
+  for ( auto& rule : _rule_categories ) {
+    rule.timer.reset();
+  }
 }

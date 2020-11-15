@@ -2,127 +2,153 @@
 
 #include "exception.hh"
 #include "ring_buffer.hh"
-#include "simple_string_span.hh"
+#include "spans.hh"
+
+#include <algorithm>
 
 template<typename T>
-class simple_span
+class TypedRingStorage : public RingStorage
 {
-  simple_string_span storage_;
-
   static constexpr auto elem_size_ = sizeof( T );
 
+protected:
+  span<T> mutable_storage( const size_t index ) { return { RingStorage::storage( index * elem_size_ ) }; }
+  span_view<T> storage( const size_t index ) const { return { RingStorage::storage( index * elem_size_ ) }; }
+
 public:
-  simple_span( const char* addr, const size_t len )
-    : storage_( addr, len * elem_size_ )
+  explicit TypedRingStorage( const size_t capacity )
+    : RingStorage( capacity * elem_size_ )
   {}
 
-  simple_span( const simple_string_span s )
-    : storage_( s )
+  size_t capacity() const { return RingStorage::capacity() / elem_size_; }
+};
+
+template<typename T>
+class TypedRingBuffer : public TypedRingStorage<T>
+{
+  using TypedRingStorage<T>::capacity;
+
+  size_t num_pushed_ = 0, num_popped_ = 0;
+
+  size_t next_index_to_write() const { return num_pushed_ % capacity(); }
+  size_t next_index_to_read() const { return num_popped_ % capacity(); }
+
+public:
+  using TypedRingStorage<T>::TypedRingStorage;
+
+  size_t num_pushed() const { return num_pushed_; }
+  size_t num_popped() const { return num_popped_; }
+  size_t num_stored() const { return num_pushed_ - num_popped_; }
+
+  span<T> writable_region()
   {
-    if ( s.size() % elem_size_ ) {
-      throw std::runtime_error( "invalid size " + std::to_string( s.size() ) );
+    return TypedRingStorage<T>::mutable_storage( next_index_to_write() ).substr( 0, capacity() - num_stored() );
+  }
+
+  span_view<T> writable_region() const
+  {
+    return TypedRingStorage<T>::storage( next_index_to_write() ).substr( 0, capacity() - num_stored() );
+  }
+
+  void push( const size_t num_elems )
+  {
+    if ( num_elems > writable_region().size() ) {
+      throw std::runtime_error( "TypedRingBuffer::push exceeded size of writable region" );
     }
+
+    num_pushed_ += num_elems;
   }
 
-  size_t size() const { return storage_.size() / elem_size_; }
-
-  T* mutable_data() { return reinterpret_cast<T*>( storage_.mutable_data() ); }
-  const T* data() const { return reinterpret_cast<T*>( storage_.data() ); }
-
-  size_t copy( const simple_span<T> other ) { return storage_.copy( other.storage_ ) / elem_size_; }
-
-  T& operator[]( const size_t N ) { return *( mutable_data() + N ); }
-  const T& operator[]( const size_t N ) const { return *( mutable_data() + N ); }
-
-  void remove_prefix( const size_t N ) { storage_.remove_prefix( N * elem_size_ ); }
-  simple_span substr( const size_t pos, const size_t count )
+  span_view<T> readable_region() const
   {
-    return storage_.substr( pos * elem_size_, count * elem_size_ );
+    return TypedRingStorage<T>::storage( next_index_to_read() ).substr( 0, num_stored() );
+  }
+
+  void pop( const size_t num_elems )
+  {
+    if ( num_elems > readable_region().size() ) {
+      throw std::runtime_error( "TypedRingBuffer::pop exceeded size of readable region" );
+    }
+
+    num_popped_ += num_elems;
   }
 };
 
 template<typename T>
-class const_simple_span : simple_span<T>
+class EndlessBuffer : TypedRingStorage<T>
 {
-public:
-  using simple_span<T>::simple_span;
-  using simple_span<T>::size;
-  using simple_span<T>::data;
-  using simple_span<T>::operator[];
-  using simple_span<T>::remove_prefix;
-};
-
-template<typename T>
-class TypedRingBuffer
-{
-  RingBuffer storage_;
-
-  static constexpr auto elem_size_ = sizeof( T );
-
-public:
-  explicit TypedRingBuffer( const size_t capacity )
-    : storage_( capacity * elem_size_ )
-  {}
-
-  size_t capacity() const { return storage_.capacity() / elem_size_; }
-
-  simple_span<T> writable_region() { return storage_.writable_region(); }
-  const_simple_span<T> writable_region() const { return storage_.writable_region(); }
-  void push( const size_t num_elems ) { storage_.push( num_elems * elem_size_ ); }
-
-  const_simple_span<T> readable_region() const { return storage_.readable_region(); }
-  void pop( const size_t num_elems ) { storage_.pop( num_elems * elem_size_ ); }
-
-  size_t num_pushed() const { return storage_.bytes_pushed() / elem_size_; }
-  size_t num_popped() const { return storage_.bytes_popped() / elem_size_; }
-  size_t num_stored() const { return storage_.bytes_stored() / elem_size_; }
-};
-
-template<typename T>
-class EndlessBuffer : TypedRingBuffer<T>
-{
+  size_t num_popped_ = 0;
 
   void check_bounds( const size_t pos, const size_t count ) const
   {
     if ( pos < range_begin() ) {
-      throw std::out_of_range( std::to_string( pos ) + " < " + std::to_string( range_begin() ) );
+      throw std::out_of_range( "check_bounds: " + std::to_string( pos ) + " < " + std::to_string( range_begin() ) );
     }
 
     if ( pos + count > range_end() ) {
-      throw std::out_of_range( std::to_string( pos ) + " + " + std::to_string( count ) + " > "
+      throw std::out_of_range( "check_bounds: " + std::to_string( pos ) + " + " + std::to_string( count ) + " > "
                                + std::to_string( range_end() ) );
     }
   }
 
+  size_t next_index_to_read() const { return num_popped_ % TypedRingStorage<T>::capacity(); }
+
+  span_view<T> readable_region() const { return TypedRingStorage<T>::storage( next_index_to_read() ); }
+  span<T> readable_region() { return TypedRingStorage<T>::mutable_storage( next_index_to_read() ); }
+
 public:
-  EndlessBuffer( const size_t s_capacity )
-    : TypedRingBuffer<T>( s_capacity )
+  using TypedRingStorage<T>::TypedRingStorage;
+
+  void pop( const size_t num_elems )
   {
-    auto writable = TypedRingBuffer<T>::writable_region();
-    memset( writable.mutable_data(), 0, writable.size() );
+    span<T> region_to_erase { readable_region().substr( 0, num_elems ) };
+    std::fill( region_to_erase.begin(), region_to_erase.end(), T {} );
+    num_popped_ += num_elems;
   }
 
-  using TypedRingBuffer<T>::TypedRingBuffer;
-  using TypedRingBuffer<T>::capacity;
-  using TypedRingBuffer<T>::num_pushed;
-  using TypedRingBuffer<T>::num_popped;
-  using TypedRingBuffer<T>::num_stored;
+  size_t range_begin() const { return num_popped_; }
+  size_t range_end() const { return range_begin() + TypedRingStorage<T>::capacity(); }
 
-  using TypedRingBuffer<T>::push;
-  using TypedRingBuffer<T>::pop;
-
-  size_t range_begin() const { return num_popped(); }
-  size_t range_end() const { return num_popped() + capacity(); }
-
-  simple_span<T> writable_region( const size_t pos, const size_t count )
+  span<T> region( const size_t pos, const size_t count )
   {
     check_bounds( pos, count );
-    return TypedRingBuffer<T>::writable_region().substr( pos - range_begin(), count );
+    return readable_region().substr( pos - range_begin(), count );
   }
 
-  const_simple_span<T> readable_region( const size_t pos, const size_t count ) const
+  span_view<T> region( const size_t pos, const size_t count ) const
   {
     check_bounds( pos, count );
-    return TypedRingBuffer<T>::readable_region().substr( pos - range_begin(), count );
+    return readable_region().substr( pos - range_begin(), count );
+  }
+
+  T& at( const size_t pos ) { return region( pos, 1 ).at( 0 ); }
+  const T& at( const size_t pos ) const { return region( pos, 1 ).at( 0 ); }
+
+  const T& operator[]( const size_t pos ) const { return readable_region().substr( pos - range_begin(), 1 )[0]; }
+  T& operator[]( const size_t pos ) { return readable_region().substr( pos - range_begin(), 1 )[0]; }
+};
+
+template<typename T>
+class SafeEndlessBuffer : public EndlessBuffer<T>
+{
+public:
+  using EndlessBuffer<T>::EndlessBuffer;
+
+  T safe_get( const size_t pos ) const
+  {
+    if ( pos < EndlessBuffer<T>::range_begin() or pos >= EndlessBuffer<T>::range_end() ) {
+      return {};
+    }
+
+    return EndlessBuffer<T>::region( pos, 1 ).at( 0 );
+  }
+
+  void safe_set( const size_t pos, const T& val )
+  {
+    if ( pos < EndlessBuffer<T>::range_begin() or pos >= EndlessBuffer<T>::range_end() ) {
+      return;
+    }
+
+    EndlessBuffer<T>::region( pos, 1 ).at( 0 ) = val;
   }
 };

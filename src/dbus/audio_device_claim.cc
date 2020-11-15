@@ -1,4 +1,4 @@
-#ifndef NDBUS
+#include <iostream>
 
 #include "audio_device_claim.hh"
 #include "exception.hh"
@@ -197,4 +197,20 @@ AudioDeviceClaim::AudioDeviceClaim( const string_view name )
   }
 }
 
-#endif /* NDBUS */
+optional<AudioDeviceClaim> AudioDeviceClaim::try_claim( const string_view name )
+{
+  try {
+    AudioDeviceClaim ownership { name };
+
+    cerr << "Claimed ownership of " << name;
+    if ( ownership.claimed_from() ) {
+      cerr << " from " << ownership.claimed_from().value();
+    }
+    cerr << endl;
+
+    return ownership;
+  } catch ( const exception& e ) {
+    cerr << "Failed to claim ownership: " << e.what() << "\n";
+    return {};
+  }
+}

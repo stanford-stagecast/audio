@@ -98,6 +98,34 @@ vector<ALSADevices::Device> ALSADevices::list()
   return ret;
 }
 
+pair<string, string> ALSADevices::find_device( const string_view expected_description )
+{
+  ALSADevices devices;
+  bool found = false;
+
+  string name, interface_name;
+
+  for ( const auto& dev : devices.list() ) {
+    for ( const auto& interface : dev.interfaces ) {
+      if ( interface.second == expected_description ) {
+        if ( found ) {
+          throw runtime_error( "Multiple devices matching description" );
+        } else {
+          found = true;
+          name = dev.name;
+          interface_name = interface.first;
+        }
+      }
+    }
+  }
+
+  if ( not found ) {
+    throw runtime_error( "Device \"" + string( expected_description ) + "\" not found" );
+  }
+
+  return { name, interface_name };
+}
+
 AudioPair::AudioPair( const string_view interface_name )
   : headphone_( interface_name, "Headphone", SND_PCM_STREAM_PLAYBACK )
   , microphone_( interface_name, "Microphone", SND_PCM_STREAM_CAPTURE )
@@ -199,7 +227,7 @@ void AudioInterface::initialize()
 
     snd_pcm_uframes_t thresh;
     alsa_check_easy( snd_pcm_sw_params_get_stop_threshold( params.get(), &thresh ) );
-    cerr << name() << ": stop threshold = " << thresh << "\n";
+    //    cerr << name() << ": stop threshold = " << thresh << "\n";
   }
 
   check_state( SND_PCM_STATE_PREPARED );
@@ -210,7 +238,7 @@ bool AudioInterface::update()
   const auto ret = snd_pcm_avail_delay( pcm_, &avail_, &delay_ );
 
   if ( ret < 0 ) {
-    cerr << name() << ": " << snd_strerror( ret ) << "\n";
+    //    cerr << name() << ": " << snd_strerror( ret ) << "\n";
     return true;
   }
 
@@ -281,12 +309,22 @@ void AudioInterface::prepare()
 void AudioPair::recover()
 {
   statistics_.recoveries++;
+  statistics_.last_recovery = cursor();
   microphone_.recover();
   headphone_.recover();
   microphone_.start();
 }
 
-void AudioPair::loopback( AudioBuffer& output )
+bool AudioPair::mic_has_samples()
+{
+  if ( microphone_.update() ) {
+    return false;
+  }
+
+  return microphone_.avail();
+}
+
+void AudioPair::loopback( AudioBuffer& capture_output, const AudioBuffer& playback_input )
 {
   statistics_.total_wakeups++;
   fd_.register_read();
@@ -315,7 +353,7 @@ void AudioPair::loopback( AudioBuffer& output )
   const unsigned int combined = microphone_.avail() + headphone_.delay();
   statistics_.max_combined_samples = max( statistics_.max_combined_samples, combined );
 
-  microphone_.copy_all_available_samples_to( headphone_, output, statistics_.sample_stats );
+  microphone_.copy_all_available_samples_to( headphone_, capture_output, playback_input, statistics_.sample_stats );
 }
 
 inline float sample_to_float( const int32_t sample )
@@ -338,7 +376,8 @@ inline int32_t float_to_sample( const float sample_f )
 }
 
 void AudioInterface::copy_all_available_samples_to( AudioInterface& other,
-                                                    AudioBuffer& output,
+                                                    AudioBuffer& capture_output,
+                                                    const AudioBuffer& playback_input,
                                                     AudioStatistics::SampleStats& stats )
 {
   unsigned int avail_remaining = avail();
@@ -349,37 +388,33 @@ void AudioInterface::copy_all_available_samples_to( AudioInterface& other,
 
     const unsigned int num_frames = write_buf.frame_count();
 
-    const size_t write_index = output.ch1.range_begin();
-    if ( write_index != output.ch2.range_begin() ) {
-      throw runtime_error( "channel time mismatch" );
-    }
-
-    auto [ch1, ch2] = make_tuple( output.ch1.writable_region( write_index, num_frames ),
-                                  output.ch2.writable_region( write_index, num_frames ) );
-    if ( ch1.size() < num_frames or ch2.size() < num_frames ) {
-      throw runtime_error( "buffer overflow in output: " + to_string( ch1.size() ) + " < "
-                           + to_string( num_frames ) );
-    }
-
     for ( unsigned int i = 0; i < num_frames; i++ ) {
       const float ch1_sample = sample_to_float( read_buf.sample( false, i ) );
       const float ch2_sample = sample_to_float( read_buf.sample( true, i ) );
 
-      ch1[i] = ch1_sample;
-      ch2[i] = ch2_sample;
+      /* capture into output buffer */
+      capture_output.safe_set( cursor_, { ch1_sample, ch2_sample } );
 
+      /* track statistics */
+      stats.samples_counted++;
+      stats.ssa_ch1 += stats.max_ch1_amplitude * stats.max_ch1_amplitude;
+      stats.ssa_ch2 += stats.max_ch2_amplitude * stats.max_ch2_amplitude;
       stats.max_ch1_amplitude = max( stats.max_ch1_amplitude, abs( ch1_sample ) );
       stats.max_ch2_amplitude = max( stats.max_ch2_amplitude, abs( ch2_sample ) );
 
+      /* play from input buffer + captured sample */
+      const auto playback_sample = playback_input.safe_get( cursor_ );
+
       write_buf.sample( false, i )
-        = float_to_sample( ch1_sample * config_.ch1_loopback_gain[0] + ch2_sample * config_.ch2_loopback_gain[0] );
+        = float_to_sample( ch1_sample * config_.ch1_loopback_gain[0] + ch2_sample * config_.ch2_loopback_gain[0]
+                           + playback_sample.first );
 
       write_buf.sample( true, i )
-        = float_to_sample( ch1_sample * config_.ch1_loopback_gain[1] + ch2_sample * config_.ch2_loopback_gain[1] );
-    }
+        = float_to_sample( ch1_sample * config_.ch1_loopback_gain[1] + ch2_sample * config_.ch2_loopback_gain[1]
+                           + playback_sample.second );
 
-    output.ch1.push( num_frames );
-    output.ch2.push( num_frames );
+      cursor_++;
+    }
 
     unsigned int amount_to_write = num_frames;
 

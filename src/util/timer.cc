@@ -8,21 +8,24 @@
 
 using namespace std;
 
-constexpr double THOUSAND = 1000.0;
-constexpr double MILLION = 1000000.0;
-constexpr double BILLION = 1000000000.0;
-
 string Timer::summary() const
+{
+  ostringstream out;
+  summary( out );
+  return out.str();
+}
+
+void Timer::summary( ostringstream& out ) const
 {
   const uint64_t now = timestamp_ns();
 
   const uint64_t elapsed = now - _beginning_timestamp;
 
-  ostringstream out;
-
   out << "Global timing summary\n---------------------\n\n";
 
-  out << "Total time: " << pp_ns( now - _beginning_timestamp ) << "\n";
+  out << "Total time: ";
+  pp_ns( out, now - _beginning_timestamp );
+  out << "\n";
 
   uint64_t accounted = 0;
 
@@ -32,12 +35,18 @@ string Timer::summary() const
     out << fixed << setw( 5 ) << setprecision( 1 ) << 100 * _records.at( i ).total_ns / double( elapsed ) << "%";
     accounted += _records.at( i ).total_ns;
 
-    out << "     [max=" << pp_ns( _records.at( i ).max_ns ) << "]";
-    out << " [count=" << _records.at( i ).count << "]";
-
     if ( _records.at( i ).count > 0 ) {
-      out << " [mean=" << Timer::pp_ns( _records.at( i ).total_ns / _records.at( i ).count ) << "]";
+      out << "   [mean=";
+      pp_ns( out, _records.at( i ).total_ns / _records.at( i ).count );
+      out << "] ";
+    } else {
+      out << "                   ";
     }
+
+    out << "[max= ";
+    pp_ns( out, _records.at( i ).max_ns );
+    out << "]";
+    out << " [count=" << _records.at( i ).count << "]";
 
     out << "\n";
   }
@@ -45,25 +54,4 @@ string Timer::summary() const
   const uint64_t unaccounted = elapsed - accounted;
   out << "\n   Unaccounted: " << string( 23, ' ' );
   out << 100 * unaccounted / double( elapsed ) << "%\n";
-
-  return out.str();
-}
-
-std::string Timer::pp_ns( const uint64_t duration_ns )
-{
-  ostringstream out;
-
-  out << fixed << setprecision( 1 ) << setw( 5 );
-
-  if ( duration_ns < THOUSAND ) {
-    out << duration_ns << " ns";
-  } else if ( duration_ns < MILLION ) {
-    out << duration_ns / THOUSAND << " μs";
-  } else if ( duration_ns < BILLION ) {
-    out << duration_ns / MILLION << " ms";
-  } else {
-    out << duration_ns / BILLION << " s";
-  }
-
-  return out.str();
 }

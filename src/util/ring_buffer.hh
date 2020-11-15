@@ -3,7 +3,7 @@
 #include <vector>
 
 #include "file_descriptor.hh"
-#include "simple_string_span.hh"
+#include "spans.hh"
 
 class MMap_Region
 {
@@ -28,20 +28,39 @@ public:
   size_t length() const { return length_; }
 };
 
-class RingBuffer
+class RingStorage
 {
-  size_t next_index_to_write_ = 0;
-  size_t bytes_pushed_ = 0, bytes_popped_ = 0;
-
   FileDescriptor fd_;
   MMap_Region virtual_address_space_, first_mapping_, second_mapping_;
 
+protected:
+  string_span mutable_storage( const size_t index )
+  {
+    return { virtual_address_space_.addr() + index, capacity() };
+  }
+
+  std::string_view storage( const size_t index ) const
+  {
+    return { virtual_address_space_.addr() + index, capacity() };
+  }
+
 public:
-  explicit RingBuffer( const size_t capacity );
+  explicit RingStorage( const size_t capacity );
 
   size_t capacity() const { return first_mapping_.length(); }
+};
 
-  simple_string_span writable_region();
+class RingBuffer : public RingStorage
+{
+  size_t bytes_pushed_ = 0, bytes_popped_ = 0;
+
+  size_t next_index_to_write() const;
+  size_t next_index_to_read() const;
+
+public:
+  using RingStorage::RingStorage;
+
+  string_span writable_region();
   std::string_view writable_region() const;
   void push( const size_t num_bytes );
 

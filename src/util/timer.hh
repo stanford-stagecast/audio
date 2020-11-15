@@ -2,9 +2,15 @@
 
 #include <array>
 #include <chrono>
+#include <iomanip>
 #include <optional>
+#include <sstream>
 #include <string>
 #include <type_traits>
+
+constexpr double THOUSAND = 1000.0;
+constexpr double MILLION = 1000000.0;
+constexpr double BILLION = 1000000000.0;
 
 class Timer
 {
@@ -16,19 +22,40 @@ public:
     return std::chrono::steady_clock::now().time_since_epoch().count();
   }
 
-  static std::string pp_ns( const uint64_t duration_ns );
+  static void pp_ns( std::ostringstream& out, const uint64_t duration_ns )
+  {
+    out << std::fixed << std::setprecision( 1 ) << std::setw( 5 ) << std::setfill( ' ' );
+
+    if ( duration_ns < THOUSAND ) {
+      out << duration_ns << " ns";
+    } else if ( duration_ns < MILLION ) {
+      out << duration_ns / THOUSAND << " μs";
+    } else if ( duration_ns < BILLION ) {
+      out << duration_ns / MILLION << " ms";
+    } else {
+      out << duration_ns / BILLION << " s";
+    }
+  }
 
   struct Record
   {
     uint64_t count;
     uint64_t total_ns;
     uint64_t max_ns;
+    uint64_t min_ns = std::numeric_limits<uint64_t>::max();
 
     void log( const uint64_t time_ns )
     {
       count++;
       total_ns += time_ns;
       max_ns = std::max( max_ns, time_ns );
+      min_ns = std::min( min_ns, time_ns );
+    }
+
+    void reset()
+    {
+      count = total_ns = max_ns = 0;
+      min_ns = std::numeric_limits<uint64_t>::max();
     }
   };
 
@@ -76,6 +103,7 @@ public:
   }
 
   std::string summary() const;
+  void summary( std::ostringstream& out ) const;
 };
 
 inline Timer& global_timer()
