@@ -13,9 +13,7 @@ int main()
   Nonce* nonce = new Nonce(NONCE_NUM);
   Message* msg = new Message(*nonce, test_string);
   string encrypted_str = session->encrypt(*msg);
-  //TODO: Next line is incorrect and needs to be fixed
-  Message decrypted_msg = session->decrypt(encrypted_str.c_str(), strlen(encrypted_str.c_str()));
-  (void) decrypted_msg;
-  /*std::cout << decrypted_msg.text << std::endl;*/
+  Message decrypted_msg = session->decrypt(encrypted_str.c_str(), encrypted_str.length());
+  std::cout << decrypted_msg.text << std::endl;
   return 0;
 }
