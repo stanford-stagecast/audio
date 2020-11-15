@@ -18,7 +18,11 @@ void NetworkSender::generate_statistics( ostringstream& out ) const
 {
   out << "Sender info:";
   if ( frames_dropped_ ) {
-    out << " dropped=" << frames_dropped_;
+    out << " frames_dropped=" << frames_dropped_;
+  }
+
+  if ( packets_in_flight_dropped_ ) {
+    out << " packets_in_flight_dropped=" << packets_in_flight_dropped_;
   }
 
   unsigned int num_outstanding = 0, num_in_flight = 0;
@@ -28,7 +32,7 @@ void NetworkSender::generate_statistics( ostringstream& out ) const
     num_outstanding += status.outstanding;
     num_in_flight += status.in_flight;
   }
-  out << " frames outstanding/in-flight=" << num_outstanding << "/" << num_in_flight;
+  out << " frames in-flight/outstanding=" << num_in_flight << "/" << num_outstanding;
 
   out << "\n";
 }
@@ -109,4 +113,31 @@ void NetworkSender::send_packet()
   Serializer s { { packet_buf.data(), packet_buf.size() } };
   s.object( p );
   socket_.sendto( server_, { packet_buf.data(), s.bytes_written() } );
+
+  /* and, record it */
+  if ( p.sequence_number >= packets_in_flight_.range_end() ) {
+    const size_t num_packets_to_drop = next_sequence_number_ - packets_in_flight_.range_end() + 1;
+
+    const span_view<Packet::Record> packets_to_drop
+      = packets_in_flight_.region( packets_in_flight_.range_begin(), num_packets_to_drop );
+    for ( const auto& pack : packets_to_drop ) {
+      assume_lost( pack );
+    }
+
+    packets_in_flight_.pop( num_packets_to_drop );
+    packets_in_flight_dropped_ += num_packets_to_drop;
+  }
+
+  packets_in_flight_.at( p.sequence_number ) = p.to_record();
+}
+
+void NetworkSender::assume_lost( const Packet::Record& pack )
+{
+  for ( uint8_t i = 0; i < pack.frames.length; i++ ) {
+    const uint32_t frame_to_mark = pack.frames.elements[i].value;
+    // frame might have been dropped already!
+    if ( frame_to_mark >= frame_status_.range_begin() and frame_to_mark < frame_status_.range_end() ) {
+      frame_status_[frame_to_mark].in_flight = false;
+    }
+  }
 }

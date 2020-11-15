@@ -27,6 +27,7 @@ class NetworkSender
 
   EndlessBuffer<Packet::Record> packets_in_flight_ { 1024 };
   uint32_t next_sequence_number_ {};
+  uint32_t packets_in_flight_dropped_ {};
 
   Address server_;
   UDPSocket socket_ {};
@@ -36,6 +37,8 @@ class NetworkSender
   void push_one_frame();
 
   void send_packet();
+
+  void assume_lost( const Packet::Record& pack );
 
 public:
   NetworkSender( const Address& server, std::shared_ptr<OpusEncoderProcess> source, EventLoop& loop );

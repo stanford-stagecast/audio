@@ -125,6 +125,7 @@ public:
   const T& at( const size_t pos ) const { return region( pos, 1 ).at( 0 ); }
 
   const T& operator[]( const size_t pos ) const { return readable_region().substr( pos - range_begin(), 1 )[0]; }
+  T& operator[]( const size_t pos ) { return readable_region().substr( pos - range_begin(), 1 )[0]; }
 };
 
 template<typename T>
