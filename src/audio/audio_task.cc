@@ -39,7 +39,7 @@ void AudioDeviceTask::service_device()
 void AudioDeviceTask::generate_statistics( ostringstream& out )
 {
   if ( device_.statistics().sample_stats.samples_counted ) {
-    out << "dB = [ " << setw( 3 ) << setprecision( 1 ) << fixed
+    out << "Audio info: dB = [ " << setw( 3 ) << setprecision( 1 ) << fixed
         << float_to_dbfs(
              sqrt( device_.statistics().sample_stats.ssa_ch1 / device_.statistics().sample_stats.samples_counted ) )
         << "/" << setw( 3 ) << setprecision( 1 ) << fixed

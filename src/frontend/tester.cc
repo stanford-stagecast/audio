@@ -10,6 +10,7 @@
 #include "stats_printer.hh"
 
 #include "formats.hh"
+#include "sender.hh"
 
 using namespace std;
 
@@ -25,50 +26,14 @@ void program_body()
   auto uac2 = make_shared<AudioDeviceTask>( interface_name, *loop );
 
   /* Opus encoder task registers itself in EventLoop */
-  OpusEncoderTask encoder { 128000, 48000, uac2, *loop };
+  auto encoder = make_shared<ClientEncoderTask>( 128000, 48000, uac2, *loop );
 
-  /* We should transmit the frames over the Internet, but ignore them for now */
-  string s;
-  loop->add_rule(
-    "transmit Opus frames",
-    [&] {
-      {
-        Packet packet;
-        packet.frames.length = 8;
-        for ( uint8_t i = 0; i < 8; i++ ) {
-          packet.frames.elements.at( i )
-            = { uint32_t( encoder.frame_index() ), encoder.front_ch1(), encoder.front_ch2() };
-        }
-        s.resize( packet.serialized_length() );
-        Serializer serializer { string_span::from_view( s ) };
-        packet.serialize( serializer );
-      }
-
-      Packet packet2;
-      Parser parser { s };
-      parser.object( packet2 );
-      if ( parser.error() ) {
-        cerr << "parse error\n";
-      }
-
-      if ( packet2.frames.length != 8 ) {
-        abort();
-      }
-
-      if ( packet2.frames.elements.at( 2 ).frame_index != encoder.frame_index() ) {
-        abort();
-      }
-
-      if ( packet2.frames.elements.at( 2 ).ch1.as_string_view() != encoder.front_ch1().as_string_view() ) {
-        abort();
-      }
-
-      encoder.pop_frame();
-    },
-    [&] { return encoder.has_frame(); } );
+  /* Network sender registeres itself in EventLoop */
+  const Address stagecast_server { "104.243.35.166", 9090 };
+  auto sender = make_shared<NetworkSender>( stagecast_server, encoder, *loop );
 
   /* Print out statistics to terminal */
-  StatsPrinterTask stats_printer { uac2, loop };
+  StatsPrinterTask stats_printer { uac2, sender, loop };
 
   /* Start audio device and event loop */
   uac2->device().start();

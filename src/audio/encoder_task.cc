@@ -1,15 +1,15 @@
 #include "encoder_task.hh"
-#include "audio_task.hh"
 
 using namespace std;
 
+template class EncoderTask<AudioDeviceTask>;
+
 template<class AudioSource>
-OpusEncoderTask<AudioSource>::OpusEncoderTask( const int bit_rate,
-                                               const int sample_rate,
-                                               const shared_ptr<AudioSource> source,
-                                               EventLoop& loop )
-  : enc1_( bit_rate, sample_rate )
-  , enc2_( bit_rate, sample_rate )
+EncoderTask<AudioSource>::EncoderTask( const int bit_rate,
+                                       const int sample_rate,
+                                       const shared_ptr<AudioSource> source,
+                                       EventLoop& loop )
+  : OpusEncoderProcess( bit_rate, sample_rate )
   , source_( source )
 {
   loop.add_rule(
@@ -30,44 +30,46 @@ OpusEncoderTask<AudioSource>::OpusEncoderTask( const int bit_rate,
 }
 
 template<class AudioSource>
-void OpusEncoderTask<AudioSource>::pop_from_source()
+void EncoderTask<AudioSource>::pop_from_source()
 {
-  const size_t min_encode_cursor = min( enc1_.cursor(), enc2_.cursor() );
-  if ( min_encode_cursor > source_->capture().range_begin() ) {
-    source_->capture().pop( min_encode_cursor - source_->capture().range_begin() );
+  const auto encode_cursor = min_encode_cursor();
+  if ( encode_cursor > source_->capture().range_begin() ) {
+    source_->capture().pop( encode_cursor - source_->capture().range_begin() );
   }
 }
 
 OpusEncoderProcess::OpusEncoderProcess( const int bit_rate, const int sample_rate )
+  : enc1_( bit_rate, sample_rate )
+  , enc2_( bit_rate, sample_rate )
+{}
+
+OpusEncoderProcess::Channel::Channel( const int bit_rate, const int sample_rate )
   : enc_( bit_rate, sample_rate )
 {}
 
-bool OpusEncoderProcess::can_encode_frame( const size_t source_cursor ) const
+bool OpusEncoderProcess::Channel::can_encode_frame( const size_t source_cursor ) const
 {
   return ( source_cursor > cursor() + opus_frame::NUM_SAMPLES ) and ( output_.writable_region().size() > 0 );
 }
 
-void OpusEncoderProcess::encode_one_frame( const AudioChannel& channel )
+void OpusEncoderProcess::Channel::encode_one_frame( const AudioChannel& channel )
 {
   enc_.encode( channel.region( cursor(), opus_frame::NUM_SAMPLES ), output_.writable_region().at( 0 ) );
   output_.push( 1 );
 }
 
-size_t OpusEncoderProcess::cursor() const
+size_t OpusEncoderProcess::Channel::cursor() const
 {
   return output_.num_pushed() * opus_frame::NUM_SAMPLES;
 }
 
-void OpusEncoderProcess::reset( const int bit_rate, const int sample_rate )
+void OpusEncoderProcess::Channel::reset( const int bit_rate, const int sample_rate )
 {
   enc_ = { bit_rate, sample_rate };
 }
 
-template<class AudioSource>
-void OpusEncoderTask<AudioSource>::reset( const int bit_rate, const int sample_rate )
+void OpusEncoderProcess::reset( const int bit_rate, const int sample_rate )
 {
   enc1_.reset( bit_rate, sample_rate );
   enc2_.reset( bit_rate, sample_rate );
 }
-
-template class OpusEncoderTask<AudioDeviceTask>;

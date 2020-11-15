@@ -120,6 +120,9 @@ public:
     check_bounds( pos, count );
     return readable_region().substr( pos - range_begin(), count );
   }
+
+  T& at( const size_t pos ) { return region( pos, 1 ).at( 0 ); }
+  const T& at( const size_t pos ) const { return region( pos, 1 ).at( 0 ); }
 };
 
 template<typename T>
