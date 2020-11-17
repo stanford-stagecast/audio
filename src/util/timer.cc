@@ -4,18 +4,11 @@
 #include <cstring>
 #include <iomanip>
 #include <iostream>
-#include <sstream>
+#include <ostream>
 
 using namespace std;
 
-string Timer::summary() const
-{
-  ostringstream out;
-  summary( out );
-  return out.str();
-}
-
-void Timer::summary( ostringstream& out ) const
+void Timer::summary( ostream& out ) const
 {
   const uint64_t now = timestamp_ns();
 

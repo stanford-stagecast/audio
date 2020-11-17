@@ -9,12 +9,11 @@
 #include "encoder_task.hh"
 #include "stats_printer.hh"
 
-#include "formats.hh"
-#include "sender.hh"
+#include "connection.hh"
 
 using namespace std;
 
-void program_body()
+void program_body( const string& host, const string& service )
 {
   ios::sync_with_stdio( false );
 
@@ -28,12 +27,12 @@ void program_body()
   /* Opus encoder task registers itself in EventLoop */
   auto encoder = make_shared<ClientEncoderTask>( 128000, 48000, uac2, *loop );
 
-  /* Network sender registeres itself in EventLoop */
-  const Address stagecast_server { "104.243.35.166", 9090 };
-  auto sender = make_shared<NetworkSender>( stagecast_server, encoder, *loop );
+  /* Network client registers itself in EventLoop */
+  const Address stagecast_server { host, service };
+  auto network_client = make_shared<NetworkClient>( stagecast_server, encoder, *loop );
 
   /* Print out statistics to terminal */
-  StatsPrinterTask stats_printer { uac2, sender, loop };
+  StatsPrinterTask stats_printer { uac2, network_client, loop };
 
   /* Start audio device and event loop */
   uac2->device().start();
@@ -41,13 +40,22 @@ void program_body()
   }
 }
 
-int main()
+int main( int argc, char* argv[] )
 {
   try {
-    program_body();
+    if ( argc <= 0 ) {
+      abort();
+    }
+
+    if ( argc != 3 ) {
+      cerr << "Usage: " << argv[0] << " HOST SERVICE\n";
+      return EXIT_FAILURE;
+    }
+
+    program_body( argv[1], argv[2] );
   } catch ( const exception& e ) {
     cerr << "Exception: " << e.what() << "\n";
-    cerr << global_timer().summary() << "\n";
+    global_timer().summary( cerr );
     return EXIT_FAILURE;
   }
 

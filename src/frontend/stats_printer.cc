@@ -4,10 +4,10 @@ using namespace std;
 using namespace std::chrono;
 
 StatsPrinterTask::StatsPrinterTask( const shared_ptr<AudioDeviceTask> device,
-                                    const shared_ptr<NetworkSender> sender,
+                                    const shared_ptr<NetworkEndpoint> network,
                                     const shared_ptr<EventLoop> loop )
   : device_( device )
-  , sender_( sender )
+  , network_( network )
   , loop_( loop )
   , standard_output_( CheckSystemCall( "dup STDOUT_FILENO", dup( STDOUT_FILENO ) ) )
   , output_rb_( 65536 )
@@ -20,8 +20,10 @@ StatsPrinterTask::StatsPrinterTask( const shared_ptr<AudioDeviceTask> device,
       ss_.str( {} );
       ss_.clear();
 
-      device_->generate_statistics( ss_ );
-      sender_->generate_statistics( ss_ );
+      if ( device_ ) {
+        device_->generate_statistics( ss_ );
+      }
+      network_->generate_statistics( ss_ );
       ss_ << "\n";
       loop_->summary( ss_ );
       ss_ << "\n";

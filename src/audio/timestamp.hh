@@ -1,7 +1,7 @@
 #include <iomanip>
-#include <sstream>
+#include <ostream>
 
-inline void pp_samples( std::ostringstream& out, const int64_t sample_count )
+inline void pp_samples( std::ostream& out, const int64_t sample_count )
 {
   int64_t s = sample_count;
   bool negative = false;

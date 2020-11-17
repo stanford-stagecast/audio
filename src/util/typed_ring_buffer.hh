@@ -26,8 +26,6 @@ public:
 template<typename T>
 class TypedRingBuffer : public TypedRingStorage<T>
 {
-  using TypedRingStorage<T>::capacity;
-
   size_t num_pushed_ = 0, num_popped_ = 0;
 
   size_t next_index_to_write() const { return num_pushed_ % capacity(); }
@@ -35,6 +33,7 @@ class TypedRingBuffer : public TypedRingStorage<T>
 
 public:
   using TypedRingStorage<T>::TypedRingStorage;
+  using TypedRingStorage<T>::capacity;
 
   size_t num_pushed() const { return num_pushed_; }
   size_t num_popped() const { return num_popped_; }

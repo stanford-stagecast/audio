@@ -5,15 +5,15 @@
 #include <sstream>
 
 #include "audio_task.hh"
+#include "connection.hh"
 #include "eventloop.hh"
 #include "file_descriptor.hh"
 #include "ring_buffer.hh"
-#include "sender.hh"
 
 class StatsPrinterTask
 {
   std::shared_ptr<AudioDeviceTask> device_;
-  std::shared_ptr<NetworkSender> sender_;
+  std::shared_ptr<NetworkEndpoint> network_;
   std::shared_ptr<EventLoop> loop_;
 
   FileDescriptor standard_output_;
@@ -30,6 +30,6 @@ class StatsPrinterTask
 
 public:
   StatsPrinterTask( const std::shared_ptr<AudioDeviceTask> device,
-                    const std::shared_ptr<NetworkSender> sender,
+                    const std::shared_ptr<NetworkEndpoint> network,
                     const std::shared_ptr<EventLoop> loop );
 };

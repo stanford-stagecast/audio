@@ -25,30 +25,33 @@ void AudioFrame::parse( Parser& p )
 
 uint32_t Packet::serialized_length() const
 {
-  return sizeof( sequence_number ) + sizeof( cumulative_ack ) + selective_acks.serialized_length()
-         + frames.serialized_length();
+  return sizeof( sender_section.sequence_number ) + sender_section.frames.serialized_length()
+         + sizeof( receiver_section.next_frame_needed ) + receiver_section.packets_received.serialized_length();
 }
 
 void Packet::serialize( Serializer& s ) const
 {
-  s.integer( sequence_number );
-  s.integer( cumulative_ack );
-  s.object( selective_acks );
-  s.object( frames );
+  s.integer( sender_section.sequence_number );
+  s.object( sender_section.frames );
+
+  s.integer( receiver_section.next_frame_needed );
+  s.object( receiver_section.packets_received );
 }
 
 void Packet::parse( Parser& p )
 {
-  p.integer( sequence_number );
-  p.integer( cumulative_ack );
-  p.object( selective_acks );
-  p.object( frames );
+  p.integer( sender_section.sequence_number );
+  p.object( sender_section.frames );
+
+  p.integer( receiver_section.next_frame_needed );
+  p.object( receiver_section.packets_received );
 }
 
-Packet::Record Packet::to_record() const
+Packet::Record Packet::SenderSection::to_record() const
 {
   Record ret;
 
+  ret.sequence_number = sequence_number;
   ret.frames.length = frames.length;
   for ( uint8_t i = 0; i < frames.length; i++ ) {
     ret.frames.elements[i].value = frames.elements[i].frame_index;

@@ -38,8 +38,8 @@ class span_view
   static constexpr auto elem_size_ = sizeof( T );
 
 public:
-  span_view( const char* addr, const size_t len )
-    : storage_( addr, len * elem_size_ )
+  span_view( const T* addr, const size_t len )
+    : storage_( reinterpret_cast<const char*>( addr ), len * elem_size_ )
   {}
 
   span_view( const std::string_view s )

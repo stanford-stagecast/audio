@@ -3,6 +3,7 @@
 #include <functional>
 #include <list>
 #include <memory>
+#include <ostream>
 #include <poll.h>
 #include <string_view>
 
@@ -105,8 +106,7 @@ public:
   //! Calls [poll(2)](\ref man2::poll) and then executes callback for each ready fd.
   Result wait_next_event( const int timeout_ms );
 
-  std::string summary() const;
-  void summary( std::ostringstream& os ) const;
+  void summary( std::ostream& os ) const;
   void reset_statistics();
 
   // convenience function to add category and rule at the same time

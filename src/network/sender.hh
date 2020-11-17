@@ -1,11 +1,9 @@
 #pragma once
 
-#include <bitset>
-#include <sstream>
+#include <ostream>
 
 #include "encoder_task.hh"
 #include "formats.hh"
-#include "socket.hh"
 #include "typed_ring_buffer.hh"
 
 class NetworkSender
@@ -18,30 +16,34 @@ class NetworkSender
     bool needs_send() const { return outstanding and not in_flight; }
   };
 
-  static_assert( sizeof( AudioFrameStatus ) == 1 );
-
   EndlessBuffer<AudioFrame> frames_ { 8192 }; // 20.48 seconds
   EndlessBuffer<AudioFrameStatus> frame_status_ { 8192 };
   uint32_t next_frame_index_ {};
-  uint32_t frames_dropped_ {};
 
-  EndlessBuffer<Packet::Record> packets_in_flight_ { 1024 };
+  constexpr static uint8_t reorder_window = 8; /* 8 packets, about 20 ms */
+  std::optional<uint32_t> greatest_sack_ {};
+  uint32_t departure_adjudicated_until_seqno() const;
+
+  EndlessBuffer<Packet::Record> packets_in_flight_ { 512 };
   uint32_t next_sequence_number_ {};
-  uint32_t packets_in_flight_dropped_ {};
 
-  Address server_;
-  UDPSocket socket_ {};
+  bool need_immediate_send_ {};
 
-  std::shared_ptr<OpusEncoderProcess> source_;
+  void assume_departed( const Packet::Record& pack, const bool is_loss );
 
-  void push_one_frame();
+  struct Statistics
+  {
+    unsigned int frames_dropped {}, empty_packets {}, bad_acks {}, packet_transmissions {},
+      packet_losses_detected {}, packet_loss_false_positives {};
 
-  void send_packet();
-
-  void assume_lost( const Packet::Record& pack );
+    unsigned int packet_losses() const { return packet_losses_detected - packet_loss_false_positives; }
+  } stats_ {};
 
 public:
-  NetworkSender( const Address& server, std::shared_ptr<OpusEncoderProcess> source, EventLoop& loop );
+  void push_frame( OpusEncoderProcess& encoder );
 
-  void generate_statistics( std::ostringstream& out ) const;
+  void set_sender_section( Packet::SenderSection& p );
+  void receive_receiver_section( const Packet::ReceiverSection& receiver_section );
+
+  void generate_statistics( std::ostream& out ) const;
 };

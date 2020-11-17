@@ -28,6 +28,17 @@ struct NetInteger
   static constexpr uint8_t serialized_length() { return sizeof( T ); }
   void serialize( Serializer& s ) const { s.integer( value ); }
   void parse( Parser& p ) { p.integer( value ); }
+
+  NetInteger() {}
+  NetInteger( const T other )
+    : value( other )
+  {}
+  operator T() const { return value; }
+  NetInteger& operator=( const T other )
+  {
+    value = other;
+    return *this;
+  }
 };
 
 template<typename T, uint8_t capacity_>
@@ -71,23 +82,49 @@ struct NetArray
       p.object( elements[i] );
     }
   }
+
+  span_view<T> as_span_view() const { return span_view<T> { elements.data(), length }; }
+
+  const T* begin() const { return as_span_view().begin(); }
+  const T* end() const { return as_span_view().end(); }
+
+  void push_back( const T& element )
+  {
+    if ( length >= capacity ) {
+      throw std::out_of_range( "no room for NetArray::push_back" );
+    }
+
+    elements[length] = element;
+    length++;
+  }
 };
 
 struct Packet
 {
   struct Record
   {
+    uint32_t sequence_number {};
     NetArray<NetInteger<uint32_t>, 8> frames {};
   };
 
-  uint32_t sequence_number {};
-  uint32_t cumulative_ack {};
-  NetArray<NetInteger<uint32_t>, 32> selective_acks {};
-  NetArray<AudioFrame, 8> frames {};
+  struct SenderSection
+  {
+    uint32_t sequence_number {};
+    NetArray<AudioFrame, 8> frames {};
+
+    Record to_record() const;
+  } sender_section {};
+
+  struct ReceiverSection
+  {
+    uint32_t next_frame_needed {};
+    NetArray<NetInteger<uint32_t>, 32> packets_received {};
+  } receiver_section {};
 
   uint32_t serialized_length() const;
   void serialize( Serializer& s ) const;
   void parse( Parser& p );
 
-  Record to_record() const;
+  Packet() {}
+  Packet( Parser& p ) { parse( p ); }
 };

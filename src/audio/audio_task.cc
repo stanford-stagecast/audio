@@ -36,7 +36,7 @@ void AudioDeviceTask::service_device()
   playback_.pop( device_.cursor() - playback_.range_begin() );
 }
 
-void AudioDeviceTask::generate_statistics( ostringstream& out )
+void AudioDeviceTask::generate_statistics( ostream& out )
 {
   if ( device_.statistics().sample_stats.samples_counted ) {
     out << "Audio info: dB = [ " << setw( 3 ) << setprecision( 1 ) << fixed

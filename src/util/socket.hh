@@ -2,10 +2,10 @@
 
 #include "address.hh"
 #include "file_descriptor.hh"
+#include "spans.hh"
 
 #include <cstdint>
 #include <functional>
-#include <string>
 #include <sys/socket.h>
 
 //! \brief Base class for network sockets (TCP, UDP, etc.)
@@ -70,18 +70,8 @@ public:
     : Socket( AF_INET, SOCK_DGRAM )
   {}
 
-  //! Returned by UDPSocket::recv; carries received data and information about the sender
-  struct received_datagram
-  {
-    Address source_address; //!< Address from which this datagram was received
-    std::string payload;    //!< UDP datagram payload
-  };
-
-  //! Receive a datagram and the Address of its sender
-  received_datagram recv( const size_t mtu = 65536 );
-
   //! Receive a datagram and the Address of its sender (caller can allocate storage)
-  void recv( received_datagram& datagram, const size_t mtu = 65536 );
+  void recv( Address& source_address, string_span& payload, const size_t mtu = 65536 );
 
   //! Send a datagram to specified Address
   void sendto( const Address& destination, const std::string_view payload );

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <chrono>
-#include <sstream>
+#include <ostream>
 #include <string>
 
 #include "alsa_devices.hh"
@@ -16,7 +16,7 @@ class AudioDeviceTask
 
 public:
   AudioDeviceTask( const std::string_view interface_name, EventLoop& loop );
-  void generate_statistics( std::ostringstream& out );
+  void generate_statistics( std::ostream& out );
 
   AudioPair& device() { return device_; }
   AudioBuffer& capture() { return capture_; }

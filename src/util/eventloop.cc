@@ -5,7 +5,6 @@
 
 #include <iomanip>
 #include <iostream>
-#include <sstream>
 
 using namespace std;
 
@@ -236,14 +235,7 @@ EventLoop::Result EventLoop::wait_next_event( const int timeout_ms )
   return Result::Success;
 }
 
-string EventLoop::summary() const
-{
-  ostringstream out;
-  summary( out );
-  return out.str();
-}
-
-void EventLoop::summary( ostringstream& out ) const
+void EventLoop::summary( ostream& out ) const
 {
   out << "EventLoop timing summary\n------------------------\n\n";
 

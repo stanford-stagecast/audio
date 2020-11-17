@@ -4,7 +4,7 @@
 #include <chrono>
 #include <iomanip>
 #include <optional>
-#include <sstream>
+#include <ostream>
 #include <string>
 #include <type_traits>
 
@@ -22,7 +22,7 @@ public:
     return std::chrono::steady_clock::now().time_since_epoch().count();
   }
 
-  static void pp_ns( std::ostringstream& out, const uint64_t duration_ns )
+  static void pp_ns( std::ostream& out, const uint64_t duration_ns )
   {
     out << std::fixed << std::setprecision( 1 ) << std::setw( 5 ) << std::setfill( ' ' );
 
@@ -102,8 +102,7 @@ public:
     _current_category.reset();
   }
 
-  std::string summary() const;
-  void summary( std::ostringstream& out ) const;
+  void summary( std::ostream& out ) const;
 };
 
 inline Timer& global_timer()
