@@ -37,3 +37,15 @@ target_link_libraries ("unit_test" ${ALSA_LIBRARIES})
 
 target_link_libraries ("unit_test" ${Opus_LDFLAGS_OTHER})
 target_link_libraries ("unit_test" ${Opus_LIBRARIES})
+
+add_executable (stagecast-server "stagecast-server.cc" "stats_printer.cc")
+target_link_libraries ("stagecast-server" network)
+target_link_libraries ("stagecast-server" audio)
+target_link_libraries ("stagecast-server" crypto)
+target_link_libraries ("stagecast-server" util)
+
+target_link_libraries ("stagecast-server" ${ALSA_LDFLAGS_OTHER})
+target_link_libraries ("stagecast-server" ${ALSA_LIBRARIES})
+
+target_link_libraries ("stagecast-server" ${Opus_LDFLAGS_OTHER})
+target_link_libraries ("stagecast-server" ${Opus_LIBRARIES})

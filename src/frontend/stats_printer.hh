@@ -13,7 +13,7 @@
 class StatsPrinterTask
 {
   std::shared_ptr<AudioDeviceTask> device_;
-  std::shared_ptr<NetworkEndpoint> network_;
+  std::vector<std::shared_ptr<NetworkEndpoint>> network_endpoints_;
   std::shared_ptr<EventLoop> loop_;
 
   FileDescriptor standard_output_;
@@ -30,6 +30,6 @@ class StatsPrinterTask
 
 public:
   StatsPrinterTask( const std::shared_ptr<AudioDeviceTask> device,
-                    const std::shared_ptr<NetworkEndpoint> network,
+                    const std::vector<std::shared_ptr<NetworkEndpoint>>& network_endpoints,
                     const std::shared_ptr<EventLoop> loop );
 };
