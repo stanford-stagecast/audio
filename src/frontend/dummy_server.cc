@@ -3,13 +3,11 @@
 
 #include "alsa_devices.hh"
 #include "audio_device_claim.hh"
-#include "eventloop.hh"
-
 #include "audio_task.hh"
-#include "encoder_task.hh"
-#include "stats_printer.hh"
-
 #include "connection.hh"
+#include "encoder_task.hh"
+#include "eventloop.hh"
+#include "stats_printer.hh"
 
 using namespace std;
 

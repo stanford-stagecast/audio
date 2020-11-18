@@ -71,7 +71,7 @@ public:
   {}
 
   //! Receive a datagram and the Address of its sender (caller can allocate storage)
-  void recv( Address& source_address, string_span& payload, const size_t mtu = 65536 );
+  void recv( Address& source_address, string_span& payload, const size_t mtu = 2048 );
 
   //! Send a datagram to specified Address
   void sendto( const Address& destination, const std::string_view payload );

@@ -21,11 +21,13 @@ include_directories ( ${Opus_INCLUDE_DIRS} )
 add_compile_options ( ${Opus_CFLAGS_OTHER} )
 
 include_directories ("${PROJECT_SOURCE_DIR}/src/util")
+include_directories ("${PROJECT_SOURCE_DIR}/src/crypto")
 include_directories ("${PROJECT_SOURCE_DIR}/src/audio")
 include_directories ("${PROJECT_SOURCE_DIR}/src/network")
 include_directories ("${PROJECT_SOURCE_DIR}/src/dbus")
 
 add_subdirectory ("${PROJECT_SOURCE_DIR}/src/util")
+add_subdirectory ("${PROJECT_SOURCE_DIR}/src/crypto")
 add_subdirectory ("${PROJECT_SOURCE_DIR}/src/audio")
 add_subdirectory ("${PROJECT_SOURCE_DIR}/src/network")
 add_subdirectory ("${PROJECT_SOURCE_DIR}/src/dbus")

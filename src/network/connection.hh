@@ -5,6 +5,8 @@
 #include <ostream>
 
 #include "address.hh"
+#include "base64.hh"
+#include "crypto.hh"
 #include "encoder_task.hh"
 #include "receiver.hh"
 #include "sender.hh"
@@ -26,8 +28,12 @@ protected:
   void send_packet( const Address& dest );
   Address receive_packet();
 
+  Base64Key send_key_, receive_key_;
+  Session crypto_ { send_key_, receive_key_ };
+
 public:
   NetworkEndpoint();
+  NetworkEndpoint( const Base64Key& send_key, const Base64Key& receive_key );
 
   void push_frame( OpusEncoderProcess& source );
   void generate_statistics( std::ostream& out ) const;
@@ -43,7 +49,11 @@ class NetworkClient : public NetworkEndpoint
   std::shared_ptr<OpusEncoderProcess> source_;
 
 public:
-  NetworkClient( const Address& server, std::shared_ptr<OpusEncoderProcess> source, EventLoop& loop );
+  NetworkClient( const Address& server,
+                 const Base64Key& send_key,
+                 const Base64Key& receive_key,
+                 std::shared_ptr<OpusEncoderProcess> source,
+                 EventLoop& loop );
 };
 
 class NetworkServer : public NetworkEndpoint

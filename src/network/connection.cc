@@ -7,12 +7,27 @@ using namespace std;
 
 NetworkEndpoint::NetworkEndpoint()
   : socket_()
+  , send_key_()
+  , receive_key_()
 {
   socket_.set_blocking( false );
 }
 
-NetworkClient::NetworkClient( const Address& server, std::shared_ptr<OpusEncoderProcess> source, EventLoop& loop )
-  : server_( server )
+NetworkEndpoint::NetworkEndpoint( const Base64Key& send_key, const Base64Key& receive_key )
+  : socket_()
+  , send_key_( send_key )
+  , receive_key_( receive_key )
+{
+  socket_.set_blocking( false );
+}
+
+NetworkClient::NetworkClient( const Address& server,
+                              const Base64Key& send_key,
+                              const Base64Key& receive_key,
+                              std::shared_ptr<OpusEncoderProcess> source,
+                              EventLoop& loop )
+  : NetworkEndpoint( send_key, receive_key )
+  , server_( server )
   , source_( source )
 {
   loop.add_rule(
@@ -30,7 +45,8 @@ NetworkServer::NetworkServer( EventLoop& loop )
   : peer_ {}
 {
   socket_.bind( { "0", 0 } );
-  cerr << "Bound to: " << socket_.local_address().to_string() << "\n";
+  cout << "Port " << socket_.local_address().port() << " " << receive_key_.printable_key().as_string_view() << " "
+       << send_key_.printable_key().as_string_view() << endl;
 
   loop.add_rule( "network receive", socket_, Direction::In, [&] {
     peer_ = receive_packet();
@@ -51,24 +67,32 @@ void NetworkEndpoint::send_packet( const Address& dest )
   sender_.set_sender_section( pack.sender_section );
   receiver_.set_receiver_section( pack.receiver_section );
 
-  /* serialize and send */
-  array<char, 1400> packet_buf;
-  Serializer s { { packet_buf.data(), packet_buf.size() } };
+  /* serialize */
+  Plaintext plaintext;
+  Serializer s { plaintext };
   pack.serialize( s );
+  plaintext.resize( s.bytes_written() );
 
-  socket_.sendto( dest, { packet_buf.data(), s.bytes_written() } );
+  /* encrypt */
+  Ciphertext ciphertext;
+  crypto_.encrypt( plaintext, ciphertext );
+
+  socket_.sendto( dest, ciphertext );
 }
 
 Address NetworkEndpoint::receive_packet()
 {
   /* receive the packet */
   Address src { nullptr, 0 };
-  array<char, 65536> packet_buf;
-  string_span payload { packet_buf.data(), packet_buf.size() };
-  socket_.recv( src, payload );
+  Ciphertext ciphertext;
+  socket_.recv( src, ciphertext.data );
+
+  /* decrypt */
+  Plaintext plaintext;
+  crypto_.decrypt( ciphertext, plaintext );
 
   /* parse it */
-  Parser parser { payload };
+  Parser parser { plaintext };
   const Packet packet { parser };
   if ( parser.error() ) {
     stats_.invalid++;
@@ -84,8 +108,15 @@ Address NetworkEndpoint::receive_packet()
 void NetworkEndpoint::generate_statistics( ostream& out ) const
 {
   if ( stats_.invalid ) {
-    out << "Invalid packets: " << stats_.invalid << "\n";
+    out << "invalid=" << stats_.invalid << " ";
   }
+
+  if ( crypto_.decryption_failures() ) {
+    out << "decryption_failures=" << crypto_.decryption_failures();
+  }
+
+  out << "\n";
+
   sender_.generate_statistics( out );
   receiver_.generate_statistics( out );
 }
