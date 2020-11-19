@@ -8,7 +8,7 @@ using namespace std::chrono;
 
 NetworkMultiServer::NetworkMultiServer( EventLoop& loop )
   : socket_()
-  , next_cursor_sample( Timer::timestamp_ns() + cursor_sample_interval )
+  , next_cursor_sample_( Timer::timestamp_ns() + cursor_sample_interval )
 {
   socket_.set_blocking( false );
   socket_.bind( { "0", 0 } );
@@ -22,14 +22,29 @@ NetworkMultiServer::NetworkMultiServer( EventLoop& loop )
     "sample cursors",
     [&] {
       const uint64_t now = Timer::timestamp_ns();
-      next_cursor_sample = now + cursor_sample_interval;
+      next_cursor_sample_ = now + cursor_sample_interval;
+
+      /* get mean sample index */
+      uint64_t sample_index_sum {}, sample_index_num {};
+      for ( auto& cl : clients_ ) {
+        if ( cl.has_value() and cl.value().cursor.sample_index().has_value() ) {
+          sample_index_num++;
+          sample_index_sum += cl.value().cursor.sample_index().value();
+        }
+      }
+
+      if ( sample_index_num ) {
+        global_sample_index_ = sample_index_sum / sample_index_num;
+      }
+
+      /* sample each client */
       for ( auto& cl : clients_ ) {
         if ( cl.has_value() ) {
-          cl->cursor.sample( cl->endpoint, now );
+          cl->cursor.sample( cl->endpoint, now, global_sample_index_ );
         }
       }
     },
-    [&] { return Timer::timestamp_ns() >= next_cursor_sample; } );
+    [&] { return Timer::timestamp_ns() >= next_cursor_sample_; } );
 }
 
 void NetworkMultiServer::receive_packet()
@@ -80,7 +95,11 @@ void NetworkMultiServer::summary( ostream& out ) const
   out << "Network multiserver:";
 
   if ( stats_.decryption_failures ) {
-    out << " decryption_failures=" << stats_.decryption_failures;
+    out << " decryption_failures=" << stats_.decryption_failures << "!";
+  }
+
+  if ( stats_.invalid ) {
+    out << " invalid=" << stats_.invalid << "!";
   }
 
   out << "\n";

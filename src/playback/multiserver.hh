@@ -32,7 +32,9 @@ class NetworkMultiServer : public Summarizable
   using time_point = decltype( std::chrono::steady_clock::now() );
 
   static constexpr uint64_t cursor_sample_interval = 1000000;
-  uint64_t next_cursor_sample;
+  uint64_t next_cursor_sample_;
+
+  size_t global_sample_index_ {};
 
   struct Statistics
   {

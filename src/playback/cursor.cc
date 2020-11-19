@@ -1,8 +1,9 @@
 #include "cursor.hh"
+#include "timestamp.hh"
 
 using namespace std;
 
-void Cursor::sample( const NetworkEndpoint& endpoint, const uint64_t now )
+void Cursor::sample( const NetworkEndpoint& endpoint, const uint64_t now, const size_t sample_index )
 {
   /* initialize if necessary */
   if ( not initialized ) {
@@ -11,6 +12,7 @@ void Cursor::sample( const NetworkEndpoint& endpoint, const uint64_t now )
       next_frame_index_ = endpoint.unreceived_beyond_this_frame_index();
       average_safety_margin_ = initial_delay_ms_;
       average_safety_margin_slow_ = initial_delay_ms_;
+      sample_index_ = sample_index;
       initialized = true;
     }
     return;
@@ -39,29 +41,32 @@ void Cursor::sample( const NetworkEndpoint& endpoint, const uint64_t now )
       return;
     }
 
-    uint64_t increment = 2500000;
     if ( adjust_delay_ and ( now >= next_adjustment_ts_ ) ) {
       if ( quality_ < 0.98 ) {
         initial_delay_ms_ += 0.1;
         next_adjustment_ts_ = now + 10 * MILLION;
-      } else if ( ( quality_ > 0.998 ) and ( average_safety_margin_slow_ > 10 ) ) {
-        initial_delay_ms_ -= 0.001;
+      } else if ( ( quality_ > 0.998 ) and ( initial_delay_ms_ > 10 ) and ( average_safety_margin_slow_ > 10 ) ) {
+        initial_delay_ms_ -= 0.005;
         next_adjustment_ts_ = now + 10 * MILLION;
       }
     }
 
     // okay, maybe a small jump?
+    uint64_t increment = 2500000;
     if ( ( initial_delay_ms_ - average_safety_margin_ ) > 0.25 * initial_delay_ms_ ) {
       increment += 20833; /* about one sample */
+      sample_index_++;
       inc_plus++;
     } else if ( ( average_safety_margin_ - initial_delay_ms_ ) > 0.25 * initial_delay_ms_ ) {
       increment -= 20833;
+      sample_index_--;
       inc_minus++;
     }
 
     // advance cursor
     next_frame_index_ts_ += increment;
     next_frame_index_++;
+    sample_index_ += 120;
   }
 }
 
@@ -82,5 +87,6 @@ void Cursor::summary( ostream& out ) const
 {
   out << " " << setprecision( 0 ) << fixed << 100 * quality() << "@" << initial_delay_ms() << "|"
       << setprecision( 0 ) << fixed << average_safety_margin_ << "+" << inc_plus << "-" << inc_minus << "#"
-      << resets;
+      << resets << " ";
+  pp_samples( out, sample_index_ );
 }
