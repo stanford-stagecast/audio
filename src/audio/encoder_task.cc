@@ -69,3 +69,9 @@ void OpusEncoderProcess::reset( const int bit_rate, const int sample_rate )
   enc1_.reset( bit_rate, sample_rate );
   enc2_.reset( bit_rate, sample_rate );
 }
+
+void OpusEncoderProcess::encode_one_frame( const AudioChannel& ch1, const AudioChannel& ch2 )
+{
+  enc1_.encode_one_frame( ch1 );
+  enc2_.encode_one_frame( ch2 );
+}

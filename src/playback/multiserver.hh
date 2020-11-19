@@ -16,6 +16,12 @@ class NetworkMultiServer : public Summarizable
     NetworkEndpoint endpoint { 255 };
     Cursor cursor;
 
+    using mix_gain = std::pair<float, float>;
+    std::array<mix_gain, 10> gains {};
+
+    AudioChannel mixed_ch1 { 1024 }, mixed_ch2 { 1024 };
+    OpusEncoderProcess encoder_ { 128000, 48000 };
+
     Client( const uint8_t s_node_id, const Address& s_addr );
     void summary( std::ostream& out ) const;
   };
@@ -35,6 +41,7 @@ class NetworkMultiServer : public Summarizable
   uint64_t next_cursor_sample_;
 
   size_t global_sample_index_ {};
+  size_t next_encode_index_ { 240 };
 
   struct Statistics
   {
@@ -42,6 +49,8 @@ class NetworkMultiServer : public Summarizable
   } stats_ {};
 
   void summary( std::ostream& out ) const override;
+
+  void mix_and_encode( Client& client );
 
 public:
   NetworkMultiServer( EventLoop& loop );

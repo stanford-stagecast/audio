@@ -52,6 +52,8 @@ public:
 
   const opus_frame& front_ch1() const { return enc1_.output().value(); }
   const opus_frame& front_ch2() const { return enc2_.output().value(); }
+
+  void encode_one_frame( const AudioChannel& ch1, const AudioChannel& ch2 );
 };
 
 template<class AudioSource>

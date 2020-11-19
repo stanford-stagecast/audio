@@ -44,14 +44,29 @@ NetworkMultiServer::NetworkMultiServer( EventLoop& loop )
         }
       }
 
-      /* XXX discard decoded audio */
+      /* discard old decoded audio */
       for ( auto& cl : clients_ ) {
         if ( cl.has_value() ) {
-          cl->cursor.output().pop( global_sample_index_ - cl->cursor.output().ch1().range_begin() );
+          if ( global_sample_index_ > cl->cursor.output().ch1().range_begin() + 1000 ) {
+            cl->cursor.output().pop( global_sample_index_ - cl->cursor.output().ch1().range_begin() - 1000 );
+          }
         }
       }
     },
     [&] { return Timer::timestamp_ns() >= next_cursor_sample_; } );
+
+  loop.add_rule(
+    "mix and encode audio",
+    [&] {
+      for ( auto& cl : clients_ ) {
+        if ( cl.has_value() ) {
+          mix_and_encode( *cl );
+          cl->endpoint.send_packet( crypto_, cl->addr, socket_ );
+        }
+      }
+      next_encode_index_ += 120;
+    },
+    [&] { return global_sample_index_ >= next_encode_index_; } );
 }
 
 void NetworkMultiServer::receive_packet()
@@ -87,15 +102,17 @@ void NetworkMultiServer::receive_packet()
   if ( client.cursor.next_frame_index() > client.endpoint.frames().range_begin() ) {
     client.endpoint.pop_frames( client.cursor.next_frame_index() - client.endpoint.frames().range_begin() );
   }
-
-  client.endpoint.send_packet( crypto_, client.addr, socket_ ); /* XXX send data */
 }
 
 NetworkMultiServer::Client::Client( const uint8_t s_node_id, const Address& s_addr )
   : node_id( s_node_id )
   , addr( s_addr )
   , cursor( 20, true )
-{}
+{
+  for ( auto& x : gains ) {
+    x.first = x.second = 1.0;
+  }
+}
 
 void NetworkMultiServer::summary( ostream& out ) const
 {
@@ -124,4 +141,39 @@ void NetworkMultiServer::Client::summary( ostream& out ) const
   cursor.summary( out );
   out << "\n";
   endpoint.summary( out );
+}
+
+void NetworkMultiServer::mix_and_encode( Client& client )
+{
+  /* prepare mixed audio */
+  span<float> ch1 = client.mixed_ch1.region( global_sample_index_, 120 );
+  span<float> ch2 = client.mixed_ch2.region( global_sample_index_, 120 );
+
+  fill( ch1.begin(), ch1.end(), 0.0 );
+  fill( ch2.begin(), ch2.end(), 0.0 );
+
+  for ( uint8_t channel_i = 0; channel_i < client.gains.size(); channel_i += 2 ) {
+    const optional<Client>& cl = clients_.at( channel_i / 2 );
+    if ( cl.has_value() ) {
+      /* mix in other channels */
+
+      const span_view<float>& other_ch1 = cl->cursor.output().ch1().region( global_sample_index_, 120 );
+      const span_view<float>& other_ch2 = cl->cursor.output().ch2().region( global_sample_index_, 120 );
+
+      for ( size_t sample_i = 0; sample_i < 120; sample_i++ ) {
+        ch1[sample_i] += client.gains[channel_i].first * other_ch1[sample_i];
+        ch2[sample_i] += client.gains[channel_i].second * other_ch1[sample_i];
+
+        ch1[sample_i] += client.gains[channel_i + 1].first * other_ch2[sample_i];
+        ch2[sample_i] += client.gains[channel_i + 1].second * other_ch2[sample_i];
+      }
+    }
+  }
+
+  /* encode */
+  client.encoder_.encode_one_frame( client.mixed_ch1, client.mixed_ch2 );
+  client.mixed_ch1.pop( 120 );
+  client.mixed_ch2.pop( 120 );
+
+  client.endpoint.push_frame( client.encoder_ );
 }

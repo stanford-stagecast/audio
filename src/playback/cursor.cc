@@ -94,6 +94,9 @@ bool Cursor::has_frame( const NetworkEndpoint& endpoint, const uint32_t frame_in
 
 void Cursor::summary( ostream& out ) const
 {
+  if ( not initialized ) {
+    out << " not initialized!";
+  }
   out << " " << setprecision( 0 ) << fixed << 100 * quality() << "@" << initial_delay_ms() << "|"
       << setprecision( 0 ) << fixed << average_safety_margin_ << "+" << inc_plus << "-" << inc_minus << "#"
       << resets << " ";

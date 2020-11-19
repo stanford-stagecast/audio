@@ -56,4 +56,5 @@ public:
   }
 
   OpusDecoderProcess& output() { return output_; }
+  const OpusDecoderProcess& output() const { return output_; }
 };
