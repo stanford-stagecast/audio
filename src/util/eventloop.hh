@@ -8,10 +8,11 @@
 #include <string_view>
 
 #include "file_descriptor.hh"
+#include "summarize.hh"
 #include "timer.hh"
 
 //! Waits for events on file descriptors and executes corresponding callbacks.
-class EventLoop
+class EventLoop : public Summarizable
 {
 public:
   //! Indicates interest in reading (In) or writing (Out) a polled fd.
@@ -106,8 +107,8 @@ public:
   //! Calls [poll(2)](\ref man2::poll) and then executes callback for each ready fd.
   Result wait_next_event( const int timeout_ms );
 
-  void summary( std::ostream& os ) const;
-  void reset_statistics();
+  void summary( std::ostream& out ) const override;
+  void reset_summary() override;
 
   // convenience function to add category and rule at the same time
   template<typename... Targs>

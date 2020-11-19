@@ -269,7 +269,7 @@ void EventLoop::summary( ostream& out ) const
   print_timer( "waiting for event", _waiting );
 }
 
-void EventLoop::reset_statistics()
+void EventLoop::reset_summary()
 {
   _waiting.reset();
   for ( auto& rule : _rule_categories ) {

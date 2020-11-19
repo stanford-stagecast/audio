@@ -6,8 +6,9 @@
 
 #include "alsa_devices.hh"
 #include "eventloop.hh"
+#include "summarize.hh"
 
-class AudioDeviceTask
+class AudioDeviceTask : public Summarizable
 {
   AudioPair device_;
   AudioBuffer capture_ { 65536 }, playback_ { 65536 };
@@ -16,7 +17,8 @@ class AudioDeviceTask
 
 public:
   AudioDeviceTask( const std::string_view interface_name, EventLoop& loop );
-  void generate_statistics( std::ostream& out );
+  void summary( std::ostream& out ) const override;
+  void reset_summary() override { device_.reset_statistics(); }
 
   AudioPair& device() { return device_; }
   AudioBuffer& capture() { return capture_; }

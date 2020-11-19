@@ -4,9 +4,9 @@
 #include "alsa_devices.hh"
 #include "audio_device_claim.hh"
 #include "audio_task.hh"
-#include "connection.hh"
 #include "encoder_task.hh"
 #include "eventloop.hh"
+#include "multiserver.hh"
 #include "stats_printer.hh"
 
 using namespace std;
@@ -18,13 +18,11 @@ void program_body()
   auto loop = make_shared<EventLoop>();
 
   /* Network server registeres itself in EventLoop */
-  vector<shared_ptr<NetworkEndpoint>> users;
-  for ( unsigned int i = 0; i < 8; i++ ) {
-    users.push_back( make_shared<NetworkSingleServer>( *loop ) );
-  }
+  auto server = make_shared<NetworkMultiServer>( *loop );
 
   /* Print out statistics to terminal */
-  StatsPrinterTask stats_printer { shared_ptr<AudioDeviceTask> {}, users, loop };
+  StatsPrinterTask stats_printer { loop };
+  stats_printer.add( server );
 
   /* Start audio device and event loop */
   while ( loop->wait_next_event( stats_printer.wait_time_ms() ) != EventLoop::Result::Exit ) {

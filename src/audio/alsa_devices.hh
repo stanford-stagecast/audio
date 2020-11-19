@@ -176,7 +176,7 @@ public:
 
   size_t cursor() const { return microphone_.cursor(); }
 
-  const AudioStatistics& statistics() { return statistics_; }
+  const AudioStatistics& statistics() const { return statistics_; }
   void reset_statistics()
   {
     const auto rec = statistics_.recoveries, skip = statistics_.sample_stats.samples_skipped;

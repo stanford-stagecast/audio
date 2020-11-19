@@ -21,10 +21,11 @@ void program_body()
   auto loop = make_shared<EventLoop>();
 
   /* Network server registeres itself in EventLoop */
-  auto network_server = make_shared<NetworkSingleServer>( *loop );
+  auto server = make_shared<NetworkSingleServer>( *loop );
 
   /* Print out statistics to terminal */
-  StatsPrinterTask stats_printer { shared_ptr<AudioDeviceTask> {}, { network_server }, loop };
+  StatsPrinterTask stats_printer { loop };
+  stats_printer.add( server );
 
   this_thread::sleep_for( seconds( 5 ) );
 

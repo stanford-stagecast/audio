@@ -33,7 +33,9 @@ void program_body( const string& host, const string& service, const string& send
     stagecast_server, Base64Key { send_key }, Base64Key { recv_key }, encoder, *loop );
 
   /* Print out statistics to terminal */
-  StatsPrinterTask stats_printer { uac2, { network_client }, loop };
+  StatsPrinterTask stats_printer { loop };
+  stats_printer.add( uac2 );
+  stats_printer.add( network_client );
 
   /* Start audio device and event loop */
   uac2->device().start();

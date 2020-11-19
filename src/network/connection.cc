@@ -106,7 +106,7 @@ void NetworkEndpoint::receive_packet( Plaintext& plaintext )
   }
 }
 
-void NetworkEndpoint::generate_statistics( ostream& out ) const
+void NetworkEndpoint::summary( ostream& out ) const
 {
   if ( stats_.decryption_failures ) {
     out << "decryption_failures=" << stats_.decryption_failures;

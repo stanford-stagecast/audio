@@ -11,8 +11,9 @@
 #include "receiver.hh"
 #include "sender.hh"
 #include "socket.hh"
+#include "summarize.hh"
 
-class NetworkEndpoint
+class NetworkEndpoint : public Summarizable
 {
   NetworkSender sender_ {};
   NetworkReceiver receiver_ {};
@@ -24,7 +25,7 @@ class NetworkEndpoint
 
 public:
   void push_frame( OpusEncoderProcess& source );
-  void generate_statistics( std::ostream& out ) const;
+  void summary( std::ostream& out ) const override;
 
   uint32_t range_begin() const { return receiver_.range_begin(); }
   span_view<std::optional<AudioFrame>> received_frames() const { return receiver_.received_frames(); }
