@@ -29,7 +29,15 @@ NetworkClient::NetworkClient( const Address& server,
     Address src { nullptr, 0 };
     Ciphertext ciphertext;
     socket_.recv( src, ciphertext.data );
-    receive_packet( crypto_, ciphertext );
+
+    /* decrypt */
+    Plaintext plaintext;
+    if ( not crypto_.decrypt( ciphertext, plaintext ) ) {
+      decryption_failure();
+      return;
+    }
+
+    receive_packet( plaintext );
   } );
 }
 
@@ -45,7 +53,15 @@ NetworkSingleServer::NetworkSingleServer( EventLoop& loop )
   loop.add_rule( "network receive", socket_, Direction::In, [&] {
     Ciphertext ciphertext;
     socket_.recv( peer_, ciphertext.data );
-    receive_packet( crypto_, ciphertext );
+
+    /* decrypt */
+    Plaintext plaintext;
+    if ( not crypto_.decrypt( ciphertext, plaintext ) ) {
+      decryption_failure();
+      return;
+    }
+
+    receive_packet( plaintext );
     pop_frames( received_frames().size() );
     send_packet( crypto_, peer_, socket_ );
   } );
@@ -76,15 +92,8 @@ void NetworkEndpoint::send_packet( Session& crypto_session, const Address& dest,
   socket.sendto( dest, ciphertext );
 }
 
-void NetworkEndpoint::receive_packet( const Session& crypto_session, const Ciphertext& ciphertext )
+void NetworkEndpoint::receive_packet( Plaintext& plaintext )
 {
-  /* decrypt */
-  Plaintext plaintext;
-  if ( not crypto_session.decrypt( ciphertext, plaintext ) ) {
-    stats_.decryption_failures++;
-    return;
-  }
-
   /* parse it */
   Parser parser { plaintext };
   const Packet packet { parser };

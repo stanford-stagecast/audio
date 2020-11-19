@@ -31,7 +31,9 @@ public:
   void pop_frames( const size_t num ) { return receiver_.pop_frames( num ); }
 
   void send_packet( Session& crypto_session, const Address& dest, UDPSocket& socket );
-  void receive_packet( const Session& crypto_session, const Ciphertext& ciphertext );
+  void receive_packet( Plaintext& plaintext );
+
+  void decryption_failure() { stats_.decryption_failures++; }
 };
 
 class NetworkClient : public NetworkEndpoint
