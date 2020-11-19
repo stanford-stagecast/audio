@@ -13,7 +13,7 @@ class NetworkMultiServer : public Summarizable
   {
     Address addr;
     std::unique_ptr<NetworkEndpoint> endpoint { std::make_unique<NetworkEndpoint>() };
-    std::vector<Cursor> cursors;
+    Cursor cursor;
 
     Client( const Address& s_addr );
     void receive_packet( Plaintext& plaintext );
@@ -31,6 +31,7 @@ class NetworkMultiServer : public Summarizable
 
   using time_point = decltype( std::chrono::steady_clock::now() );
 
+  static constexpr uint64_t cursor_sample_interval = 1000000;
   uint64_t next_cursor_sample;
 
   struct Statistics

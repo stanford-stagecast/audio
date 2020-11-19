@@ -14,6 +14,8 @@ class Cursor
   uint64_t next_frame_index_ts_ {};
   uint32_t next_frame_index_ {};
 
+  uint64_t next_adjustment_ts_ {};
+
   static constexpr float ALPHA = 1 / 50.0;
   static constexpr float SLOW_ALPHA = 1 / 1000.0;
   float quality_ = 1.0;

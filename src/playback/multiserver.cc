@@ -8,7 +8,7 @@ using namespace std::chrono;
 
 NetworkMultiServer::NetworkMultiServer( EventLoop& loop )
   : socket_()
-  , next_cursor_sample( Timer::timestamp_ns() + 2 * MILLION )
+  , next_cursor_sample( Timer::timestamp_ns() + cursor_sample_interval )
 {
   socket_.set_blocking( false );
   socket_.bind( { "0", 0 } );
@@ -22,11 +22,9 @@ NetworkMultiServer::NetworkMultiServer( EventLoop& loop )
     "sample cursors",
     [&] {
       const uint64_t now = Timer::timestamp_ns();
-      next_cursor_sample = now + 2 * MILLION;
+      next_cursor_sample = now + cursor_sample_interval;
       for ( Client& cl : clients_ ) {
-        for ( Cursor& cursor : cl.cursors ) {
-          cursor.sample( *cl.endpoint, now );
-        }
+        cl.cursor.sample( *cl.endpoint, now );
       }
     },
     [&] { return Timer::timestamp_ns() >= next_cursor_sample; } );
@@ -67,20 +65,16 @@ void NetworkMultiServer::receive_packet()
 
 NetworkMultiServer::Client::Client( const Address& s_addr )
   : addr( s_addr )
-  , cursors()
-{
-  cursors.emplace_back( 10, true );
-  cursors.emplace_back( 5000, false );
-}
+  , cursor( 1, true )
+{}
 
 void NetworkMultiServer::Client::receive_packet( Plaintext& plaintext )
 {
   endpoint->receive_packet( plaintext );
 
   /* throw away frames for now */
-  const auto min_cursor = cursors.back().next_frame_index();
-  if ( min_cursor > endpoint->frames().range_begin() ) {
-    endpoint->pop_frames( min_cursor - endpoint->frames().range_begin() );
+  if ( cursor.next_frame_index() > endpoint->frames().range_begin() ) {
+    endpoint->pop_frames( cursor.next_frame_index() - endpoint->frames().range_begin() );
   }
 }
 
@@ -102,9 +96,7 @@ void NetworkMultiServer::summary( ostream& out ) const
 void NetworkMultiServer::Client::summary( ostream& out ) const
 {
   out << "   " << addr.to_string() << " (" << endpoint->next_frame_needed() << "):";
-  for ( const auto& c : cursors ) {
-    c.summary( out );
-  }
+  cursor.summary( out );
   out << "\n";
   endpoint->summary( out );
 }
