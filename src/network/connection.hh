@@ -19,16 +19,10 @@ class NetworkEndpoint
 
   struct Statistics
   {
-    unsigned int invalid {};
+    unsigned int decryption_failures {}, invalid {};
   } stats_ {};
 
-  Base64Key send_key_, receive_key_;
-  Session crypto_ { send_key_, receive_key_ };
-
 public:
-  NetworkEndpoint();
-  NetworkEndpoint( const Base64Key& send_key, const Base64Key& receive_key );
-
   void push_frame( OpusEncoderProcess& source );
   void generate_statistics( std::ostream& out ) const;
 
@@ -36,11 +30,8 @@ public:
   span_view<std::optional<AudioFrame>> received_frames() const { return receiver_.received_frames(); }
   void pop_frames( const size_t num ) { return receiver_.pop_frames( num ); }
 
-  void send_packet( const Address& dest, UDPSocket& socket );
-  void receive_packet( const Ciphertext& ciphertext );
-
-  const Base64Key& send_key() const { return send_key_; }
-  const Base64Key& receive_key() const { return receive_key_; }
+  void send_packet( Session& crypto_session, const Address& dest, UDPSocket& socket );
+  void receive_packet( const Session& crypto_session, const Ciphertext& ciphertext );
 };
 
 class NetworkClient : public NetworkEndpoint
@@ -48,6 +39,8 @@ class NetworkClient : public NetworkEndpoint
   UDPSocket socket_;
   Address server_;
   std::shared_ptr<OpusEncoderProcess> source_;
+
+  Session crypto_;
 
 public:
   NetworkClient( const Address& server,
@@ -61,6 +54,9 @@ class NetworkSingleServer : public NetworkEndpoint
 {
   UDPSocket socket_;
   Address peer_;
+
+  Base64Key send_key_ {}, receive_key_ {};
+  Session crypto_ { send_key_, receive_key_ };
 
 public:
   NetworkSingleServer( EventLoop& loop );

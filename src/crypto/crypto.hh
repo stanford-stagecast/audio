@@ -58,13 +58,9 @@ private:
     ~AEContext();
   } encrypt_ctx_, decrypt_ctx_;
 
-  mutable unsigned int decryption_failures_ {};
-
 public:
   Session( const Base64Key& encrypt_key, const Base64Key& decrypt_key );
 
   void encrypt( const Plaintext& plaintext, Ciphertext& ciphertext );
   bool decrypt( const Ciphertext& ciphertext, Plaintext& plaintext ) const;
-
-  unsigned int decryption_failures() const { return decryption_failures_; }
 };

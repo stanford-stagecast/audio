@@ -5,25 +5,15 @@
 
 using namespace std;
 
-NetworkEndpoint::NetworkEndpoint()
-  : send_key_()
-  , receive_key_()
-{}
-
-NetworkEndpoint::NetworkEndpoint( const Base64Key& send_key, const Base64Key& receive_key )
-  : send_key_( send_key )
-  , receive_key_( receive_key )
-{}
-
 NetworkClient::NetworkClient( const Address& server,
                               const Base64Key& send_key,
                               const Base64Key& receive_key,
                               std::shared_ptr<OpusEncoderProcess> source,
                               EventLoop& loop )
-  : NetworkEndpoint( send_key, receive_key )
-  , socket_()
+  : socket_()
   , server_( server )
   , source_( source )
+  , crypto_( send_key, receive_key )
 {
   socket_.set_blocking( false );
 
@@ -31,7 +21,7 @@ NetworkClient::NetworkClient( const Address& server,
     "network transmit",
     [&] {
       push_frame( *source_ );
-      send_packet( server_, socket_ );
+      send_packet( crypto_, server_, socket_ );
     },
     [&] { return source_->has_frame(); } );
 
@@ -39,7 +29,7 @@ NetworkClient::NetworkClient( const Address& server,
     Address src { nullptr, 0 };
     Ciphertext ciphertext;
     socket_.recv( src, ciphertext.data );
-    receive_packet( ciphertext );
+    receive_packet( crypto_, ciphertext );
   } );
 }
 
@@ -49,15 +39,15 @@ NetworkSingleServer::NetworkSingleServer( EventLoop& loop )
 {
   socket_.set_blocking( false );
   socket_.bind( { "0", 0 } );
-  cout << "Port " << socket_.local_address().port() << " " << receive_key().printable_key().as_string_view() << " "
-       << send_key().printable_key().as_string_view() << endl;
+  cout << "Port " << socket_.local_address().port() << " " << receive_key_.printable_key().as_string_view() << " "
+       << send_key_.printable_key().as_string_view() << endl;
 
   loop.add_rule( "network receive", socket_, Direction::In, [&] {
     Ciphertext ciphertext;
     socket_.recv( peer_, ciphertext.data );
-    receive_packet( ciphertext );
+    receive_packet( crypto_, ciphertext );
     pop_frames( received_frames().size() );
-    send_packet( peer_, socket_ );
+    send_packet( crypto_, peer_, socket_ );
   } );
 }
 
@@ -66,7 +56,7 @@ void NetworkEndpoint::push_frame( OpusEncoderProcess& source )
   sender_.push_frame( source );
 }
 
-void NetworkEndpoint::send_packet( const Address& dest, UDPSocket& socket )
+void NetworkEndpoint::send_packet( Session& crypto_session, const Address& dest, UDPSocket& socket )
 {
   /* make packet to send */
   Packet pack {};
@@ -81,16 +71,19 @@ void NetworkEndpoint::send_packet( const Address& dest, UDPSocket& socket )
 
   /* encrypt */
   Ciphertext ciphertext;
-  crypto_.encrypt( plaintext, ciphertext );
+  crypto_session.encrypt( plaintext, ciphertext );
 
   socket.sendto( dest, ciphertext );
 }
 
-void NetworkEndpoint::receive_packet( const Ciphertext& ciphertext )
+void NetworkEndpoint::receive_packet( const Session& crypto_session, const Ciphertext& ciphertext )
 {
   /* decrypt */
   Plaintext plaintext;
-  crypto_.decrypt( ciphertext, plaintext );
+  if ( not crypto_session.decrypt( ciphertext, plaintext ) ) {
+    stats_.decryption_failures++;
+    return;
+  }
 
   /* parse it */
   Parser parser { plaintext };
@@ -106,12 +99,12 @@ void NetworkEndpoint::receive_packet( const Ciphertext& ciphertext )
 
 void NetworkEndpoint::generate_statistics( ostream& out ) const
 {
-  if ( stats_.invalid ) {
-    out << "invalid=" << stats_.invalid << " ";
+  if ( stats_.decryption_failures ) {
+    out << "decryption_failures=" << stats_.decryption_failures;
   }
 
-  if ( crypto_.decryption_failures() ) {
-    out << "decryption_failures=" << crypto_.decryption_failures();
+  if ( stats_.invalid ) {
+    out << "invalid=" << stats_.invalid << " ";
   }
 
   out << "\n";

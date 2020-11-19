@@ -95,7 +95,6 @@ bool Session::decrypt( const Ciphertext& ciphertext, Plaintext& plaintext ) cons
   ciphertext.validate();
 
   if ( ciphertext.size() < 24 ) {
-    decryption_failures_++;
     return false;
   }
 
@@ -115,7 +114,6 @@ bool Session::decrypt( const Ciphertext& ciphertext, Plaintext& plaintext ) cons
                       plaintext.buffer.data(),  /* pt */
                       nullptr,                  /* tag */
                       AE_FINALIZE ) ) {         /* final */
-    decryption_failures_++;
     return false;
   }
 
