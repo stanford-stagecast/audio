@@ -69,10 +69,8 @@ NetworkMultiServer::Client::Client( const Address& s_addr )
   : addr( s_addr )
   , cursors()
 {
-  cursors.emplace_back( 10 );
-  cursors.emplace_back( 50 );
-  cursors.emplace_back( 100 );
-  cursors.emplace_back( 5000 );
+  cursors.emplace_back( 10, true );
+  cursors.emplace_back( 5000, false );
 }
 
 void NetworkMultiServer::Client::receive_packet( Plaintext& plaintext )

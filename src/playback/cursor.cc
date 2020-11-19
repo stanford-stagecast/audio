@@ -10,6 +10,7 @@ void Cursor::sample( const NetworkEndpoint& endpoint, const uint64_t now )
       next_frame_index_ts_ = now + initial_delay_ms_ * MILLION;
       next_frame_index_ = endpoint.unreceived_beyond_this_frame_index();
       average_safety_margin_ = initial_delay_ms_;
+      average_safety_margin_slow_ = initial_delay_ms_;
       initialized = true;
     }
     return;
@@ -23,6 +24,7 @@ void Cursor::sample( const NetworkEndpoint& endpoint, const uint64_t now )
     const float this_safety_margin
       = 2.5 * ( float( endpoint.unreceived_beyond_this_frame_index() ) - float( next_frame_index_ ) );
     average_safety_margin_ = ALPHA * this_safety_margin + ( 1 - ALPHA ) * average_safety_margin_;
+    average_safety_margin_slow_ = ALPHA * this_safety_margin + ( 1 - ALPHA ) * average_safety_margin_slow_;
 
     // do we need to make a big jump?
     if ( abs( initial_delay_ms_ - this_safety_margin ) > 0.75 * initial_delay_ms_ ) {
@@ -32,6 +34,15 @@ void Cursor::sample( const NetworkEndpoint& endpoint, const uint64_t now )
     }
 
     uint64_t increment = 2500000;
+    if ( adjust_delay_ ) {
+      if ( ( initial_delay_ms_ - average_safety_margin_slow_ ) > 0.5 * initial_delay_ms_ ) {
+        initial_delay_ms_ *= 1.05;
+      } else if ( ( average_safety_margin_slow_ - initial_delay_ms_ ) > 0.5 * initial_delay_ms_ ) {
+        initial_delay_ms_ /= 1.05;
+      }
+    }
+
+    // okay, maybe a small jump?
     if ( ( initial_delay_ms_ - average_safety_margin_ ) > 0.25 * initial_delay_ms_ ) {
       increment += 20833; /* about one sample */
       inc_plus++;

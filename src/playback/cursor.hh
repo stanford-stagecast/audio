@@ -7,6 +7,7 @@
 
 class Cursor
 {
+  bool adjust_delay_;
   float initial_delay_ms_;
 
   bool initialized {};
@@ -14,16 +15,19 @@ class Cursor
   uint32_t next_frame_index_ {};
 
   static constexpr float ALPHA = 1 / 50.0;
+  static constexpr float SLOW_ALPHA = 1 / 1000.0;
   float quality_ = 1.0;
   float average_safety_margin_ {};
+  float average_safety_margin_slow_ {};
 
   unsigned int inc_plus {}, inc_minus {}, resets {};
 
   static bool has_frame( const NetworkEndpoint& endpoint, const uint32_t frame_index );
 
 public:
-  Cursor( const float initial_delay_ms )
-    : initial_delay_ms_( initial_delay_ms )
+  Cursor( const float initial_delay_ms, const bool adjust_delay )
+    : adjust_delay_( adjust_delay )
+    , initial_delay_ms_( initial_delay_ms )
   {}
 
   void sample( const NetworkEndpoint& endpoint, const uint64_t now );
