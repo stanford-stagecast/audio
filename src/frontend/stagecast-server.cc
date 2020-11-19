@@ -20,14 +20,14 @@ void program_body()
   /* Network server registeres itself in EventLoop */
   vector<shared_ptr<NetworkEndpoint>> users;
   for ( unsigned int i = 0; i < 8; i++ ) {
-    users.push_back( make_shared<NetworkServer>( *loop ) );
+    users.push_back( make_shared<NetworkSingleServer>( *loop ) );
   }
 
   /* Print out statistics to terminal */
   StatsPrinterTask stats_printer { shared_ptr<AudioDeviceTask> {}, users, loop };
 
   /* Start audio device and event loop */
-  while ( loop->wait_next_event( 100 ) != EventLoop::Result::Exit ) {
+  while ( loop->wait_next_event( stats_printer.wait_time_ms() ) != EventLoop::Result::Exit ) {
   }
 }
 

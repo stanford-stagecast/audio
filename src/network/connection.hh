@@ -22,12 +22,6 @@ class NetworkEndpoint
     unsigned int invalid {};
   } stats_ {};
 
-protected:
-  UDPSocket socket_;
-
-  void send_packet( const Address& dest );
-  Address receive_packet();
-
   Base64Key send_key_, receive_key_;
   Session crypto_ { send_key_, receive_key_ };
 
@@ -41,10 +35,17 @@ public:
   uint32_t range_begin() const { return receiver_.range_begin(); }
   span_view<std::optional<AudioFrame>> received_frames() const { return receiver_.received_frames(); }
   void pop_frames( const size_t num ) { return receiver_.pop_frames( num ); }
+
+  void send_packet( const Address& dest, UDPSocket& socket );
+  void receive_packet( const Ciphertext& ciphertext );
+
+  const Base64Key& send_key() const { return send_key_; }
+  const Base64Key& receive_key() const { return receive_key_; }
 };
 
 class NetworkClient : public NetworkEndpoint
 {
+  UDPSocket socket_;
   Address server_;
   std::shared_ptr<OpusEncoderProcess> source_;
 
@@ -56,10 +57,11 @@ public:
                  EventLoop& loop );
 };
 
-class NetworkServer : public NetworkEndpoint
+class NetworkSingleServer : public NetworkEndpoint
 {
-  std::optional<Address> peer_;
+  UDPSocket socket_;
+  Address peer_;
 
 public:
-  NetworkServer( EventLoop& loop );
+  NetworkSingleServer( EventLoop& loop );
 };
