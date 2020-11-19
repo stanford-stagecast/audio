@@ -5,12 +5,14 @@
 
 using namespace std;
 
-NetworkClient::NetworkClient( const Address& server,
+NetworkClient::NetworkClient( const uint8_t node_id,
+                              const Address& server,
                               const Base64Key& send_key,
                               const Base64Key& receive_key,
                               std::shared_ptr<OpusEncoderProcess> source,
                               EventLoop& loop )
-  : socket_()
+  : NetworkEndpoint( node_id )
+  , socket_()
   , server_( server )
   , source_( source )
   , crypto_( send_key, receive_key )
@@ -42,7 +44,8 @@ NetworkClient::NetworkClient( const Address& server,
 }
 
 NetworkSingleServer::NetworkSingleServer( EventLoop& loop )
-  : socket_ {}
+  : NetworkEndpoint( -1 )
+  , socket_ {}
   , peer_ { nullptr, 0 }
 {
   socket_.set_blocking( false );
@@ -76,6 +79,7 @@ void NetworkEndpoint::send_packet( Session& crypto_session, const Address& dest,
 {
   /* make packet to send */
   Packet pack {};
+  pack.node_id = node_id_;
   sender_.set_sender_section( pack.sender_section );
   receiver_.set_receiver_section( pack.receiver_section );
 
@@ -92,6 +96,12 @@ void NetworkEndpoint::send_packet( Session& crypto_session, const Address& dest,
   socket.sendto( dest, ciphertext );
 }
 
+void NetworkEndpoint::act_on_packet( const Packet& packet )
+{
+  sender_.receive_receiver_section( packet.receiver_section );
+  receiver_.receive_sender_section( packet.sender_section );
+}
+
 void NetworkEndpoint::receive_packet( Plaintext& plaintext )
 {
   /* parse it */
@@ -100,9 +110,7 @@ void NetworkEndpoint::receive_packet( Plaintext& plaintext )
   if ( parser.error() ) {
     stats_.invalid++;
   } else {
-    /* process it */
-    sender_.receive_receiver_section( packet.receiver_section );
-    receiver_.receive_sender_section( packet.sender_section );
+    act_on_packet( packet );
   }
 }
 

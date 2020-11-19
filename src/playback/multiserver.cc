@@ -23,8 +23,10 @@ NetworkMultiServer::NetworkMultiServer( EventLoop& loop )
     [&] {
       const uint64_t now = Timer::timestamp_ns();
       next_cursor_sample = now + cursor_sample_interval;
-      for ( Client& cl : clients_ ) {
-        cl.cursor.sample( *cl.endpoint, now );
+      for ( auto& cl : clients_ ) {
+        if ( cl.has_value() ) {
+          cl->cursor.sample( cl->endpoint, now );
+        }
       }
     },
     [&] { return Timer::timestamp_ns() >= next_cursor_sample; } );
@@ -43,40 +45,35 @@ void NetworkMultiServer::receive_packet()
     return;
   }
 
-  /* find matching client */
-  for ( Client& client : clients_ ) {
-    if ( client.addr == src ) {
-      client.receive_packet( plaintext );
-
-      /* XXX send an ACK */
-      client.endpoint->send_packet( crypto_, client.addr, socket_ );
-      return;
-    }
+  /* parse */
+  Parser parser { plaintext };
+  const Packet packet { parser };
+  if ( parser.error() ) {
+    stats_.invalid++;
+    return;
   }
 
-  /* no matching client? */
-  clients_.emplace_back( src );
-  Client& client = clients_.back();
-  client.receive_packet( plaintext );
+  /* create client? */
+  if ( not clients_.at( packet.node_id ).has_value() ) {
+    clients_.at( packet.node_id ).emplace( packet.node_id, src );
+  }
 
-  /* XXX send an ACK */
-  client.endpoint->send_packet( crypto_, client.addr, socket_ );
+  Client& client = clients_.at( packet.node_id ).value();
+
+  client.endpoint.act_on_packet( packet );
+  /* throw away frames no longer needed */
+  if ( client.cursor.next_frame_index() > client.endpoint.frames().range_begin() ) {
+    client.endpoint.pop_frames( client.cursor.next_frame_index() - client.endpoint.frames().range_begin() );
+  }
+
+  client.endpoint.send_packet( crypto_, client.addr, socket_ ); /* XXX send data */
 }
 
-NetworkMultiServer::Client::Client( const Address& s_addr )
-  : addr( s_addr )
-  , cursor( 1, true )
+NetworkMultiServer::Client::Client( const uint8_t s_node_id, const Address& s_addr )
+  : node_id( s_node_id )
+  , addr( s_addr )
+  , cursor( 20, true )
 {}
-
-void NetworkMultiServer::Client::receive_packet( Plaintext& plaintext )
-{
-  endpoint->receive_packet( plaintext );
-
-  /* throw away frames for now */
-  if ( cursor.next_frame_index() > endpoint->frames().range_begin() ) {
-    endpoint->pop_frames( cursor.next_frame_index() - endpoint->frames().range_begin() );
-  }
-}
 
 void NetworkMultiServer::summary( ostream& out ) const
 {
@@ -89,14 +86,16 @@ void NetworkMultiServer::summary( ostream& out ) const
   out << "\n";
 
   for ( const auto& client : clients_ ) {
-    client.summary( out );
+    if ( client.has_value() ) {
+      client->summary( out );
+    }
   }
 }
 
 void NetworkMultiServer::Client::summary( ostream& out ) const
 {
-  out << "   " << addr.to_string() << " (" << endpoint->next_frame_needed() << "):";
+  out << "   #" << int( node_id ) << "(" << addr.to_string() << "):";
   cursor.summary( out );
   out << "\n";
-  endpoint->summary( out );
+  endpoint.summary( out );
 }

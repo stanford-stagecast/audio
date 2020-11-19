@@ -1,8 +1,10 @@
 #include "crypto.hh"
 #include "base64.hh"
+#include "exception.hh"
 
 #include <cstring>
 #include <iostream>
+#include <unistd.h>
 
 using namespace std;
 
@@ -27,9 +29,12 @@ Session::AEContext::~AEContext()
 }
 
 Session::Session( const Base64Key& encrypt_key, const Base64Key& decrypt_key )
-  : encrypt_ctx_( encrypt_key )
+  : nonce_val()
+  , encrypt_ctx_( encrypt_key )
   , decrypt_ctx_( decrypt_key )
-{}
+{
+  CheckSystemCall( "getentropy", getentropy( &nonce_val, sizeof( nonce_val ) ) ); /* XXX avoid reuse of nonce */
+}
 
 template<int max_len>
 void TextBuffer<max_len>::validate() const

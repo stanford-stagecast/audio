@@ -13,7 +13,11 @@
 
 using namespace std;
 
-void program_body( const string& host, const string& service, const string& send_key, const string& recv_key )
+void program_body( const string& node_id,
+                   const string& host,
+                   const string& service,
+                   const string& send_key,
+                   const string& recv_key )
 {
   ios::sync_with_stdio( false );
 
@@ -30,7 +34,7 @@ void program_body( const string& host, const string& service, const string& send
   /* Network client registers itself in EventLoop */
   const Address stagecast_server { host, service };
   auto network_client = make_shared<NetworkClient>(
-    stagecast_server, Base64Key { send_key }, Base64Key { recv_key }, encoder, *loop );
+    stoi( node_id ), stagecast_server, Base64Key { send_key }, Base64Key { recv_key }, encoder, *loop );
 
   /* Print out statistics to terminal */
   StatsPrinterTask stats_printer { loop };
@@ -50,12 +54,12 @@ int main( int argc, char* argv[] )
       abort();
     }
 
-    if ( argc != 5 ) {
-      cerr << "Usage: " << argv[0] << " HOST SERVICE SEND_KEY RECV_KEY\n";
+    if ( argc != 6 ) {
+      cerr << "Usage: " << argv[0] << " NODE_ID HOST SERVICE SEND_KEY RECV_KEY\n";
       return EXIT_FAILURE;
     }
 
-    program_body( argv[1], argv[2], argv[3], argv[4] );
+    program_body( argv[1], argv[2], argv[3], argv[4], argv[5] );
   } catch ( const exception& e ) {
     cerr << "Exception: " << e.what() << "\n";
     global_timer().summary( cerr );

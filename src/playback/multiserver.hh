@@ -11,17 +11,17 @@ class NetworkMultiServer : public Summarizable
 {
   struct Client
   {
+    uint8_t node_id;
     Address addr;
-    std::unique_ptr<NetworkEndpoint> endpoint { std::make_unique<NetworkEndpoint>() };
+    NetworkEndpoint endpoint { 255 };
     Cursor cursor;
 
-    Client( const Address& s_addr );
-    void receive_packet( Plaintext& plaintext );
+    Client( const uint8_t s_node_id, const Address& s_addr );
     void summary( std::ostream& out ) const;
   };
 
   UDPSocket socket_;
-  std::vector<Client> clients_ {};
+  std::array<std::optional<Client>, 256> clients_ {};
 
   Base64Key send_key_ {}, receive_key_ {};
   Session crypto_ { send_key_, receive_key_ };
@@ -36,7 +36,7 @@ class NetworkMultiServer : public Summarizable
 
   struct Statistics
   {
-    unsigned int decryption_failures;
+    unsigned int decryption_failures, invalid;
   } stats_ {};
 
   void summary( std::ostream& out ) const override;

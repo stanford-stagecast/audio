@@ -15,6 +15,7 @@
 
 class NetworkEndpoint : public Summarizable
 {
+  uint8_t node_id_;
   NetworkSender sender_ {};
   NetworkReceiver receiver_ {};
 
@@ -24,6 +25,10 @@ class NetworkEndpoint : public Summarizable
   } stats_ {};
 
 public:
+  NetworkEndpoint( const uint8_t node_id )
+    : node_id_( node_id )
+  {}
+
   void push_frame( OpusEncoderProcess& source );
   void summary( std::ostream& out ) const override;
 
@@ -34,6 +39,7 @@ public:
 
   void send_packet( Session& crypto_session, const Address& dest, UDPSocket& socket );
   void receive_packet( Plaintext& plaintext );
+  void act_on_packet( const Packet& packet );
 
   void decryption_failure() { stats_.decryption_failures++; }
 };
@@ -47,7 +53,8 @@ class NetworkClient : public NetworkEndpoint
   Session crypto_;
 
 public:
-  NetworkClient( const Address& server,
+  NetworkClient( const uint8_t node_id,
+                 const Address& server,
                  const Base64Key& send_key,
                  const Base64Key& receive_key,
                  std::shared_ptr<OpusEncoderProcess> source,

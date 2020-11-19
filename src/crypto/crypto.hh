@@ -43,7 +43,7 @@ using Ciphertext = TextBuffer<2048 + 16 + 8>;
 class Session
 {
 private:
-  uint64_t nonce_val = 0;
+  uint64_t nonce_val;
 
   struct AEContext
   {

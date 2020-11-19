@@ -25,12 +25,14 @@ void AudioFrame::parse( Parser& p )
 
 uint32_t Packet::serialized_length() const
 {
-  return sizeof( sender_section.sequence_number ) + sender_section.frames.serialized_length()
+  return sizeof( node_id ) + sizeof( sender_section.sequence_number ) + sender_section.frames.serialized_length()
          + sizeof( receiver_section.next_frame_needed ) + receiver_section.packets_received.serialized_length();
 }
 
 void Packet::serialize( Serializer& s ) const
 {
+  s.integer( node_id );
+
   s.integer( sender_section.sequence_number );
   s.object( sender_section.frames );
 
@@ -40,6 +42,8 @@ void Packet::serialize( Serializer& s ) const
 
 void Packet::parse( Parser& p )
 {
+  p.integer( node_id );
+
   p.integer( sender_section.sequence_number );
   p.object( sender_section.frames );
 
