@@ -18,9 +18,15 @@ void Cursor::sample( const NetworkEndpoint& endpoint, const uint64_t now, const 
     return;
   }
 
-  /* calculate quality score and safety margin */
+  /* decode frame, and calculate quality score and safety margin */
   while ( now >= next_frame_index_ts_ ) {
     const bool success = has_frame( endpoint, next_frame_index_ );
+
+    if ( success ) {
+      const AudioFrame& frame = endpoint.frames().at( next_frame_index_ ).value();
+      output_.decode( frame.ch1, frame.ch2, sample_index_ );
+    }
+
     quality_ = ALPHA * success + ( 1 - ALPHA ) * quality_;
 
     const float this_safety_margin
