@@ -55,3 +55,13 @@ StatsPrinterTask::StatsPrinterTask( const shared_ptr<AudioDeviceTask> device,
     [&] { output_rb_.pop_to_fd( standard_output_ ); },
     [&] { return output_rb_.bytes_stored() > 0; } );
 }
+
+unsigned int StatsPrinterTask::wait_time_ms() const
+{
+  const auto now = steady_clock::now();
+  if ( now > next_stats_print ) {
+    return 0;
+  } else {
+    return duration_cast<milliseconds>( next_stats_print - now ).count();
+  }
+}

@@ -32,4 +32,6 @@ public:
   StatsPrinterTask( const std::shared_ptr<AudioDeviceTask> device,
                     const std::vector<std::shared_ptr<NetworkEndpoint>>& network_endpoints,
                     const std::shared_ptr<EventLoop> loop );
+
+  unsigned int wait_time_ms() const;
 };

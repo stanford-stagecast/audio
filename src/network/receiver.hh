@@ -21,6 +21,7 @@ class NetworkReceiver
   struct FrameStatistics
   {
     unsigned int already_acked, redundant, dropped, popped;
+    std::optional<uint64_t> last_new_frame_received;
   } stats_ {};
 
 public:
@@ -32,4 +33,6 @@ public:
   uint32_t range_begin() const { return frames_.range_begin(); }
   span_view<std::optional<AudioFrame>> received_frames() const;
   void pop_frames( const size_t num );
+
+  const FrameStatistics& statistics() const { return stats_; }
 };

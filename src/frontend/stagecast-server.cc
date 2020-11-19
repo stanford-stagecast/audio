@@ -27,7 +27,7 @@ void program_body()
   StatsPrinterTask stats_printer { shared_ptr<AudioDeviceTask> {}, users, loop };
 
   /* Start audio device and event loop */
-  while ( loop->wait_next_event( -1 ) != EventLoop::Result::Exit ) {
+  while ( loop->wait_next_event( 100 ) != EventLoop::Result::Exit ) {
   }
 }
 

@@ -1,5 +1,7 @@
+#include <chrono>
 #include <cstdlib>
 #include <iostream>
+#include <thread>
 
 #include "alsa_devices.hh"
 #include "audio_device_claim.hh"
@@ -10,6 +12,7 @@
 #include "stats_printer.hh"
 
 using namespace std;
+using namespace std::chrono;
 
 void program_body()
 {
@@ -23,8 +26,10 @@ void program_body()
   /* Print out statistics to terminal */
   StatsPrinterTask stats_printer { shared_ptr<AudioDeviceTask> {}, { network_server }, loop };
 
+  this_thread::sleep_for( seconds( 5 ) );
+
   /* Start audio device and event loop */
-  while ( loop->wait_next_event( -1 ) != EventLoop::Result::Exit ) {
+  while ( loop->wait_next_event( stats_printer.wait_time_ms() ) != EventLoop::Result::Exit ) {
   }
 }
 

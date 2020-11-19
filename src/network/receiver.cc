@@ -1,4 +1,5 @@
 #include "receiver.hh"
+#include "timer.hh"
 
 using namespace std;
 
@@ -9,6 +10,8 @@ void NetworkReceiver::receive_sender_section( const Packet::SenderSection& sende
   } else {
     biggest_seqno_received_ = max( biggest_seqno_received_.value(), sender_section.sequence_number );
   }
+
+  const uint64_t now = Timer::timestamp_ns();
 
   for ( const auto& frame : sender_section.frames ) {
     unreceived_beyond_this_frame_index_ = max( unreceived_beyond_this_frame_index_, frame.frame_index + 1 );
@@ -29,6 +32,7 @@ void NetworkReceiver::receive_sender_section( const Packet::SenderSection& sende
     }
 
     dest = frame;
+    stats_.last_new_frame_received = now;
   }
 
   advance_next_frame_needed();
@@ -96,6 +100,12 @@ void NetworkReceiver::set_receiver_section( Packet::ReceiverSection& receiver_se
 void NetworkReceiver::generate_statistics( ostream& out ) const
 {
   out << "Receiver info:";
+
+  if ( stats_.last_new_frame_received.has_value() ) {
+    out << " last_new_frame=";
+    Timer::pp_ns( out, Timer::timestamp_ns() - stats_.last_new_frame_received.value() );
+  }
+
   if ( stats_.already_acked ) {
     out << " already_acked=" << stats_.already_acked;
   }
