@@ -45,6 +45,7 @@ target_link_libraries ("unit_test" ${Opus_LIBRARIES})
 
 add_executable (stagecast-server "stagecast-server.cc")
 target_link_libraries ("stagecast-server" stats)
+target_link_libraries ("stagecast-server" playback)
 target_link_libraries ("stagecast-server" network)
 target_link_libraries ("stagecast-server" audio)
 target_link_libraries ("stagecast-server" crypto)
