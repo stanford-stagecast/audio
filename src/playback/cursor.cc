@@ -8,19 +8,23 @@ void Cursor::sample( const NetworkEndpoint& endpoint, const uint64_t now )
   if ( not initialized ) {
     if ( endpoint.unreceived_beyond_this_frame_index() > 0 ) {
       next_frame_index_ts_ = now + initial_delay_ns_;
-      average_safety_margin = initial_delay_ns_;
+      average_safety_margin_ = initial_delay_ns_ / float( MILLION );
       initialized = true;
     }
     return;
   }
 
   /* calculate quality score and safety margin */
-  if ( now >= next_frame_index_ts_ ) {
+  while ( now >= next_frame_index_ts_ ) {
     const bool success = has_frame( endpoint, next_frame_index_ );
-    quality = ALPHA * success + ( 1 - ALPHA ) * quality;
+    quality_ = ALPHA * success + ( 1 - ALPHA ) * quality_;
 
-    const float this_safety_margin = ( endpoint.next_frame_needed() - next_frame_index_ ) * 2.5 * MILLION;
-    average_safety_margin = ALPHA * this_safety_margin + ( 1 - ALPHA ) * average_safety_margin;
+    const float this_safety_margin = 2.5 * ( float( endpoint.next_frame_needed() ) - float( next_frame_index_ ) );
+    average_safety_margin_ = ALPHA * this_safety_margin + ( 1 - ALPHA ) * average_safety_margin_;
+
+    // advance cursor
+    next_frame_index_ts_ += 2.5 * MILLION;
+    next_frame_index_++;
   }
 }
 

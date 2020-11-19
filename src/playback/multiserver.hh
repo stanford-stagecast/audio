@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "connection.hh"
+#include "cursor.hh"
 #include "summarize.hh"
 
 class NetworkMultiServer : public Summarizable
@@ -12,10 +13,11 @@ class NetworkMultiServer : public Summarizable
   {
     Address addr;
     std::unique_ptr<NetworkEndpoint> endpoint { std::make_unique<NetworkEndpoint>() };
+    std::vector<Cursor> cursors;
 
-    Client( const Address& s_addr )
-      : addr( s_addr )
-    {}
+    Client( const Address& s_addr );
+    void receive_packet( Plaintext& plaintext );
+    void summary( std::ostream& out ) const;
   };
 
   UDPSocket socket_;
@@ -26,6 +28,10 @@ class NetworkMultiServer : public Summarizable
 
   void receive_packet();
   void service_client( Client& client, Plaintext& plaintext );
+
+  using time_point = decltype( std::chrono::steady_clock::now() );
+
+  uint64_t next_cursor_sample;
 
   struct Statistics
   {

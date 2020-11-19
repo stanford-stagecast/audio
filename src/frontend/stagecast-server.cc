@@ -30,7 +30,7 @@ void program_body()
   this_thread::sleep_for( seconds( 5 ) );
 
   /* Start audio device and event loop */
-  while ( loop->wait_next_event( stats_printer.wait_time_ms() ) != EventLoop::Result::Exit ) {
+  while ( loop->wait_next_event( 2 ) != EventLoop::Result::Exit ) {
   }
 }
 
