@@ -5,6 +5,7 @@
 #include "spans.hh"
 
 #include <algorithm>
+#include <iostream>
 
 template<typename T>
 class TypedRingStorage : public RingStorage
@@ -81,12 +82,16 @@ class EndlessBuffer : TypedRingStorage<T>
   void check_bounds( const size_t pos, const size_t count ) const
   {
     if ( pos < range_begin() ) {
-      throw std::out_of_range( "check_bounds: " + std::to_string( pos ) + " < " + std::to_string( range_begin() ) );
+      std::cerr << std::string( "check_bounds: " + std::to_string( pos ) + " < " + std::to_string( range_begin() ) )
+                << std::endl;
+      abort();
     }
 
     if ( pos + count > range_end() ) {
-      throw std::out_of_range( "check_bounds: " + std::to_string( pos ) + " + " + std::to_string( count ) + " > "
-                               + std::to_string( range_end() ) );
+      std::cerr << std::string( "check_bounds: " + std::to_string( pos ) + " + " + std::to_string( count ) + " > "
+                                + std::to_string( range_end() ) )
+                << std::endl;
+      abort();
     }
   }
 

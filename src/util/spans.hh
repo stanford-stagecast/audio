@@ -51,6 +51,7 @@ public:
   }
 
   size_t size() const { return storage_.size() / elem_size_; }
+  size_t byte_size() const { return storage_.size(); }
 
   const T* data() const { return reinterpret_cast<const T*>( storage_.data() ); }
 

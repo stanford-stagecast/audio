@@ -5,8 +5,10 @@
 #include <ostream>
 
 #include "address.hh"
+#include "audio_task.hh"
 #include "base64.hh"
 #include "crypto.hh"
+#include "cursor.hh"
 #include "encoder_task.hh"
 #include "receiver.hh"
 #include "sender.hh"
@@ -49,8 +51,13 @@ class NetworkClient : public NetworkEndpoint
   UDPSocket socket_;
   Address server_;
   std::shared_ptr<OpusEncoderProcess> source_;
+  std::shared_ptr<AudioDeviceTask> dest_;
+  Cursor cursor_;
 
   Session crypto_;
+
+  static constexpr uint64_t cursor_sample_interval = 1000000;
+  uint64_t next_cursor_sample_;
 
 public:
   NetworkClient( const uint8_t node_id,
@@ -58,6 +65,7 @@ public:
                  const Base64Key& send_key,
                  const Base64Key& receive_key,
                  std::shared_ptr<OpusEncoderProcess> source,
+                 std::shared_ptr<AudioDeviceTask> dest,
                  EventLoop& loop );
 };
 

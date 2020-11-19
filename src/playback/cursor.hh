@@ -3,8 +3,9 @@
 #include <cstdint>
 #include <ostream>
 
-#include "connection.hh"
 #include "decoder_process.hh"
+
+class NetworkEndpoint;
 
 class Cursor
 {

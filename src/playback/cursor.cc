@@ -1,4 +1,5 @@
 #include "cursor.hh"
+#include "connection.hh"
 #include "timestamp.hh"
 
 using namespace std;

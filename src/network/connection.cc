@@ -2,6 +2,7 @@
 #include <iostream>
 
 #include "connection.hh"
+#include "cursor.hh"
 
 using namespace std;
 
@@ -9,13 +10,17 @@ NetworkClient::NetworkClient( const uint8_t node_id,
                               const Address& server,
                               const Base64Key& send_key,
                               const Base64Key& receive_key,
-                              std::shared_ptr<OpusEncoderProcess> source,
+                              shared_ptr<OpusEncoderProcess> source,
+                              shared_ptr<AudioDeviceTask> dest,
                               EventLoop& loop )
   : NetworkEndpoint( node_id )
   , socket_()
   , server_( server )
   , source_( source )
+  , dest_( dest )
+  , cursor_( 20, true )
   , crypto_( send_key, receive_key )
+  , next_cursor_sample_( Timer::timestamp_ns() + cursor_sample_interval )
 {
   socket_.set_blocking( false );
 
@@ -41,6 +46,33 @@ NetworkClient::NetworkClient( const uint8_t node_id,
 
     receive_packet( plaintext );
   } );
+
+  loop.add_rule(
+    "sample cursors",
+    [&] {
+      const uint64_t now = Timer::timestamp_ns();
+      next_cursor_sample_ = now + cursor_sample_interval;
+
+      cursor_.sample( *this, now, dest_->cursor() );
+
+      if ( cursor_.sample_index().has_value() ) {
+        const size_t amount_to_copy = cursor_.sample_index().value() - cursor_.output().ch1().range_begin();
+        if ( amount_to_copy > 0 ) {
+          const span_view<float> source1
+            = cursor_.output().ch1().region( cursor_.output().ch1().range_begin(), amount_to_copy );
+          const span_view<float> source2
+            = cursor_.output().ch2().region( cursor_.output().ch2().range_begin(), amount_to_copy );
+          span<float> dest1 = dest_->playback().ch1().region( dest_->cursor(), amount_to_copy );
+          span<float> dest2 = dest_->playback().ch2().region( dest_->cursor(), amount_to_copy );
+
+          memcpy( dest1.mutable_data(), source1.data(), source1.byte_size() );
+          memcpy( dest2.mutable_data(), source2.data(), source1.byte_size() );
+
+          cursor_.output().pop( amount_to_copy );
+        }
+      }
+    },
+    [&] { return Timer::timestamp_ns() >= next_cursor_sample_; } );
 }
 
 NetworkSingleServer::NetworkSingleServer( EventLoop& loop )

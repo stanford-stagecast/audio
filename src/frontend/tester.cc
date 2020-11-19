@@ -34,7 +34,7 @@ void program_body( const string& node_id,
   /* Network client registers itself in EventLoop */
   const Address stagecast_server { host, service };
   auto network_client = make_shared<NetworkClient>(
-    stoi( node_id ), stagecast_server, Base64Key { send_key }, Base64Key { recv_key }, encoder, *loop );
+    stoi( node_id ), stagecast_server, Base64Key { send_key }, Base64Key { recv_key }, encoder, uac2, *loop );
 
   /* Print out statistics to terminal */
   StatsPrinterTask stats_printer { loop };
