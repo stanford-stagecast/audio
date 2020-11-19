@@ -72,7 +72,7 @@ void program_body()
         const auto& pack = forward.front().value();
         sender2.receive_receiver_section( pack.receiver_section );
         receiver2.receive_sender_section( pack.sender_section );
-        receiver2.pop_frames( receiver2.received_frames().size() );
+        receiver2.pop_frames( receiver2.next_frame_needed() - receiver2.frames().range_begin() );
       }
       forward.pop();
     }
@@ -95,7 +95,7 @@ void program_body()
         const auto& reply = reverse.front().value();
         sender1.receive_receiver_section( reply.receiver_section );
         receiver1.receive_sender_section( reply.sender_section );
-        receiver1.pop_frames( receiver1.received_frames().size() );
+        receiver1.pop_frames( receiver1.next_frame_needed() - receiver1.frames().range_begin() );
       }
       reverse.pop();
     }

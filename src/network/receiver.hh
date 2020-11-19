@@ -30,8 +30,9 @@ public:
 
   void generate_statistics( std::ostream& out ) const;
 
-  uint32_t range_begin() const { return frames_.range_begin(); }
-  span_view<std::optional<AudioFrame>> received_frames() const;
+  uint32_t next_frame_needed() const { return next_frame_needed_; }
+  uint32_t unreceived_beyond_this_frame_index() const { return unreceived_beyond_this_frame_index_; }
+  const EndlessBuffer<std::optional<AudioFrame>>& frames() const { return frames_; }
   void pop_frames( const size_t num );
 
   const FrameStatistics& statistics() const { return stats_; }

@@ -62,7 +62,7 @@ NetworkSingleServer::NetworkSingleServer( EventLoop& loop )
     }
 
     receive_packet( plaintext );
-    pop_frames( received_frames().size() );
+    pop_frames( next_frame_needed() - frames().range_begin() );
     send_packet( crypto_, peer_, socket_ );
   } );
 }

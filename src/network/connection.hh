@@ -27,9 +27,10 @@ public:
   void push_frame( OpusEncoderProcess& source );
   void summary( std::ostream& out ) const override;
 
-  uint32_t range_begin() const { return receiver_.range_begin(); }
-  span_view<std::optional<AudioFrame>> received_frames() const { return receiver_.received_frames(); }
-  void pop_frames( const size_t num ) { return receiver_.pop_frames( num ); }
+  uint32_t next_frame_needed() const { return receiver_.next_frame_needed(); }
+  uint32_t unreceived_beyond_this_frame_index() const { return receiver_.unreceived_beyond_this_frame_index(); }
+  const EndlessBuffer<std::optional<AudioFrame>>& frames() const { return receiver_.frames(); }
+  void pop_frames( const size_t num ) { receiver_.pop_frames( num ); }
 
   void send_packet( Session& crypto_session, const Address& dest, UDPSocket& socket );
   void receive_packet( Plaintext& plaintext );

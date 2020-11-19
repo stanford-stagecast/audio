@@ -49,7 +49,7 @@ void NetworkMultiServer::service_client( Client& client, Plaintext& plaintext )
   endpoint.receive_packet( plaintext );
 
   /* throw away frames for now */
-  endpoint.pop_frames( client.endpoint->received_frames().size() );
+  endpoint.pop_frames( endpoint.next_frame_needed() - endpoint.frames().range_begin() );
 
   /* send an ACK */
   endpoint.send_packet( crypto_, client.addr, socket_ );
@@ -57,5 +57,16 @@ void NetworkMultiServer::service_client( Client& client, Plaintext& plaintext )
 
 void NetworkMultiServer::summary( ostream& out ) const
 {
-  out << "Network multiserver:\n";
+  out << "Network multiserver:";
+
+  if ( stats_.decryption_failures ) {
+    out << " decryption_failures=" << stats_.decryption_failures;
+  }
+
+  out << "\n";
+
+  for ( const auto& client : clients_ ) {
+    out << "   " << client.addr.to_string() << ":";
+    client.endpoint->summary( out );
+  }
 }

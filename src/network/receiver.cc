@@ -148,11 +148,6 @@ void NetworkReceiver::generate_statistics( ostream& out ) const
   out << "\n";
 }
 
-span_view<optional<AudioFrame>> NetworkReceiver::received_frames() const
-{
-  return frames_.region( frames_.range_begin(), next_frame_needed_ - frames_.range_begin() );
-}
-
 void NetworkReceiver::pop_frames( const size_t num )
 {
   if ( num > next_frame_needed_ - frames_.range_begin() ) {
