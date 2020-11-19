@@ -5,6 +5,10 @@ using namespace std;
 void NetworkSender::generate_statistics( ostream& out ) const
 {
   out << "Sender info:";
+
+  out << " RTT=";
+  Timer::pp_ns( out, stats_.smoothed_rtt );
+
   if ( stats_.frames_dropped ) {
     out << " frames_dropped=" << stats_.frames_dropped << "!";
   }
@@ -24,6 +28,14 @@ void NetworkSender::generate_statistics( ostream& out ) const
 
   if ( stats_.packet_loss_false_positives ) {
     out << " loss false positives=" << stats_.packet_loss_false_positives << "!";
+  }
+
+  if ( stats_.frames_departed_by_expiration ) {
+    out << " frames expired=" << stats_.frames_departed_by_expiration << "!";
+  }
+
+  if ( stats_.invalid_timestamp ) {
+    out << " invalid timestamps=" << stats_.invalid_timestamp << "!";
   }
 
   if ( greatest_sack_.has_value() ) {
@@ -143,7 +155,7 @@ void NetworkSender::set_sender_section( Packet::SenderSection& p )
   if ( p.sequence_number >= packets_in_flight_.range_end() ) {
     const size_t num_packets_to_drop = p.sequence_number - packets_in_flight_.range_end() + 1;
 
-    const span_view<Packet::Record> packets_to_drop
+    const span_view<PacketSentRecord> packets_to_drop
       = packets_in_flight_.region( packets_in_flight_.range_begin(), num_packets_to_drop );
     for ( const auto& pack : packets_to_drop ) {
       assume_departed( pack, false );
@@ -153,21 +165,22 @@ void NetworkSender::set_sender_section( Packet::SenderSection& p )
   }
 
   /* record it */
-  packets_in_flight_.at( p.sequence_number ) = p.to_record();
+  auto& pack = packets_in_flight_.at( p.sequence_number );
+  pack.record = p.to_record();
+  pack.assumed_lost = false;
+  pack.acked = false;
+  pack.sent_timestamp = Timer::timestamp_ns();
   stats_.packet_transmissions++;
 }
 
-void NetworkSender::assume_departed( const Packet::Record& pack, const bool is_loss )
+void NetworkSender::assume_departed( const PacketSentRecord& pack, const bool is_loss )
 {
-  if ( pack.sequence_number < departure_adjudicated_until_seqno() ) {
-    if ( is_loss ) {
-      stats_.packet_loss_false_positives++;
-    }
+  if ( pack.acked or pack.assumed_lost ) {
     return;
   }
 
   bool frame_departed = false;
-  for ( const uint32_t frame_to_mark : pack.frames ) {
+  for ( const uint32_t frame_to_mark : pack.record.frames ) {
     // frame might have been dropped or delivered already
     if ( frame_to_mark >= frame_status_.range_begin() and frame_to_mark < frame_status_.range_end()
          and frame_status_[frame_to_mark].outstanding and frame_status_[frame_to_mark].in_flight ) {
@@ -176,8 +189,12 @@ void NetworkSender::assume_departed( const Packet::Record& pack, const bool is_l
     }
   }
 
-  if ( frame_departed and is_loss ) {
-    stats_.packet_losses_detected++;
+  if ( frame_departed ) {
+    if ( is_loss ) {
+      stats_.packet_losses_detected++;
+    } else {
+      stats_.frames_departed_by_expiration++;
+    }
   }
 }
 
@@ -200,6 +217,8 @@ void NetworkSender::receive_receiver_section( const Packet::ReceiverSection& rec
 
   optional<uint32_t> greatest_new_sack;
 
+  const uint64_t now = Timer::timestamp_ns();
+
   /* For each selectively ACKed packet, mark its Frames as no longer outstanding */
   for ( const uint32_t sack : receiver_section.packets_received ) {
     if ( sack >= packets_in_flight_.range_end() ) {
@@ -214,13 +233,31 @@ void NetworkSender::receive_receiver_section( const Packet::ReceiverSection& rec
     }
 
     if ( sack >= packets_in_flight_.range_begin() ) {
-      const auto& pack = packets_in_flight_.at( sack );
-      if ( sack != pack.sequence_number ) {
+      auto& pack = packets_in_flight_.at( sack );
+      if ( sack != pack.record.sequence_number ) {
         throw runtime_error( "NetworkSender internal error: sack " + to_string( sack ) + " != pack.seqno "
-                             + to_string( pack.sequence_number ) );
+                             + to_string( pack.record.sequence_number ) );
       }
 
-      for ( const uint32_t frame_index : pack.frames ) {
+      if ( pack.acked ) {
+        continue;
+      }
+
+      if ( pack.assumed_lost ) {
+        stats_.packet_loss_false_positives++;
+      }
+
+      pack.acked = true;
+
+      const int64_t time_diff = now - pack.sent_timestamp;
+      if ( time_diff <= 0 ) {
+        stats_.invalid_timestamp++;
+      } else {
+        stats_.smoothed_rtt
+          = stats_.SRTT_ALPHA * float( time_diff ) + ( 1 - stats_.SRTT_ALPHA ) * stats_.smoothed_rtt;
+      }
+
+      for ( const uint32_t frame_index : pack.record.frames ) {
         if ( frame_index >= frame_status_.range_end() ) {
           throw runtime_error( "NetworkSender internal error: frame >= frame_status_.range_end()" );
         }
@@ -251,7 +288,10 @@ void NetworkSender::receive_receiver_section( const Packet::ReceiverSection& rec
   }
 
   for ( unsigned int seqno = start_of_range_to_assume_departed; seqno < end_of_range_to_assume_departed; seqno++ ) {
-    assume_departed( packets_in_flight_[seqno], true );
+    if ( not packets_in_flight_[seqno].acked ) {
+      assume_departed( packets_in_flight_[seqno], true );
+      packets_in_flight_[seqno].assumed_lost = true;
+    }
   }
 
   greatest_sack_ = greatest_new_sack;

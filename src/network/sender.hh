@@ -24,17 +24,30 @@ class NetworkSender
   std::optional<uint32_t> greatest_sack_ {};
   uint32_t departure_adjudicated_until_seqno() const;
 
-  EndlessBuffer<Packet::Record> packets_in_flight_ { 512 };
+  struct PacketSentRecord
+  {
+    Packet::Record record;
+    uint64_t sent_timestamp;
+    bool acked : 1;
+    bool assumed_lost : 1;
+  };
+
+  EndlessBuffer<PacketSentRecord> packets_in_flight_ { 512 };
   uint32_t next_sequence_number_ {};
 
   bool need_immediate_send_ {};
 
-  void assume_departed( const Packet::Record& pack, const bool is_loss );
+  void assume_departed( const PacketSentRecord& pack, const bool is_loss );
 
   struct Statistics
   {
+    static constexpr float SRTT_ALPHA = 1 / 100.0;
+
     unsigned int frames_dropped {}, empty_packets {}, bad_acks {}, packet_transmissions {},
-      packet_losses_detected {}, packet_loss_false_positives {};
+      packet_losses_detected {}, packet_loss_false_positives {}, frames_departed_by_expiration {},
+      invalid_timestamp {};
+
+    float smoothed_rtt {};
 
     unsigned int packet_losses() const { return packet_losses_detected - packet_loss_false_positives; }
   } stats_ {};
