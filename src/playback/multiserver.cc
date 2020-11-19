@@ -43,6 +43,13 @@ NetworkMultiServer::NetworkMultiServer( EventLoop& loop )
           cl->cursor.sample( cl->endpoint, now, global_sample_index_ );
         }
       }
+
+      /* XXX discard decoded audio */
+      for ( auto& cl : clients_ ) {
+        if ( cl.has_value() ) {
+          cl->cursor.output().pop( global_sample_index_ - cl->cursor.output().ch1().range_begin() );
+        }
+      }
     },
     [&] { return Timer::timestamp_ns() >= next_cursor_sample_; } );
 }

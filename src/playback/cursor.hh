@@ -22,6 +22,7 @@ class Cursor
   float quality_ = 1.0;
   float average_safety_margin_ {};
   float average_safety_margin_slow_ {};
+  float average_sample_deviation_ {};
 
   unsigned int inc_plus {}, inc_minus {}, resets {};
 
@@ -53,4 +54,6 @@ public:
       return {};
     }
   }
+
+  OpusDecoderProcess& output() { return output_; }
 };

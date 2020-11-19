@@ -15,7 +15,7 @@ class OpusDecoderProcess
 
   struct Statistics
   {
-    unsigned int ignored_decodes;
+    unsigned int ignored_decodes, successful_decodes;
   } stats_ {};
 
 public:
@@ -30,5 +30,7 @@ public:
 
   void decode( const opus_frame& ch1, const opus_frame& ch2, const size_t global_sample_index );
 
-  const Statistics& stats() { return stats_; }
+  const Statistics& stats() const { return stats_; }
+  const AudioChannel& ch1() const { return ch1_.output; }
+  const AudioChannel& ch2() const { return ch1_.output; }
 };

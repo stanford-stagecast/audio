@@ -15,4 +15,6 @@ void OpusDecoderProcess::decode( const opus_frame& ch1, const opus_frame& ch2, c
 
   ch1_.dec.decode( ch1, ch1_samples );
   ch2_.dec.decode( ch2, ch2_samples );
+
+  stats_.successful_decodes++;
 }

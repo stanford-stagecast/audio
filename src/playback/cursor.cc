@@ -34,6 +34,9 @@ void Cursor::sample( const NetworkEndpoint& endpoint, const uint64_t now, const 
     average_safety_margin_ = ALPHA * this_safety_margin + ( 1 - ALPHA ) * average_safety_margin_;
     average_safety_margin_slow_ = ALPHA * this_safety_margin + ( 1 - ALPHA ) * average_safety_margin_slow_;
 
+    const float this_sample_deviation = abs( double( sample_index ) - double( sample_index_ ) );
+    average_sample_deviation_ = ALPHA * this_sample_deviation + ( 1 - ALPHA ) * average_sample_deviation_;
+
     // do we need to make a big jump?
     if ( abs( initial_delay_ms_ - this_safety_margin ) > 0.75 * initial_delay_ms_ ) {
       initialized = false;
@@ -95,4 +98,8 @@ void Cursor::summary( ostream& out ) const
       << setprecision( 0 ) << fixed << average_safety_margin_ << "+" << inc_plus << "-" << inc_minus << "#"
       << resets << " ";
   pp_samples( out, sample_index_ );
+  out << " deviation=" << setprecision( 0 ) << fixed << average_sample_deviation_ / 48.0 << " ms";
+
+  out << " ignored/successful decodes=";
+  out << output_.stats().ignored_decodes << "/" << output_.stats().successful_decodes;
 }
