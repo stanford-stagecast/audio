@@ -69,20 +69,10 @@ NetworkMultiServer::Client::Client( const Address& s_addr )
   : addr( s_addr )
   , cursors()
 {
-  cursors.emplace_back( 2 * MILLION );
-  cursors.emplace_back( 5 * MILLION );
-  cursors.emplace_back( 10 * MILLION );
-  cursors.emplace_back( 15 * MILLION );
-  cursors.emplace_back( 20 * MILLION );
-  cursors.emplace_back( 30 * MILLION );
-  cursors.emplace_back( 40 * MILLION );
-  cursors.emplace_back( 60 * MILLION );
-  cursors.emplace_back( 80 * MILLION );
-  cursors.emplace_back( 100 * MILLION );
-  cursors.emplace_back( 150 * MILLION );
-  cursors.emplace_back( 200 * MILLION );
-  cursors.emplace_back( 300 * MILLION );
-  cursors.emplace_back( 10 * BILLION );
+  cursors.emplace_back( 10 );
+  cursors.emplace_back( 50 );
+  cursors.emplace_back( 100 );
+  cursors.emplace_back( 5000 );
 }
 
 void NetworkMultiServer::Client::receive_packet( Plaintext& plaintext )
@@ -115,9 +105,7 @@ void NetworkMultiServer::Client::summary( ostream& out ) const
 {
   out << "   " << addr.to_string() << " (" << endpoint->next_frame_needed() << "):";
   for ( const auto& c : cursors ) {
-    if ( c.quality() > 0.98 ) {
-      out << " " << setprecision( 0 ) << fixed << 100 * c.quality() << "@" << c.initial_delay_ns() / MILLION;
-    }
+    c.summary( out );
   }
   out << "\n";
   endpoint->summary( out );
