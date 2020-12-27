@@ -9,7 +9,7 @@
 #include "encoder_task.hh"
 #include "stats_printer.hh"
 
-#include "connection.hh"
+#include "endpoints.hh"
 
 using namespace std;
 

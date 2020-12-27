@@ -2,116 +2,40 @@
 #include <iostream>
 
 #include "connection.hh"
-#include "cursor.hh"
 
 using namespace std;
 
-NetworkClient::NetworkClient( const uint8_t node_id,
-                              const Address& server,
-                              const Base64Key& send_key,
-                              const Base64Key& receive_key,
-                              shared_ptr<OpusEncoderProcess> source,
-                              shared_ptr<AudioDeviceTask> dest,
-                              EventLoop& loop )
-  : NetworkEndpoint( node_id )
-  , socket_()
-  , server_( server )
-  , source_( source )
-  , dest_( dest )
-  , cursor_( 20, true )
-  , crypto_( send_key, receive_key )
-  , next_cursor_sample_( Timer::timestamp_ns() + cursor_sample_interval )
+NetworkConnection::NetworkConnection( const char node_id,
+                                      const char peer_id,
+                                      const Base64Key& encrypt_key,
+                                      const Base64Key& decrypt_key,
+                                      const Address& destination )
+  : node_id_( node_id )
+  , peer_id_( peer_id )
+  , crypto_( encrypt_key, decrypt_key )
+  , auto_home_( false )
+  , destination_( destination )
+{}
+
+NetworkConnection::NetworkConnection( const char node_id,
+                                      const char peer_id,
+                                      const Base64Key& encrypt_key,
+                                      const Base64Key& decrypt_key )
+  : node_id_( node_id )
+  , peer_id_( peer_id )
+  , crypto_( encrypt_key, decrypt_key )
+  , auto_home_( true )
+  , destination_()
+{}
+
+void NetworkConnection::send_packet( UDPSocket& socket )
 {
-  socket_.set_blocking( false );
+  if ( not has_destination() ) {
+    throw runtime_error( "no destination" );
+  }
 
-  loop.add_rule(
-    "network transmit",
-    [&] {
-      push_frame( *source_ );
-      send_packet( crypto_, server_, socket_ );
-    },
-    [&] { return source_->has_frame(); } );
-
-  loop.add_rule( "network receive", socket_, Direction::In, [&] {
-    Address src { nullptr, 0 };
-    Ciphertext ciphertext;
-    socket_.recv( src, ciphertext.data );
-
-    /* decrypt */
-    Plaintext plaintext;
-    if ( not crypto_.decrypt( ciphertext, plaintext ) ) {
-      decryption_failure();
-      return;
-    }
-
-    receive_packet( plaintext );
-  } );
-
-  loop.add_rule(
-    "sample cursors",
-    [&] {
-      const uint64_t now = Timer::timestamp_ns();
-      next_cursor_sample_ = now + cursor_sample_interval;
-
-      cursor_.sample( *this, now, dest_->cursor() );
-
-      if ( cursor_.sample_index().has_value() ) {
-        const size_t amount_to_copy = cursor_.sample_index().value() - cursor_.output().ch1().range_begin();
-        if ( amount_to_copy > 0 ) {
-          const span_view<float> source1
-            = cursor_.output().ch1().region( cursor_.output().ch1().range_begin(), amount_to_copy );
-          const span_view<float> source2
-            = cursor_.output().ch2().region( cursor_.output().ch2().range_begin(), amount_to_copy );
-          span<float> dest1 = dest_->playback().ch1().region( dest_->cursor(), amount_to_copy );
-          span<float> dest2 = dest_->playback().ch2().region( dest_->cursor(), amount_to_copy );
-
-          memcpy( dest1.mutable_data(), source1.data(), source1.byte_size() );
-          memcpy( dest2.mutable_data(), source2.data(), source1.byte_size() );
-
-          cursor_.output().pop( amount_to_copy );
-        }
-      }
-    },
-    [&] { return Timer::timestamp_ns() >= next_cursor_sample_; } );
-}
-
-NetworkSingleServer::NetworkSingleServer( EventLoop& loop )
-  : NetworkEndpoint( -1 )
-  , socket_ {}
-  , peer_ { nullptr, 0 }
-{
-  socket_.set_blocking( false );
-  socket_.bind( { "0", 0 } );
-  cout << "Port " << socket_.local_address().port() << " " << receive_key_.printable_key().as_string_view() << " "
-       << send_key_.printable_key().as_string_view() << endl;
-
-  loop.add_rule( "network receive", socket_, Direction::In, [&] {
-    Ciphertext ciphertext;
-    socket_.recv( peer_, ciphertext.data );
-
-    /* decrypt */
-    Plaintext plaintext;
-    if ( not crypto_.decrypt( ciphertext, plaintext ) ) {
-      decryption_failure();
-      return;
-    }
-
-    receive_packet( plaintext );
-    pop_frames( next_frame_needed() - frames().range_begin() );
-    send_packet( crypto_, peer_, socket_ );
-  } );
-}
-
-void NetworkEndpoint::push_frame( OpusEncoderProcess& source )
-{
-  sender_.push_frame( source );
-}
-
-void NetworkEndpoint::send_packet( Session& crypto_session, const Address& dest, UDPSocket& socket )
-{
   /* make packet to send */
   Packet pack {};
-  pack.node_id = node_id_;
   sender_.set_sender_section( pack.sender_section );
   receiver_.set_receiver_section( pack.receiver_section );
 
@@ -123,30 +47,44 @@ void NetworkEndpoint::send_packet( Session& crypto_session, const Address& dest,
 
   /* encrypt */
   Ciphertext ciphertext;
-  crypto_session.encrypt( plaintext, ciphertext );
+  crypto_.encrypt( { &node_id_, 1 }, plaintext, ciphertext );
 
-  socket.sendto( dest, ciphertext );
+  socket.sendto( destination_.value(), ciphertext );
 }
 
-void NetworkEndpoint::act_on_packet( const Packet& packet )
+void NetworkConnection::receive_packet( const Address& source, const Ciphertext& ciphertext )
 {
-  sender_.receive_receiver_section( packet.receiver_section );
-  receiver_.receive_sender_section( packet.sender_section );
-}
+  /* decrypt */
+  Plaintext plaintext;
+  if ( not crypto_.decrypt( ciphertext, { &peer_id_, 1 }, plaintext ) ) {
+    stats_.decryption_failures++;
+    return;
+  }
 
-void NetworkEndpoint::receive_packet( Plaintext& plaintext )
-{
-  /* parse it */
+  /* parse */
   Parser parser { plaintext };
   const Packet packet { parser };
   if ( parser.error() ) {
     stats_.invalid++;
-  } else {
-    act_on_packet( packet );
+    return;
+  }
+
+  /* act on packet contents */
+  sender_.receive_receiver_section( packet.receiver_section );
+  receiver_.receive_sender_section( packet.sender_section );
+
+  /* rehome? */
+  if ( auto_home_ ) {
+    if ( not last_biggest_seqno_received_.has_value() ) {
+      destination_ = source;
+    } else if ( receiver_.biggest_seqno_received() > last_biggest_seqno_received_.value() ) {
+      destination_ = source;
+      last_biggest_seqno_received_ = receiver_.biggest_seqno_received();
+    }
   }
 }
 
-void NetworkEndpoint::summary( ostream& out ) const
+void NetworkConnection::summary( ostream& out ) const
 {
   if ( stats_.decryption_failures ) {
     out << "decryption_failures=" << stats_.decryption_failures;

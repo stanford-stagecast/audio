@@ -1,10 +1,10 @@
 #pragma once
+#if 0
 
 #include <ostream>
 #include <vector>
 
 #include "connection.hh"
-#include "cursor.hh"
 #include "summarize.hh"
 
 class NetworkMultiServer : public Summarizable
@@ -55,3 +55,4 @@ class NetworkMultiServer : public Summarizable
 public:
   NetworkMultiServer( EventLoop& loop );
 };
+#endif

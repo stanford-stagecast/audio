@@ -6,6 +6,7 @@
 using namespace std;
 using namespace std::chrono;
 
+#if 0
 NetworkMultiServer::NetworkMultiServer( EventLoop& loop )
   : socket_()
   , next_cursor_sample_( Timer::timestamp_ns() + cursor_sample_interval )
@@ -145,6 +146,13 @@ void NetworkMultiServer::Client::summary( ostream& out ) const
 
 void NetworkMultiServer::mix_and_encode( Client& client )
 {
+  const size_t encoder_cursor = client.encoder_.min_encode_cursor();
+
+  if ( client.mixed_ch1.range_begin() < encoder_cursor ) {
+    client.mixed_ch1.pop( encoder_cursor - client.mixed_ch1.range_begin() );
+    client.mixed_ch2.pop( encoder_cursor - client.mixed_ch2.range_begin() );
+  }
+
   /* prepare mixed audio */
   span<float> ch1 = client.mixed_ch1.region( global_sample_index_, 120 );
   span<float> ch2 = client.mixed_ch2.region( global_sample_index_, 120 );
@@ -172,8 +180,7 @@ void NetworkMultiServer::mix_and_encode( Client& client )
 
   /* encode */
   client.encoder_.encode_one_frame( client.mixed_ch1, client.mixed_ch2 );
-  client.mixed_ch1.pop( 120 );
-  client.mixed_ch2.pop( 120 );
 
   client.endpoint.push_frame( client.encoder_ );
 }
+#endif

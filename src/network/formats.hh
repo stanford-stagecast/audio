@@ -107,8 +107,6 @@ struct Packet
     NetArray<NetInteger<uint32_t>, 8> frames {};
   };
 
-  uint8_t node_id {};
-
   struct SenderSection
   {
     uint32_t sequence_number {};

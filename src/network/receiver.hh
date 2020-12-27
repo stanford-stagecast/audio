@@ -36,4 +36,6 @@ public:
   void pop_frames( const size_t num );
 
   const FrameStatistics& statistics() const { return stats_; }
+
+  uint32_t biggest_seqno_received() const { return biggest_seqno_received_.value(); }
 };

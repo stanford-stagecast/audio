@@ -6,8 +6,8 @@
 #include "alsa_devices.hh"
 #include "audio_device_claim.hh"
 #include "audio_task.hh"
-#include "connection.hh"
 #include "encoder_task.hh"
+#include "endpoints.hh"
 #include "eventloop.hh"
 #include "stats_printer.hh"
 
@@ -30,7 +30,7 @@ void program_body()
   this_thread::sleep_for( seconds( 5 ) );
 
   /* Start audio device and event loop */
-  while ( loop->wait_next_event( stats_printer.wait_time_ms() ) != EventLoop::Result::Exit ) {
+  while ( loop->wait_next_event( 1 ) != EventLoop::Result::Exit ) {
   }
 }
 

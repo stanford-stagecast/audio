@@ -21,11 +21,11 @@ void program_body()
   auto loop = make_shared<EventLoop>();
 
   /* Network server registeres itself in EventLoop */
-  auto server = make_shared<NetworkMultiServer>( *loop );
+  //  auto server = make_shared<NetworkMultiServer>( *loop );
 
   /* Print out statistics to terminal */
   StatsPrinterTask stats_printer { loop };
-  stats_printer.add( server );
+  //  stats_printer.add( server );
 
   this_thread::sleep_for( seconds( 5 ) );
 
