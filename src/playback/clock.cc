@@ -2,6 +2,8 @@
 #include "exception.hh"
 #include "timestamp.hh"
 
+#include <cmath>
+
 using namespace std;
 
 Clock::Clock( const uint64_t global_ts )
@@ -18,7 +20,12 @@ void Clock::reset( const uint64_t global_ts, const uint64_t local_ts_initial_val
   offset_ = global_ts - local_ts_initial_value;
   clock_rate_ = 1.0;
   synced_ = true;
-  resets_++;
+  stats_.resets++;
+  stats_.last_reset = global_ts;
+  /*
+  stats_.biggest_gap_since_reset = 0;
+  stats_.biggest_diff_since_reset = 0;
+  */
 }
 
 void Clock::time_passes( const uint64_t global_ts )
@@ -39,9 +46,13 @@ void Clock::time_passes( const uint64_t global_ts )
     throw runtime_error( "clock reached upper limit" );
   }
 
-  if ( abs( local_clock_ - local_ts_last_sample_ ) > MAX_DIFFERENCE ) {
+  const double gap_magnitude = abs( local_clock_ - local_ts_last_sample_ );
+
+  stats_.biggest_gap_since_reset = max( stats_.biggest_gap_since_reset, gap_magnitude );
+
+  if ( gap_magnitude > MAX_DIFFERENCE ) {
     synced_ = false;
-    gaps_++;
+    stats_.gaps++;
   }
 }
 
@@ -55,31 +66,53 @@ void Clock::new_sample( const uint64_t global_ts, const uint64_t local_ts_sample
     return;
   }
 
-  last_clock_difference_ = local_ts_sample - local_clock_;
+  stats_.last_clock_difference = local_ts_sample - local_clock_;
+  stats_.smoothed_clock_difference
+    = CLOCK_SLEW_ALPHA * stats_.last_clock_difference + ( 1 - CLOCK_SLEW_ALPHA ) * stats_.smoothed_clock_difference;
 
-  if ( abs( last_clock_difference_ ) > MAX_DIFFERENCE ) {
+  const double abs_clock_difference = abs( stats_.last_clock_difference );
+  stats_.biggest_diff_since_reset = max( stats_.biggest_diff_since_reset, abs_clock_difference );
+
+  if ( abs_clock_difference > MAX_DIFFERENCE ) {
     /* avulsion */
 
-    avulsions_++;
+    stats_.avulsions++;
     reset( global_ts, local_ts_sample );
     return;
   }
 
   /* adjust rate to narrow difference */
-  const double ideal_clock_rate = clock_rate_ + last_clock_difference_ / CLOCK_SLEW_HORIZON;
+  if ( abs_clock_difference > 0.1 ) {
+    const double derivative = stats_.last_clock_difference - stats_.smoothed_clock_difference;
+    const double ideal_clock_rate
+      = clock_rate_ + .000000001 * stats_.smoothed_clock_difference + .000001 * derivative;
+    clock_rate_ = CLOCK_SLEW_ALPHA * ideal_clock_rate + ( 1 - CLOCK_SLEW_ALPHA ) * clock_rate_;
+  }
+}
 
-  clock_rate_ = CLOCK_SLEW_ALPHA * ideal_clock_rate + ( 1 - CLOCK_SLEW_ALPHA ) * clock_rate_;
+double cents( const double val )
+{
+  return 1200.0 * log2( val );
 }
 
 void Clock::summary( ostream& out ) const
 {
   out << "Clock " << ( synced() ? "synced" : "unsynced" );
-  out << " resets=" << resets_ << " (" << gaps_ << " gaps, " << avulsions_ << " avulsions)";
+  out << " resets=" << stats_.resets << " (" << stats_.gaps << " gaps, " << stats_.avulsions << " avulsions";
+  if ( stats_.resets ) {
+    out << ", last reset at ";
+    pp_samples( out, stats_.last_reset );
+    out << ", biggest gap=" << fixed << setprecision( 1 ) << stats_.biggest_gap_since_reset;
+  }
+  out << ")";
   if ( synced() ) {
-    out << " offset=";
+    out << ", offset=";
     pp_samples( out, offset() );
-    out << ", rate=" << fixed << setprecision( 10 ) << rate();
-    out << ", diff=" << last_clock_difference_ << "\n";
+    out << ", rate=" << fixed << setprecision( 1 ) << 1000 * cents( rate() ) << " millicents";
+
+    out << ", diff: cur=" << fixed << setprecision( 1 ) << stats_.last_clock_difference;
+    out << ", smoothed=" << fixed << setprecision( 1 ) << stats_.smoothed_clock_difference;
+    out << ", biggest=" << fixed << setprecision( 1 ) << stats_.biggest_diff_since_reset;
   }
   out << "\n";
 }

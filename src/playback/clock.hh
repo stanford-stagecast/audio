@@ -17,16 +17,19 @@ class Clock
   int64_t offset_ = global_ts_last_update_ - local_ts_last_sample_;
   double clock_rate_ { 1 };
 
-  static constexpr int64_t MAX_DIFFERENCE = 9600; /* 200 ms @ 48 kHz */
-  static constexpr double CLOCK_SLEW_ALPHA = 0.01;
-  static constexpr double CLOCK_SLEW_HORIZON = 480000; /* 10 s @ 48 kHz */
+  static constexpr int64_t MAX_DIFFERENCE = 9600;
+  static constexpr double CLOCK_SLEW_ALPHA = 0.001;
 
   void reset( const uint64_t global_ts, const uint64_t local_ts_initial_value );
-  unsigned int resets_ { 0 };
 
-  unsigned int gaps_ { 0 }, avulsions_ { 0 };
-
-  double last_clock_difference_ {};
+  struct Statistics
+  {
+    unsigned int resets {}, gaps {}, avulsions {};
+    double last_clock_difference {};
+    double smoothed_clock_difference {};
+    uint64_t last_reset {};
+    double biggest_gap_since_reset {}, biggest_diff_since_reset {};
+  } stats_ {};
 
   bool synced_;
 
