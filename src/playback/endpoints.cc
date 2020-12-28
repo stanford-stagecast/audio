@@ -72,7 +72,7 @@ NetworkSingleServer::NetworkSingleServer( EventLoop& loop, const Base64Key& send
 {
   socket_.set_blocking( false );
   socket_.bind( { "0", 0 } );
-  cout << "Port " << socket_.local_address().port() << " " << receive_key.printable_key().as_string_view() << " "
+  cerr << "Port " << socket_.local_address().port() << " " << receive_key.printable_key().as_string_view() << " "
        << send_key.printable_key().as_string_view() << endl;
 
   loop.add_rule( "network receive", socket_, Direction::In, [&] {

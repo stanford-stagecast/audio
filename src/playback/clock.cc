@@ -4,6 +4,9 @@
 
 #include <cmath>
 
+#include "timer.hh"
+#include <iostream>
+
 using namespace std;
 
 Clock::Clock( const uint64_t global_ts )
@@ -22,10 +25,9 @@ void Clock::reset( const uint64_t global_ts, const uint64_t local_ts_initial_val
   synced_ = true;
   stats_.resets++;
   stats_.last_reset = global_ts;
-  /*
   stats_.biggest_gap_since_reset = 0;
   stats_.biggest_diff_since_reset = 0;
-  */
+  stats_.last_clock_difference = stats_.smoothed_clock_difference = 0;
 }
 
 void Clock::time_passes( const uint64_t global_ts )
@@ -50,7 +52,7 @@ void Clock::time_passes( const uint64_t global_ts )
 
   stats_.biggest_gap_since_reset = max( stats_.biggest_gap_since_reset, gap_magnitude );
 
-  if ( gap_magnitude > MAX_DIFFERENCE ) {
+  if ( gap_magnitude > MAX_GAP ) {
     synced_ = false;
     stats_.gaps++;
   }
@@ -73,7 +75,7 @@ void Clock::new_sample( const uint64_t global_ts, const uint64_t local_ts_sample
   const double abs_clock_difference = abs( stats_.last_clock_difference );
   stats_.biggest_diff_since_reset = max( stats_.biggest_diff_since_reset, abs_clock_difference );
 
-  if ( abs_clock_difference > MAX_DIFFERENCE ) {
+  if ( abs_clock_difference > MAX_SKEW ) {
     /* avulsion */
 
     stats_.avulsions++;
@@ -85,8 +87,12 @@ void Clock::new_sample( const uint64_t global_ts, const uint64_t local_ts_sample
   if ( abs_clock_difference > 0.1 ) {
     const double derivative = stats_.last_clock_difference - stats_.smoothed_clock_difference;
     const double ideal_clock_rate
-      = clock_rate_ + .000000001 * stats_.smoothed_clock_difference + .000001 * derivative;
-    clock_rate_ = CLOCK_SLEW_ALPHA * ideal_clock_rate + ( 1 - CLOCK_SLEW_ALPHA ) * clock_rate_;
+      = clock_rate_ + .00000001 * stats_.smoothed_clock_difference + .00001 * derivative;
+    clock_rate_ = .1 * CLOCK_SLEW_ALPHA * ideal_clock_rate + ( 1 - .1 * CLOCK_SLEW_ALPHA ) * clock_rate_;
+
+    cout << Timer::timestamp_ns() << " " << stats_.last_clock_difference << " " << stats_.smoothed_clock_difference
+         << " " << clock_rate_ << " " << ideal_clock_rate << " " << stats_.smoothed_clock_difference << " "
+         << derivative << "\n";
   }
 }
 
@@ -108,7 +114,7 @@ void Clock::summary( ostream& out ) const
   if ( synced() ) {
     out << ", offset=";
     pp_samples( out, offset() );
-    out << ", rate=" << fixed << setprecision( 1 ) << 1000 * cents( rate() ) << " millicents";
+    out << ", rate=" << fixed << setprecision( 2 ) << 1000 * cents( rate() ) << " millicents";
 
     out << ", diff: cur=" << fixed << setprecision( 1 ) << stats_.last_clock_difference;
     out << ", smoothed=" << fixed << setprecision( 1 ) << stats_.smoothed_clock_difference;

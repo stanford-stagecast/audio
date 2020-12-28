@@ -7,7 +7,7 @@ using namespace std::chrono;
 
 StatsPrinterTask::StatsPrinterTask( std::shared_ptr<EventLoop> loop )
   : loop_( loop )
-  , standard_output_( CheckSystemCall( "dup STDOUT_FILENO", dup( STDOUT_FILENO ) ) )
+  , standard_output_( CheckSystemCall( "dup STDERR_FILENO", dup( STDERR_FILENO ) ) )
   , next_stats_print( steady_clock::now() + stats_print_interval )
   , next_stats_reset( steady_clock::now() + stats_reset_interval )
 {
