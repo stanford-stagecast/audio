@@ -17,8 +17,8 @@ class Clock
   int64_t offset_ = global_ts_last_update_ - local_ts_last_sample_;
   double clock_rate_ { 1 };
 
-  static constexpr int64_t MAX_GAP = 9600; /* 200 ms @ 48 kHz */
-  static constexpr int64_t MAX_SKEW = 480; /* 10 ms @ 48 kHz */
+  static constexpr int64_t MAX_GAP = 1440; /* 30 ms @ 48 kHz */
+  static constexpr int64_t MAX_SKEW = 960; /* 20 ms @ 48 kHz */
   static constexpr double ALPHA = 0.01;
 
   void reset( const uint64_t global_ts, const uint64_t local_ts_initial_value );
