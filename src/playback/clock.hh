@@ -18,8 +18,8 @@ class Clock
   double clock_rate_ { 1 };
 
   static constexpr int64_t MAX_GAP = 9600; /* 200 ms @ 48 kHz */
-  static constexpr int64_t MAX_SKEW = 960; /* 20 ms @ 48 kHz */
-  static constexpr double CLOCK_SLEW_ALPHA = 0.01;
+  static constexpr int64_t MAX_SKEW = 480; /* 10 ms @ 48 kHz */
+  static constexpr double ALPHA = 0.01;
 
   void reset( const uint64_t global_ts, const uint64_t local_ts_initial_value );
 
@@ -30,6 +30,7 @@ class Clock
     double smoothed_clock_difference {};
     uint64_t last_reset {};
     double biggest_gap_since_reset {}, biggest_diff_since_reset {};
+    double jitter;
   } stats_ {};
 
   bool synced_;
