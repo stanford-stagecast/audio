@@ -20,7 +20,7 @@ void Clock::reset( const uint64_t global_ts, const uint64_t local_ts_initial_val
   global_ts_last_update_ = global_ts;
   local_ts_last_sample_ = local_ts_initial_value;
   local_clock_ = local_ts_initial_value;
-  clock_rate_ = ideal_clock_rate_ = 1.0;
+  clock_rate_ = 1.0;
   synced_ = true;
   stats_.resets++;
   stats_.last_reset = global_ts;
@@ -64,19 +64,8 @@ inline double cents( const double val )
 
 void Clock::new_sample( const uint64_t global_ts, const uint64_t local_ts_sample )
 {
-  /* Update rate estimate */
-  const double elapsed_time = global_ts - global_ts_last_sample_;
-  if ( elapsed_time > 0 ) {
-    const double instantaneous_rate_sample = ( local_ts_sample - local_ts_last_sample_ ) / elapsed_time;
-    const double update_alpha
-      = min( 1.0, elapsed_time / ( 48000 * 60 ) ); // two samples one minute apart = full marks
-    ideal_clock_rate_ = update_alpha * instantaneous_rate_sample + ( 1 - update_alpha ) * ideal_clock_rate_;
-
-    global_ts_last_sample_ = global_ts;
-    local_ts_last_sample_ = local_ts_sample;
-  }
-
-  /* Evolve clock forwards based on previous rate */
+  /* Evolve clock forwards */
+  local_ts_last_sample_ = local_ts_sample;
   time_passes( global_ts );
 
   if ( not synced() ) {
@@ -84,7 +73,7 @@ void Clock::new_sample( const uint64_t global_ts, const uint64_t local_ts_sample
     return;
   }
 
-  /* Now update rate, compromising between frequency and time accuracy */
+  /* Now update rate estimate */
   stats_.last_clock_difference = local_ts_sample - local_clock_;
   stats_.smoothed_clock_difference
     = ALPHA * stats_.last_clock_difference + ( 1 - ALPHA ) * stats_.smoothed_clock_difference;
@@ -104,11 +93,13 @@ void Clock::new_sample( const uint64_t global_ts, const uint64_t local_ts_sample
   }
 
   /* adjust rate to narrow difference */
-  clock_rate_ = ideal_clock_rate_ + stats_.smoothed_clock_difference / INTERCEPT_HORIZON;
+  clock_rate_ = 1 + stats_.smoothed_clock_difference / INTERCEPT_HORIZON;
 
+  /*
   cout << global_ts << " " << local_ts_sample << " " << stats_.last_clock_difference << " "
        << stats_.smoothed_clock_difference << " " << 1000 * cents( clock_rate_ ) << " "
-       << 1000 * cents( ideal_clock_rate_ ) << " " << sqrt( stats_.jitter_squared ) << "\n";
+       << sqrt( stats_.jitter_squared ) << "\n";
+  */
 }
 
 void Clock::summary( ostream& out ) const
@@ -123,7 +114,6 @@ void Clock::summary( ostream& out ) const
   out << ")";
   if ( synced() ) {
     out << ", rate=" << fixed << setprecision( 2 ) << 1000 * cents( rate() ) << " millicents";
-    out << ", ideal=" << fixed << setprecision( 2 ) << 1000 * cents( ideal_clock_rate_ ) << " millicents";
     out << ", jitter=" << fixed << setprecision( 2 ) << sqrt( stats_.jitter_squared );
 
     out << ", diff: cur=" << fixed << setprecision( 1 ) << stats_.last_clock_difference;

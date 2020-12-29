@@ -16,10 +16,6 @@ class Clock
   /* Rate of the clock */
   double clock_rate_ { 1 };
 
-  /* State for estimating rate */
-  uint64_t global_ts_last_sample_ = global_ts_last_update_;
-  double ideal_clock_rate_ { 1 };
-
   static constexpr int64_t MAX_GAP = 24000; /* 500 ms @ 48 kHz */
   static constexpr int64_t MAX_SKEW = 4800; /* 100 ms @ 48 kHz */
   static constexpr double ALPHA = 0.01;
