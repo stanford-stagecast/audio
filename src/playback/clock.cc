@@ -108,12 +108,10 @@ void Clock::new_sample( const uint64_t global_ts, const uint64_t local_ts_sample
   /* adjust rate to narrow difference */
   clock_rate_ = ideal_clock_rate_ + stats_.smoothed_clock_difference / INTERCEPT_HORIZON;
 
-  /*
-  cout << Timer::timestamp_ns() << " " << stats_.last_clock_difference << " " << stats_.smoothed_clock_difference
-       << " " << 1000 * cents( clock_rate_ ) << " " << 1000 * cents( ideal_clock_rate_ ) << " "
-       << sqrt( stats_.jitter_squared ) << " " << ( local_ts_sample - local_ts_last_sample_save ) / elapsed_time
-       << "\n";
-  */
+  cout << global_ts << " " << local_ts_sample << " " << stats_.last_clock_difference << " "
+       << stats_.smoothed_clock_difference << " " << 1000 * cents( clock_rate_ ) << " "
+       << 1000 * cents( ideal_clock_rate_ ) << " " << sqrt( stats_.jitter_squared ) << " "
+       << ( local_ts_sample - local_ts_last_sample_save ) / elapsed_time << "\n";
 }
 
 void Clock::summary( ostream& out ) const
