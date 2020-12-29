@@ -63,11 +63,14 @@ void AudioDeviceTask::summary( ostream& out ) const
     pp_samples( out, device_.cursor() - playback_.range_begin() );
   }
 
+  if ( device_.statistics().recoveries ) {
+    out << " recoveries=" << device_.statistics().recoveries;
+  }
+
   if ( device_.statistics().last_recovery
        and ( device_.cursor() - device_.statistics().last_recovery < 48000 * 60 ) ) {
     out << " last recovery=";
     pp_samples( out, device_.cursor() - device_.statistics().last_recovery );
-    out << " recoveries=" << device_.statistics().recoveries;
     out << " skipped=" << device_.statistics().sample_stats.samples_skipped;
   }
 
