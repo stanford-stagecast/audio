@@ -13,13 +13,17 @@ class Clock
   /* Dynamic state: current value of the clock */
   double local_clock_ = local_ts_last_sample_;
 
-  /* Semi-static state: offset and rate of the clock */
-  int64_t offset_ = global_ts_last_update_ - local_ts_last_sample_;
+  /* Rate of the clock */
   double clock_rate_ { 1 };
 
-  static constexpr int64_t MAX_GAP = 1440; /* 30 ms @ 48 kHz */
-  static constexpr int64_t MAX_SKEW = 960; /* 20 ms @ 48 kHz */
+  /* State for estimating rate */
+  uint64_t global_ts_last_sample_ = global_ts_last_update_;
+  double ideal_clock_rate_ { 1 };
+
+  static constexpr int64_t MAX_GAP = 24000; /* 500 ms @ 48 kHz */
+  static constexpr int64_t MAX_SKEW = 4800; /* 100 ms @ 48 kHz */
   static constexpr double ALPHA = 0.01;
+  static constexpr double INTERCEPT_HORIZON = 48000 * 2;
 
   void reset( const uint64_t global_ts, const uint64_t local_ts_initial_value );
 
@@ -30,7 +34,7 @@ class Clock
     double smoothed_clock_difference {};
     uint64_t last_reset {};
     double biggest_gap_since_reset {}, biggest_diff_since_reset {};
-    double jitter;
+    double jitter_squared;
   } stats_ {};
 
   bool synced_;
@@ -43,7 +47,6 @@ public:
   void new_sample( const uint64_t global_ts, const uint64_t local_ts_sample );
 
   bool synced() const { return synced_; }
-  int64_t offset() const { return offset_; }
   double rate() const { return clock_rate_; }
 
   void summary( std::ostream& out ) const;
