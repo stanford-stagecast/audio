@@ -26,6 +26,8 @@ public:
                  std::shared_ptr<OpusEncoderProcess> source,
                  std::shared_ptr<AudioDeviceTask> dest,
                  EventLoop& loop );
+
+  void summary( std::ostream& out ) const override;
 };
 
 class NetworkSingleServer : public NetworkConnection

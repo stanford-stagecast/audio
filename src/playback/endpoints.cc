@@ -37,7 +37,7 @@ NetworkClient::NetworkClient( const uint8_t node_id,
   } );
 
   loop.add_rule(
-    "time passes",
+    "decode",
     [&] {
       peer_clock_.time_passes( dest_->cursor() );
 
@@ -119,7 +119,7 @@ NetworkSingleServer::NetworkSingleServer( EventLoop& loop, const Base64Key& send
   } );
 
   loop.add_rule(
-    "time passes",
+    "mix+encode+send",
     [&] {
       peer_clock_.time_passes( server_clock() );
 
@@ -185,6 +185,15 @@ void NetworkSingleServer::summary( ostream& out ) const
   out << "Server clock: ";
   pp_samples( out, server_clock() );
   out << "\n";
+  out << "Peer: ";
+  peer_clock_.summary( out );
+  cursor_.summary( out );
+
+  NetworkConnection::summary( out );
+}
+
+void NetworkClient::summary( ostream& out ) const
+{
   out << "Peer: ";
   peer_clock_.summary( out );
   cursor_.summary( out );
