@@ -36,4 +36,7 @@ public:
 
   AudioChannel& ch1() { return ch1_; }
   AudioChannel& ch2() { return ch2_; }
+
+  const AudioChannel& ch1() const { return ch1_; }
+  const AudioChannel& ch2() const { return ch2_; }
 };

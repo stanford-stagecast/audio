@@ -114,13 +114,6 @@ bool CryptoSession::decrypt( const Ciphertext& ciphertext,
   plaintext.resize( pt_len );
 
   Nonce nonce { static_cast<string_view>( ciphertext ).substr( body_len, Nonce::SERIALIZED_LEN ) };
-  const string_view actual_associated_data { static_cast<string_view>( ciphertext )
-                                               .substr( body_len + Nonce::SERIALIZED_LEN,
-                                                        expected_associated_data.size() ) };
-
-  if ( actual_associated_data != expected_associated_data ) {
-    throw runtime_error( "associated data mismatch" );
-  }
 
   if ( pt_len
        != ae_decrypt( decrypt_ctx_.ctx.get(),          /* ctx */
@@ -133,6 +126,13 @@ bool CryptoSession::decrypt( const Ciphertext& ciphertext,
                       nullptr,                         /* tag */
                       AE_FINALIZE ) ) {                /* final */
     return false;
+  }
+
+  const string_view actual_associated_data { static_cast<string_view>( ciphertext )
+                                               .substr( body_len + Nonce::SERIALIZED_LEN,
+                                                        expected_associated_data.size() ) };
+  if ( actual_associated_data != expected_associated_data ) {
+    throw runtime_error( "associated data mismatch" );
   }
 
   return true;

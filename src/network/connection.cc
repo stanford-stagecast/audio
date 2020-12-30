@@ -52,13 +52,13 @@ void NetworkConnection::send_packet( UDPSocket& socket )
   socket.sendto( destination_.value(), ciphertext );
 }
 
-void NetworkConnection::receive_packet( const Address& source, const Ciphertext& ciphertext )
+bool NetworkConnection::receive_packet( const Address& source, const Ciphertext& ciphertext )
 {
   /* decrypt */
   Plaintext plaintext;
   if ( not crypto_.decrypt( ciphertext, { &peer_id_, 1 }, plaintext ) ) {
     stats_.decryption_failures++;
-    return;
+    return false;
   }
 
   /* parse */
@@ -66,7 +66,7 @@ void NetworkConnection::receive_packet( const Address& source, const Ciphertext&
   const Packet packet { parser };
   if ( parser.error() ) {
     stats_.invalid++;
-    return;
+    return false;
   }
 
   /* act on packet contents */
@@ -82,19 +82,19 @@ void NetworkConnection::receive_packet( const Address& source, const Ciphertext&
       last_biggest_seqno_received_ = receiver_.biggest_seqno_received();
     }
   }
+
+  return true;
 }
 
 void NetworkConnection::summary( ostream& out ) const
 {
   if ( stats_.decryption_failures ) {
-    out << "decryption_failures=" << stats_.decryption_failures;
+    out << "decryption_failures=" << stats_.decryption_failures << " ";
   }
 
   if ( stats_.invalid ) {
     out << "invalid=" << stats_.invalid << " ";
   }
-
-  out << "\n";
 
   sender_.summary( out );
   receiver_.summary( out );

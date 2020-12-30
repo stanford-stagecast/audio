@@ -6,181 +6,181 @@
 using namespace std;
 using namespace std::chrono;
 
-#if 0
+uint64_t NetworkMultiServer::server_clock() const
+{
+  return ( Timer::timestamp_ns() - global_ns_timestamp_at_creation_ ) * 48 / 1000000;
+}
+
+uint64_t NetworkMultiServer::Client::client_mix_cursor() const
+{
+  return mix_cursor_;
+}
+
+uint64_t NetworkMultiServer::Client::server_mix_cursor() const
+{
+  return mix_cursor_ + outbound_frame_offset_.value() * opus_frame::NUM_SAMPLES;
+}
+
+NetworkMultiServer::Client::Client( const uint8_t node_id, const uint16_t server_port )
+  : Client( node_id, server_port, {}, {} )
+{}
+
+NetworkMultiServer::Client::Client( const uint8_t node_id,
+                                    const uint16_t server_port,
+                                    const Base64Key& send_key,
+                                    const Base64Key& receive_key )
+  : connection( 0, node_id, send_key, receive_key )
+  , clock( 0 )
+  , cursor( 600, true )
+  , encoder( 128000, 48000 )
+{
+  cerr << "Client " << int( node_id ) << " " << server_port << " " << receive_key.printable_key().as_string_view()
+       << " " << send_key.printable_key().as_string_view() << endl;
+}
+
 NetworkMultiServer::NetworkMultiServer( EventLoop& loop )
   : socket_()
-  , next_cursor_sample_( Timer::timestamp_ns() + cursor_sample_interval )
+  , global_ns_timestamp_at_creation_( Timer::timestamp_ns() )
+  , next_cursor_sample_( server_clock() + opus_frame::NUM_SAMPLES )
 {
   socket_.set_blocking( false );
   socket_.bind( { "0", 0 } );
 
-  cout << "Port " << socket_.local_address().port() << " " << receive_key_.printable_key().as_string_view() << " "
-       << send_key_.printable_key().as_string_view() << endl;
+  /* construct clients */
+  {
+    const uint16_t server_port = socket_.local_address().port();
+    for ( unsigned int i = 0; i < MAX_CLIENTS; i++ ) {
+      clients_.at( i ).emplace( i + 1, server_port );
+    }
+  }
 
-  loop.add_rule( "network receive", socket_, Direction::In, [&] { receive_packet(); } );
-
-  loop.add_rule(
-    "sample cursors",
-    [&] {
-      const uint64_t now = Timer::timestamp_ns();
-      next_cursor_sample_ = now + cursor_sample_interval;
-
-      /* get mean sample index */
-      uint64_t sample_index_sum {}, sample_index_num {};
-      for ( auto& cl : clients_ ) {
-        if ( cl.has_value() and cl.value().cursor.sample_index().has_value() ) {
-          sample_index_num++;
-          sample_index_sum += cl.value().cursor.sample_index().value();
-        }
+  /* set up mixing constants XXX */
+  for ( unsigned int i = 0; i < MAX_CLIENTS; i++ ) {
+    auto& client = clients_.at( i ).value();
+    for ( uint8_t channel_i = 0; channel_i < 2 * MAX_CLIENTS; channel_i++ ) {
+      if ( channel_i / 2 == i ) {
+        client.gains[channel_i] = { 0.0, 0.0 };
+      } else {
+        client.gains[channel_i] = { 1.0, 1.0 };
       }
+    }
+  }
 
-      if ( sample_index_num ) {
-        global_sample_index_ = sample_index_sum / sample_index_num;
-      }
-
-      /* sample each client */
-      for ( auto& cl : clients_ ) {
-        if ( cl.has_value() ) {
-          cl->cursor.sample( cl->endpoint, now, global_sample_index_ );
-        }
-      }
-
-      /* discard old decoded audio */
-      for ( auto& cl : clients_ ) {
-        if ( cl.has_value() ) {
-          if ( global_sample_index_ > cl->cursor.output().ch1().range_begin() + 1000 ) {
-            cl->cursor.output().pop( global_sample_index_ - cl->cursor.output().ch1().range_begin() - 1000 );
+  loop.add_rule( "network receive", socket_, Direction::In, [&] {
+    Address src { nullptr, 0 };
+    Ciphertext ciphertext;
+    socket_.recv( src, ciphertext.data );
+    if ( ciphertext.size() > 20 ) {
+      const uint8_t node_id = ciphertext.data.back();
+      if ( node_id > 0 and node_id <= MAX_CLIENTS ) {
+        auto& client = clients_.at( node_id - 1 ).value();
+        if ( client.connection.receive_packet( src, ciphertext ) ) {
+          const auto clock_sample = server_clock();
+          client.clock.new_sample(
+            clock_sample, client.connection.unreceived_beyond_this_frame_index() * opus_frame::NUM_SAMPLES );
+          if ( ( not client.outbound_frame_offset_.has_value() ) and client.connection.has_destination() ) {
+            client.outbound_frame_offset_ = clock_sample / opus_frame::NUM_SAMPLES;
           }
         }
       }
-    },
-    [&] { return Timer::timestamp_ns() >= next_cursor_sample_; } );
+    }
+  } );
 
   loop.add_rule(
-    "mix and encode audio",
+    "mix+encode+send",
     [&] {
-      for ( auto& cl : clients_ ) {
-        if ( cl.has_value() ) {
-          mix_and_encode( *cl );
-          cl->endpoint.send_packet( crypto_, cl->addr, socket_ );
+      const auto clock_sample = server_clock();
+
+      /* decode all audio */
+      for ( auto& client_opt : clients_ ) {
+        auto& client = client_opt.value();
+        client.clock.time_passes( clock_sample );
+
+        client.cursor.sample( client.connection.frames(),
+                              next_cursor_sample_,
+                              client.clock.value(),
+                              client.clock.jitter(),
+                              client.decoded_audio );
+
+        client.connection.pop_frames(
+          min( client.cursor.ok_to_pop( client.connection.frames() ),
+               client.connection.next_frame_needed() - client.connection.frames().range_begin() ) );
+      }
+
+      /* mix all audio */
+      for ( auto& client_opt : clients_ ) {
+        auto& client = client_opt.value();
+
+        if ( not client.outbound_frame_offset_.has_value() ) {
+          continue;
+        }
+
+        while ( client.server_mix_cursor() + opus_frame::NUM_SAMPLES <= next_cursor_sample_ ) {
+          span<float> ch1 = client.mixed_audio.ch1().region( client.client_mix_cursor(), opus_frame::NUM_SAMPLES );
+          span<float> ch2 = client.mixed_audio.ch2().region( client.client_mix_cursor(), opus_frame::NUM_SAMPLES );
+
+          for ( uint8_t channel_i = 0; channel_i < 2 * MAX_CLIENTS; channel_i += 2 ) {
+            const Client& other_client = clients_.at( channel_i / 2 ).value();
+            const span_view<float> other_ch1
+              = other_client.decoded_audio.ch1().region( client.server_mix_cursor(), opus_frame::NUM_SAMPLES );
+            const span_view<float> other_ch2
+              = other_client.decoded_audio.ch2().region( client.server_mix_cursor(), opus_frame::NUM_SAMPLES );
+
+            const float gain1into1 = client.gains[channel_i].first;
+            const float gain1into2 = client.gains[channel_i].second;
+            const float gain2into1 = client.gains[channel_i + 1].first;
+            const float gain2into2 = client.gains[channel_i + 1].second;
+
+            for ( size_t sample_i = 0; sample_i < opus_frame::NUM_SAMPLES; sample_i++ ) {
+              ch1[sample_i] += gain1into1 * other_ch1[sample_i];
+              ch2[sample_i] += gain1into2 * other_ch1[sample_i];
+
+              ch1[sample_i] += gain2into1 * other_ch2[sample_i];
+              ch2[sample_i] += gain2into2 * other_ch2[sample_i];
+            }
+          }
+
+          client.mix_cursor_ += opus_frame::NUM_SAMPLES;
+        }
+
+        /* encode audio */
+        while ( client.encoder.min_encode_cursor() + opus_frame::NUM_SAMPLES <= client.client_mix_cursor() ) {
+          client.encoder.encode_one_frame( client.mixed_audio.ch1(), client.mixed_audio.ch2() );
+          client.connection.push_frame( client.encoder );
+          client.connection.send_packet( socket_ );
+        }
+
+        /* pop used mixed audio */
+        client.mixed_audio.pop( client.encoder.min_encode_cursor() - client.mixed_audio.range_begin() );
+      }
+
+      /* pop used decoded audio */
+      for ( auto& client_opt : clients_ ) {
+        auto& client = client_opt.value();
+
+        if ( client.outbound_frame_offset_.has_value() ) {
+          client.decoded_audio.pop( client.server_mix_cursor() - client.decoded_audio.range_begin() );
+        } else {
+          client.decoded_audio.pop( ( next_cursor_sample_ / opus_frame::NUM_SAMPLES ) * opus_frame::NUM_SAMPLES
+                                    - client.decoded_audio.range_begin() );
         }
       }
-      next_encode_index_ += 120;
+
+      next_cursor_sample_ += opus_frame::NUM_SAMPLES;
     },
-    [&] { return global_sample_index_ >= next_encode_index_; } );
-}
-
-void NetworkMultiServer::receive_packet()
-{
-  Address src { nullptr, 0 };
-  Ciphertext ciphertext;
-  socket_.recv( src, ciphertext.data );
-
-  /* decrypt */
-  Plaintext plaintext;
-  if ( not crypto_.decrypt( ciphertext, plaintext ) ) {
-    stats_.decryption_failures++;
-    return;
-  }
-
-  /* parse */
-  Parser parser { plaintext };
-  const Packet packet { parser };
-  if ( parser.error() ) {
-    stats_.invalid++;
-    return;
-  }
-
-  /* create client? */
-  if ( not clients_.at( packet.node_id ).has_value() ) {
-    clients_.at( packet.node_id ).emplace( packet.node_id, src );
-  }
-
-  Client& client = clients_.at( packet.node_id ).value();
-
-  client.endpoint.act_on_packet( packet );
-  /* throw away frames no longer needed */
-  if ( client.cursor.next_frame_index() > client.endpoint.frames().range_begin() ) {
-    client.endpoint.pop_frames( client.cursor.next_frame_index() - client.endpoint.frames().range_begin() );
-  }
-}
-
-NetworkMultiServer::Client::Client( const uint8_t s_node_id, const Address& s_addr )
-  : node_id( s_node_id )
-  , addr( s_addr )
-  , cursor( 20, true )
-{
-  for ( auto& x : gains ) {
-    x.first = x.second = 1.0;
-  }
+    [&] { return server_clock() >= next_cursor_sample_; } );
 }
 
 void NetworkMultiServer::summary( ostream& out ) const
 {
-  out << "Network multiserver:";
-
-  if ( stats_.decryption_failures ) {
-    out << " decryption_failures=" << stats_.decryption_failures << "!";
-  }
-
-  if ( stats_.invalid ) {
-    out << " invalid=" << stats_.invalid << "!";
-  }
-
-  out << "\n";
-
-  for ( const auto& client : clients_ ) {
-    if ( client.has_value() ) {
-      client->summary( out );
+  for ( unsigned int i = 0; i < clients_.size(); i++ ) {
+    auto& client = clients_.at( i ).value();
+    out << "#" << i + 1 << ": ";
+    if ( client.connection.has_destination() ) {
+      out << " (" << client.connection.destination().to_string() << ") ";
     }
+    client.clock.summary( out );
+    client.cursor.summary( out );
+    client.connection.summary( out );
   }
 }
-
-void NetworkMultiServer::Client::summary( ostream& out ) const
-{
-  out << "   #" << int( node_id ) << "(" << addr.to_string() << "):";
-  cursor.summary( out );
-  out << "\n";
-  endpoint.summary( out );
-}
-
-void NetworkMultiServer::mix_and_encode( Client& client )
-{
-  const size_t encoder_cursor = client.encoder_.min_encode_cursor();
-
-  if ( client.mixed_ch1.range_begin() < encoder_cursor ) {
-    client.mixed_ch1.pop( encoder_cursor - client.mixed_ch1.range_begin() );
-    client.mixed_ch2.pop( encoder_cursor - client.mixed_ch2.range_begin() );
-  }
-
-  /* prepare mixed audio */
-  span<float> ch1 = client.mixed_ch1.region( global_sample_index_, 120 );
-  span<float> ch2 = client.mixed_ch2.region( global_sample_index_, 120 );
-
-  fill( ch1.begin(), ch1.end(), 0.0 );
-  fill( ch2.begin(), ch2.end(), 0.0 );
-
-  for ( uint8_t channel_i = 0; channel_i < client.gains.size(); channel_i += 2 ) {
-    const optional<Client>& cl = clients_.at( channel_i / 2 );
-    if ( cl.has_value() ) {
-      /* mix in other channels */
-
-      const span_view<float>& other_ch1 = cl->cursor.output().ch1().region( global_sample_index_, 120 );
-      const span_view<float>& other_ch2 = cl->cursor.output().ch2().region( global_sample_index_, 120 );
-
-      for ( size_t sample_i = 0; sample_i < 120; sample_i++ ) {
-        ch1[sample_i] += client.gains[channel_i].first * other_ch1[sample_i];
-        ch2[sample_i] += client.gains[channel_i].second * other_ch1[sample_i];
-
-        ch1[sample_i] += client.gains[channel_i + 1].first * other_ch2[sample_i];
-        ch2[sample_i] += client.gains[channel_i + 1].second * other_ch2[sample_i];
-      }
-    }
-  }
-
-  /* encode */
-  client.encoder_.encode_one_frame( client.mixed_ch1, client.mixed_ch2 );
-
-  client.endpoint.push_frame( client.encoder_ );
-}
-#endif

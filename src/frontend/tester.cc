@@ -13,8 +13,8 @@
 
 using namespace std;
 
-void program_body( const string& node_id,
-                   const string& host,
+void program_body( const string& host,
+                   const string& node_id,
                    const string& service,
                    const string& send_key,
                    const string& recv_key )
@@ -55,7 +55,7 @@ int main( int argc, char* argv[] )
     }
 
     if ( argc != 6 ) {
-      cerr << "Usage: " << argv[0] << " NODE_ID HOST SERVICE SEND_KEY RECV_KEY\n";
+      cerr << "Usage: " << argv[0] << " HOST NODE_ID SERVICE SEND_KEY RECV_KEY\n";
       return EXIT_FAILURE;
     }
 

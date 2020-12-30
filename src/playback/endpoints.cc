@@ -64,7 +64,7 @@ uint64_t NetworkSingleServer::server_mix_cursor() const
 
 NetworkSingleServer::NetworkSingleServer( EventLoop& loop, const Base64Key& send_key, const Base64Key& receive_key )
   : NetworkConnection( 0, 1, send_key, receive_key )
-  , socket_ {}
+  , socket_()
   , global_ns_timestamp_at_creation_( Timer::timestamp_ns() )
   , next_cursor_sample_( server_clock() + opus_frame::NUM_SAMPLES )
   , peer_clock_( server_clock() )
@@ -102,7 +102,7 @@ NetworkSingleServer::NetworkSingleServer( EventLoop& loop, const Base64Key& send
 
       if ( outbound_frame_offset_.has_value() ) {
         /* mix audio */
-        while ( server_mix_cursor() + opus_frame::NUM_SAMPLES < next_cursor_sample_ ) {
+        while ( server_mix_cursor() + opus_frame::NUM_SAMPLES <= next_cursor_sample_ ) {
           span<float> ch1 = mixed_audio_.ch1().region( client_mix_cursor(), opus_frame::NUM_SAMPLES );
           span<float> ch2 = mixed_audio_.ch2().region( client_mix_cursor(), opus_frame::NUM_SAMPLES );
 
@@ -120,7 +120,7 @@ NetworkSingleServer::NetworkSingleServer( EventLoop& loop, const Base64Key& send
         decoded_audio_.pop( server_mix_cursor() - decoded_audio_.range_begin() );
 
         /* encode audio */
-        while ( encoder_.min_encode_cursor() + opus_frame::NUM_SAMPLES < client_mix_cursor() ) {
+        while ( encoder_.min_encode_cursor() + opus_frame::NUM_SAMPLES <= client_mix_cursor() ) {
           /* encode */
           encoder_.encode_one_frame( mixed_audio_.ch1(), mixed_audio_.ch2() );
 

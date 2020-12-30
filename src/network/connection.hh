@@ -43,14 +43,14 @@ public:
                      const Base64Key& decrypt_key,
                      const Address& destination );
 
-  void set_destination( const Address& destination ) { destination_ = destination; }
   bool has_destination() const { return destination_.has_value(); }
+  const Address& destination() const { return destination_.value(); }
 
   void push_frame( OpusEncoderProcess& source ) { sender_.push_frame( source ); }
   void summary( std::ostream& out ) const override;
 
   void send_packet( UDPSocket& socket );
-  void receive_packet( const Address& source, const Ciphertext& plaintext );
+  bool receive_packet( const Address& source, const Ciphertext& plaintext );
 
   uint32_t next_frame_needed() const { return receiver_.next_frame_needed(); }
   uint32_t unreceived_beyond_this_frame_index() const { return receiver_.unreceived_beyond_this_frame_index(); }

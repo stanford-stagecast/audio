@@ -1,58 +1,59 @@
 #pragma once
-#if 0
 
 #include <ostream>
 #include <vector>
 
+#include "clock.hh"
 #include "connection.hh"
+#include "cursor.hh"
 #include "summarize.hh"
 
 class NetworkMultiServer : public Summarizable
 {
-  struct Client
-  {
-    uint8_t node_id;
-    Address addr;
-    NetworkEndpoint endpoint { 255 };
-    Cursor cursor;
-
-    using mix_gain = std::pair<float, float>;
-    std::array<mix_gain, 10> gains {};
-
-    AudioChannel mixed_ch1 { 1024 }, mixed_ch2 { 1024 };
-    OpusEncoderProcess encoder_ { 128000, 48000 };
-
-    Client( const uint8_t s_node_id, const Address& s_addr );
-    void summary( std::ostream& out ) const;
-  };
-
   UDPSocket socket_;
-  std::array<std::optional<Client>, 256> clients_ {};
-
-  Base64Key send_key_ {}, receive_key_ {};
-  Session crypto_ { send_key_, receive_key_ };
-
-  void receive_packet();
-  void service_client( Client& client, Plaintext& plaintext );
-
-  using time_point = decltype( std::chrono::steady_clock::now() );
-
-  static constexpr uint64_t cursor_sample_interval = 1000000;
+  uint64_t global_ns_timestamp_at_creation_;
   uint64_t next_cursor_sample_;
 
-  size_t global_sample_index_ {};
-  size_t next_encode_index_ { 240 };
+  uint64_t server_clock() const;
 
-  struct Statistics
+  static constexpr uint8_t MAX_CLIENTS = 8;
+
+  struct Client
   {
-    unsigned int decryption_failures, invalid;
-  } stats_ {};
+    NetworkConnection connection;
+    Clock clock;
+    Cursor cursor;
+    AudioBuffer decoded_audio { 8192 };
+    AudioBuffer mixed_audio { 8192 };
+
+    uint64_t mix_cursor_ {};
+    std::optional<uint32_t> outbound_frame_offset_ {};
+
+    uint64_t server_mix_cursor() const;
+    uint64_t client_mix_cursor() const;
+
+    OpusEncoderProcess encoder { 128000, 48000 };
+
+    using mix_gain = std::pair<float, float>;
+    std::array<mix_gain, 2 * MAX_CLIENTS> gains {};
+
+    Client( const uint8_t node_id, const uint16_t server_port );
+    void summary( std::ostream& out ) const;
+
+    Client( const Client& other ) = delete;
+    Client& operator=( const Client& other ) const = delete;
+
+  private:
+    Client( const uint8_t node_id,
+            const uint16_t server_port,
+            const Base64Key& send_key,
+            const Base64Key& receive_key );
+  };
+
+  std::array<std::optional<Client>, MAX_CLIENTS> clients_ {};
 
   void summary( std::ostream& out ) const override;
-
-  void mix_and_encode( Client& client );
 
 public:
   NetworkMultiServer( EventLoop& loop );
 };
-#endif

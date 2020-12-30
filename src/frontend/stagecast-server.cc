@@ -21,16 +21,14 @@ void program_body()
   auto loop = make_shared<EventLoop>();
 
   /* Network server registeres itself in EventLoop */
-  //  auto server = make_shared<NetworkMultiServer>( *loop );
+  auto server = make_shared<NetworkMultiServer>( *loop );
 
   /* Print out statistics to terminal */
-  StatsPrinterTask stats_printer { loop };
-  //  stats_printer.add( server );
-
-  this_thread::sleep_for( seconds( 5 ) );
+  StatsPrinterTask stats_printer { loop, seconds( 5 ) };
+  stats_printer.add( server );
 
   /* Start audio device and event loop */
-  while ( loop->wait_next_event( 2 ) != EventLoop::Result::Exit ) {
+  while ( loop->wait_next_event( 1 ) != EventLoop::Result::Exit ) {
   }
 }
 
