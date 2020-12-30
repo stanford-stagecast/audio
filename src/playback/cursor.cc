@@ -88,8 +88,8 @@ void Cursor::summary( ostream& out ) const
   out << " resets=" << stats_.resets;
   out << " slew=" << int( slew_ );
   out << " last_skew=" << int( stats_.last_skew );
-  out << " ignored/success/missing=" << output().stats().ignored_decodes << "/"
-      << output().stats().successful_decodes << "/" << output().stats().missing_decodes;
+  out << " ignored/success/missing=" << decoder().stats().ignored_decodes << "/"
+      << decoder().stats().successful_decodes << "/" << decoder().stats().missing_decodes;
   out << "\n";
 }
 

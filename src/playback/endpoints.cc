@@ -70,6 +70,7 @@ NetworkSingleServer::NetworkSingleServer( EventLoop& loop, const Base64Key& send
   , last_server_clock_sample_( server_clock() )
   , peer_clock_( last_server_clock_sample_ )
   , cursor_( 4800 )
+  , writer_( "/tmp/audio.wav", 48000 )
 {
   socket_.set_blocking( false );
   socket_.bind( { "0", 0 } );
@@ -97,7 +98,9 @@ NetworkSingleServer::NetworkSingleServer( EventLoop& loop, const Base64Key& send
 
       pop_frames( min( cursor_.ok_to_pop( frames() ), next_frame_needed() - frames().range_begin() ) );
 
-      cursor_.output().pop( last_server_clock_sample_ - cursor_.output().range_begin() ); // XXX
+      writer_.write( cursor_.decoder().output(), last_server_clock_sample_ );
+
+      cursor_.decoder().output().pop( last_server_clock_sample_ - cursor_.decoder().output().range_begin() );
     },
     [&] { return server_clock() > last_server_clock_sample_ + 48; } );
 }

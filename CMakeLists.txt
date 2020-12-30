@@ -20,6 +20,10 @@ pkg_check_modules ( Opus REQUIRED opus )
 include_directories ( ${Opus_INCLUDE_DIRS} )
 add_compile_options ( ${Opus_CFLAGS_OTHER} )
 
+pkg_check_modules ( Sndfile REQUIRED sndfile )
+include_directories ( ${Sndfile_INCLUDE_DIRS} )
+add_compile_options ( ${Sndfile_CFLAGS_OTHER} )
+
 include_directories ("${PROJECT_SOURCE_DIR}/src/util")
 include_directories ("${PROJECT_SOURCE_DIR}/src/crypto")
 include_directories ("${PROJECT_SOURCE_DIR}/src/audio")

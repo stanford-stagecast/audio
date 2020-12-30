@@ -18,6 +18,9 @@ target_link_libraries ("tester" ${DBus_LIBRARIES})
 target_link_libraries ("tester" ${Opus_LDFLAGS_OTHER})
 target_link_libraries ("tester" ${Opus_LIBRARIES})
 
+target_link_libraries ("tester" ${Sndfile_LDFLAGS_OTHER})
+target_link_libraries ("tester" ${Sndfile_LIBRARIES})
+
 add_executable (dummy_server "dummy_server.cc")
 target_link_libraries ("dummy_server" stats)
 target_link_libraries ("dummy_server" playback)
@@ -31,6 +34,9 @@ target_link_libraries ("dummy_server" ${ALSA_LIBRARIES})
 
 target_link_libraries ("dummy_server" ${Opus_LDFLAGS_OTHER})
 target_link_libraries ("dummy_server" ${Opus_LIBRARIES})
+
+target_link_libraries ("dummy_server" ${Sndfile_LDFLAGS_OTHER})
+target_link_libraries ("dummy_server" ${Sndfile_LIBRARIES})
 
 add_executable (unit_test "unit_test.cc")
 target_link_libraries ("unit_test" stats)

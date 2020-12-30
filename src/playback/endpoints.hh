@@ -5,6 +5,7 @@
 #include "crypto.hh"
 #include "cursor.hh"
 #include "encoder_task.hh"
+#include "wavwriter.hh"
 
 class NetworkClient : public NetworkConnection
 {
@@ -34,6 +35,7 @@ class NetworkSingleServer : public NetworkConnection
 
   Clock peer_clock_;
   Cursor cursor_;
+  WavWriter writer_;
 
   uint64_t server_clock() const;
 

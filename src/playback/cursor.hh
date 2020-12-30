@@ -43,8 +43,8 @@ public:
 
   void summary( std::ostream& out ) const;
 
-  OpusDecoderProcess& output() { return output_; }
-  const OpusDecoderProcess& output() const { return output_; }
+  OpusDecoderProcess& decoder() { return output_; }
+  const OpusDecoderProcess& decoder() const { return output_; }
 
   size_t ok_to_pop( const PartialFrameStore& frames ) const;
 };
