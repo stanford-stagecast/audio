@@ -18,6 +18,17 @@ void Cursor::sample( const PartialFrameStore& frames,
     cursor_location_.reset();
   }
 
+  /* adjust lag if necessary */
+  if ( minimize_lag_ ) {
+    if ( quality_ > 0.999 and target_lag_samples_ > 240 ) {
+      target_lag_samples_--;
+    }
+
+    if ( quality_ < 0.98 and target_lag_samples_ < 9600 ) {
+      target_lag_samples_ += 10;
+    }
+  }
+
   /* adjust cursor if necessary */
   if ( cursor_location_.has_value() ) {
     const int64_t cursor_skew = local_clock_sample_index.value() - target_lag_samples_ - cursor_location_.value();
@@ -84,6 +95,7 @@ void Cursor::sample( const PartialFrameStore& frames,
 void Cursor::summary( ostream& out ) const
 {
   out << "Cursor: ";
+  out << " target lag=" << target_lag_samples_;
   out << " quality=" << fixed << setprecision( 5 ) << quality_;
   out << " inserted=" << stats_.samples_inserted;
   out << " skipped=" << stats_.samples_skipped;

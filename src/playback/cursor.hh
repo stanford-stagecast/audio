@@ -6,6 +6,7 @@
 class Cursor
 {
   uint32_t target_lag_samples_;
+  bool minimize_lag_;
 
   struct Statistics
   {
@@ -33,8 +34,9 @@ class Cursor
   } slew_ { Slew::NO };
 
 public:
-  Cursor( const uint32_t target_lag_samples )
+  Cursor( const uint32_t target_lag_samples, const bool minimize_lag )
     : target_lag_samples_( target_lag_samples )
+    , minimize_lag_( minimize_lag )
   {}
 
   void sample( const PartialFrameStore& frames,
