@@ -15,7 +15,7 @@ NetworkClient::NetworkClient( const uint8_t node_id,
   , source_( source )
   , dest_( dest )
   , peer_clock_( dest_->cursor() )
-  , cursor_( 4800, true )
+  , cursor_( 600, true )
   , next_cursor_sample_( dest_->cursor() + opus_frame::NUM_SAMPLES )
 {
   socket_.set_blocking( false );
@@ -42,7 +42,7 @@ NetworkClient::NetworkClient( const uint8_t node_id,
       peer_clock_.time_passes( dest_->cursor() );
 
       /* decode server's Opus frames to playback buffer */
-      cursor_.sample( frames(), next_cursor_sample_, peer_clock_.value(), dest_->playback() );
+      cursor_.sample( frames(), next_cursor_sample_, peer_clock_.value(), peer_clock_.jitter(), dest_->playback() );
 
       /* pop used Opus frames from server */
       pop_frames( min( cursor_.ok_to_pop( frames() ), next_frame_needed() - frames().range_begin() ) );
@@ -50,35 +50,6 @@ NetworkClient::NetworkClient( const uint8_t node_id,
       next_cursor_sample_ += opus_frame::NUM_SAMPLES;
     },
     [&] { return dest_->cursor() + opus_frame::NUM_SAMPLES + 60 >= next_cursor_sample_; } );
-
-  /*
-  loop.add_rule(
-    "sample cursors",
-    [&] {
-      const uint64_t now = Timer::timestamp_ns();
-      next_cursor_sample_ = now + cursor_sample_interval;
-
-      cursor_.sample( *this, now, dest_->cursor() );
-
-      if ( cursor_.sample_index().has_value() ) {
-        const size_t amount_to_copy = cursor_.sample_index().value() - cursor_.output().ch1().range_begin();
-        if ( amount_to_copy > 0 ) {
-          const span_view<float> source1
-            = cursor_.output().ch1().region( cursor_.output().ch1().range_begin(), amount_to_copy );
-          const span_view<float> source2
-            = cursor_.output().ch2().region( cursor_.output().ch2().range_begin(), amount_to_copy );
-          span<float> dest1 = dest_->playback().ch1().region( dest_->cursor(), amount_to_copy );
-          span<float> dest2 = dest_->playback().ch2().region( dest_->cursor(), amount_to_copy );
-
-          memcpy( dest1.mutable_data(), source1.data(), source1.byte_size() );
-          memcpy( dest2.mutable_data(), source2.data(), source1.byte_size() );
-
-          cursor_.output().pop( amount_to_copy );
-        }
-      }
-    },
-    [&] { return Timer::timestamp_ns() >= next_cursor_sample_; } );
-  */
 }
 
 uint64_t NetworkSingleServer::client_mix_cursor() const
@@ -97,7 +68,7 @@ NetworkSingleServer::NetworkSingleServer( EventLoop& loop, const Base64Key& send
   , global_ns_timestamp_at_creation_( Timer::timestamp_ns() )
   , next_cursor_sample_( server_clock() + opus_frame::NUM_SAMPLES )
   , peer_clock_( server_clock() )
-  , cursor_( 4800, true )
+  , cursor_( 600, true )
   , encoder_( 128000, 48000 )
 {
   socket_.set_blocking( false );
@@ -124,7 +95,7 @@ NetworkSingleServer::NetworkSingleServer( EventLoop& loop, const Base64Key& send
       peer_clock_.time_passes( server_clock() );
 
       /* decode client's Opus frames to output buffer */
-      cursor_.sample( frames(), next_cursor_sample_, peer_clock_.value(), decoded_audio_ );
+      cursor_.sample( frames(), next_cursor_sample_, peer_clock_.value(), peer_clock_.jitter(), decoded_audio_ );
 
       /* pop used Opus frames from client */
       pop_frames( min( cursor_.ok_to_pop( frames() ), next_frame_needed() - frames().range_begin() ) );

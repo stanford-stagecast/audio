@@ -5,6 +5,7 @@ using namespace std;
 void Cursor::sample( const PartialFrameStore& frames,
                      const size_t global_sample_index,
                      const std::optional<size_t> local_clock_sample_index,
+                     const float jitter_samples,
                      AudioBuffer& output )
 {
   /* initialize cursor if necessary */
@@ -20,12 +21,12 @@ void Cursor::sample( const PartialFrameStore& frames,
 
   /* adjust lag if necessary */
   if ( minimize_lag_ ) {
-    if ( quality_ > 0.999 and target_lag_samples_ > 240 ) {
+    if ( quality_ > 0.9999 and target_lag_samples_ > max( jitter_samples * 5, 240.0f ) ) {
       target_lag_samples_--;
     }
 
-    if ( quality_ < 0.98 and target_lag_samples_ < 9600 ) {
-      target_lag_samples_ += 10;
+    if ( target_lag_samples_ < jitter_samples * 2 ) {
+      target_lag_samples_++;
     }
   }
 

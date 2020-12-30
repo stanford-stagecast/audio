@@ -46,6 +46,7 @@ public:
 
   bool synced() const { return synced_; }
   double rate() const { return clock_rate_; }
+  float jitter() const { return sqrt( stats_.jitter_squared ); }
   std::optional<size_t> value() const
   {
     if ( synced_ ) {

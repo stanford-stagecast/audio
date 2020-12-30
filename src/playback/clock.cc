@@ -114,7 +114,7 @@ void Clock::summary( ostream& out ) const
   out << ")";
   if ( synced() ) {
     out << ", rate=" << fixed << setprecision( 2 ) << 1000 * cents( rate() ) << " millicents";
-    out << ", jitter=" << fixed << setprecision( 2 ) << sqrt( stats_.jitter_squared );
+    out << ", jitter=" << fixed << setprecision( 2 ) << jitter();
 
     out << ", diff: cur=" << fixed << setprecision( 1 ) << stats_.last_clock_difference;
     out << ", smoothed=" << fixed << setprecision( 1 ) << stats_.smoothed_clock_difference;

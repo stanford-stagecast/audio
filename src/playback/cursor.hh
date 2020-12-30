@@ -42,6 +42,7 @@ public:
   void sample( const PartialFrameStore& frames,
                const size_t global_sample_index,
                const std::optional<size_t> local_clock_sample_index,
+               const float jitter_samples,
                AudioBuffer& output );
 
   void summary( std::ostream& out ) const;
