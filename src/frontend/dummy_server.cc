@@ -24,10 +24,8 @@ void program_body()
   auto server = make_shared<NetworkSingleServer>( *loop );
 
   /* Print out statistics to terminal */
-  StatsPrinterTask stats_printer { loop };
+  StatsPrinterTask stats_printer { loop, seconds( 5 ) };
   stats_printer.add( server );
-
-  this_thread::sleep_for( seconds( 5 ) );
 
   /* Start audio device and event loop */
   while ( loop->wait_next_event( 1 ) != EventLoop::Result::Exit ) {

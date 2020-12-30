@@ -150,12 +150,10 @@ void NetworkReceiver::summary( ostream& out ) const
 
 void NetworkReceiver::pop_frames( const size_t num )
 {
-  /*
   if ( num > next_frame_needed_ - frames_.range_begin() ) {
     throw std::out_of_range( "pop_frames: " + to_string( num ) + " > "
                              + to_string( next_frame_needed_ - frames_.range_begin() ) );
   }
-  */
 
   frames_.pop( num );
   stats_.popped += num;

@@ -95,7 +95,7 @@ NetworkSingleServer::NetworkSingleServer( EventLoop& loop, const Base64Key& send
 
       cursor_.sample( frames(), last_server_clock_sample_, peer_clock_.value() );
 
-      pop_frames( cursor_.ok_to_pop( frames() ) );
+      pop_frames( min( cursor_.ok_to_pop( frames() ), next_frame_needed() - frames().range_begin() ) );
 
       cursor_.output().pop( last_server_clock_sample_ - cursor_.output().range_begin() ); // XXX
     },

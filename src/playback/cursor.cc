@@ -93,13 +93,13 @@ void Cursor::summary( ostream& out ) const
   out << "\n";
 }
 
-uint32_t Cursor::ok_to_pop( const PartialFrameStore& frames ) const
+size_t Cursor::ok_to_pop( const PartialFrameStore& frames ) const
 {
   if ( not cursor_location_.has_value() ) {
     return 0;
   }
 
-  const uint32_t next_frame_needed = cursor_location_.value() / opus_frame::NUM_SAMPLES;
+  const size_t next_frame_needed = cursor_location_.value() / opus_frame::NUM_SAMPLES;
   if ( next_frame_needed <= frames.range_begin() ) {
     return 0;
   }

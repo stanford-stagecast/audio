@@ -46,5 +46,5 @@ public:
   OpusDecoderProcess& output() { return output_; }
   const OpusDecoderProcess& output() const { return output_; }
 
-  uint32_t ok_to_pop( const PartialFrameStore& frames ) const;
+  size_t ok_to_pop( const PartialFrameStore& frames ) const;
 };
