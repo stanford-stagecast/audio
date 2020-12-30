@@ -96,6 +96,6 @@ void NetworkConnection::summary( ostream& out ) const
 
   out << "\n";
 
-  sender_.generate_statistics( out );
-  receiver_.generate_statistics( out );
+  sender_.summary( out );
+  receiver_.summary( out );
 }

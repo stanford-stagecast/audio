@@ -1,6 +1,8 @@
 #pragma once
 
+#include <cmath>
 #include <cstdint>
+#include <optional>
 #include <ostream>
 #include <utility>
 
@@ -44,6 +46,14 @@ public:
 
   bool synced() const { return synced_; }
   double rate() const { return clock_rate_; }
+  std::optional<size_t> value() const
+  {
+    if ( synced_ ) {
+      return lrint( local_clock_ );
+    } else {
+      return {};
+    }
+  }
 
   void summary( std::ostream& out ) const;
 };

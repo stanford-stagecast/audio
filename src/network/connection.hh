@@ -49,11 +49,11 @@ public:
   void push_frame( OpusEncoderProcess& source ) { sender_.push_frame( source ); }
   void summary( std::ostream& out ) const override;
 
-  uint32_t next_frame_needed() const { return receiver_.next_frame_needed(); }
-  uint32_t unreceived_beyond_this_frame_index() const { return receiver_.unreceived_beyond_this_frame_index(); }
-  const EndlessBuffer<std::optional<AudioFrame>>& frames() const { return receiver_.frames(); }
-  void pop_frames( const size_t num ) { receiver_.pop_frames( num ); }
-
   void send_packet( UDPSocket& socket );
   void receive_packet( const Address& source, const Ciphertext& plaintext );
+
+  uint32_t next_frame_needed() const { return receiver_.next_frame_needed(); }
+  uint32_t unreceived_beyond_this_frame_index() const { return receiver_.unreceived_beyond_this_frame_index(); }
+  const PartialFrameStore& frames() const { return receiver_.frames(); }
+  void pop_frames( const size_t num ) { receiver_.pop_frames( num ); }
 };

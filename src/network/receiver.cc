@@ -97,7 +97,7 @@ void NetworkReceiver::set_receiver_section( Packet::ReceiverSection& receiver_se
   }
 }
 
-void NetworkReceiver::generate_statistics( ostream& out ) const
+void NetworkReceiver::summary( ostream& out ) const
 {
   out << "Receiver info:";
 
@@ -150,9 +150,12 @@ void NetworkReceiver::generate_statistics( ostream& out ) const
 
 void NetworkReceiver::pop_frames( const size_t num )
 {
+  /*
   if ( num > next_frame_needed_ - frames_.range_begin() ) {
-    throw std::out_of_range( "pop_frames" );
+    throw std::out_of_range( "pop_frames: " + to_string( num ) + " > "
+                             + to_string( next_frame_needed_ - frames_.range_begin() ) );
   }
+  */
 
   frames_.pop( num );
   stats_.popped += num;

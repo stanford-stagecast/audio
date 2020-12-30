@@ -2,7 +2,7 @@
 
 using namespace std;
 
-void NetworkSender::generate_statistics( ostream& out ) const
+void NetworkSender::summary( ostream& out ) const
 {
   out << "Sender info:";
 

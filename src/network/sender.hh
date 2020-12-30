@@ -58,5 +58,5 @@ public:
   void set_sender_section( Packet::SenderSection& p );
   void receive_receiver_section( const Packet::ReceiverSection& receiver_section );
 
-  void generate_statistics( std::ostream& out ) const;
+  void summary( std::ostream& out ) const;
 };

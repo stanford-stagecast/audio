@@ -101,10 +101,10 @@ void program_body()
     }
 
     {
-      sender1.generate_statistics( cout );
-      receiver1.generate_statistics( cout );
-      sender2.generate_statistics( cout );
-      receiver2.generate_statistics( cout );
+      sender1.summary( cout );
+      receiver1.summary( cout );
+      sender2.summary( cout );
+      receiver2.summary( cout );
     }
   }
 }

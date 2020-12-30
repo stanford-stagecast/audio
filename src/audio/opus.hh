@@ -60,5 +60,6 @@ class OpusDecoder
 
 public:
   OpusDecoder( const int sample_rate );
-  size_t decode( const opus_frame& encoded_input, span<float> samples );
+  void decode( const opus_frame& encoded_input, span<float> samples );
+  void decode_missing( span<float> samples );
 };

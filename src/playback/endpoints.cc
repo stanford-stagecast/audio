@@ -69,6 +69,7 @@ NetworkSingleServer::NetworkSingleServer( EventLoop& loop, const Base64Key& send
   , global_ns_timestamp_at_creation_( Timer::timestamp_ns() )
   , last_server_clock_sample_( server_clock() )
   , peer_clock_( last_server_clock_sample_ )
+  , cursor_( 4800 )
 {
   socket_.set_blocking( false );
   socket_.bind( { "0", 0 } );
@@ -80,7 +81,6 @@ NetworkSingleServer::NetworkSingleServer( EventLoop& loop, const Base64Key& send
     Ciphertext ciphertext;
     socket_.recv( src, ciphertext.data );
     receive_packet( src, ciphertext );
-    pop_frames( next_frame_needed() - frames().range_begin() );
     last_server_clock_sample_ = server_clock();
     peer_clock_.new_sample( last_server_clock_sample_,
                             unreceived_beyond_this_frame_index() * opus_frame::NUM_SAMPLES );
@@ -92,8 +92,14 @@ NetworkSingleServer::NetworkSingleServer( EventLoop& loop, const Base64Key& send
     [&] {
       last_server_clock_sample_ = server_clock();
       peer_clock_.time_passes( last_server_clock_sample_ );
+
+      cursor_.sample( frames(), last_server_clock_sample_, peer_clock_.value() );
+
+      pop_frames( cursor_.ok_to_pop( frames() ) );
+
+      cursor_.output().pop( last_server_clock_sample_ - cursor_.output().range_begin() ); // XXX
     },
-    [&] { return server_clock() > last_server_clock_sample_ + opus_frame::NUM_SAMPLES; } );
+    [&] { return server_clock() > last_server_clock_sample_ + 48; } );
 }
 
 NetworkSingleServer::NetworkSingleServer( EventLoop& loop )
@@ -112,6 +118,7 @@ void NetworkSingleServer::summary( ostream& out ) const
   out << "\n";
   out << "Peer: ";
   peer_clock_.summary( out );
+  cursor_.summary( out );
 
   NetworkConnection::summary( out );
 }

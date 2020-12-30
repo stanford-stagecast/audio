@@ -94,10 +94,22 @@ OpusDecoder::OpusDecoder( const int sample_rate )
   opus_check( out );
 }
 
-size_t OpusDecoder::decode( const opus_frame& encoded_input, span<float> samples )
+void OpusDecoder::decode( const opus_frame& encoded_input, span<float> samples )
 {
   const size_t samples_written = opus_check( opus_decode_float(
     decoder_.get(), encoded_input.data(), encoded_input.length(), samples.mutable_data(), samples.size(), 0 ) );
 
-  return samples_written;
+  if ( samples_written != opus_frame::NUM_SAMPLES ) {
+    throw runtime_error( "invalid count from opus_decode_float: " + to_string( samples_written ) );
+  }
+}
+
+void OpusDecoder::decode_missing( span<float> samples )
+{
+  const size_t samples_written
+    = opus_check( opus_decode_float( decoder_.get(), nullptr, 0, samples.mutable_data(), samples.size(), 0 ) );
+
+  if ( samples_written != opus_frame::NUM_SAMPLES ) {
+    throw runtime_error( "invalid count from opus_decode_float: " + to_string( samples_written ) );
+  }
 }
