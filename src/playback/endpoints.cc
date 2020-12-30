@@ -14,7 +14,9 @@ NetworkClient::NetworkClient( const uint8_t node_id,
   , socket_()
   , source_( source )
   , dest_( dest )
-  , next_cursor_sample_( Timer::timestamp_ns() + cursor_sample_interval )
+  , peer_clock_( dest_->cursor() )
+  , cursor_( 4800 )
+  , next_cursor_sample_( dest_->cursor() + opus_frame::NUM_SAMPLES )
 {
   socket_.set_blocking( false );
 
@@ -31,7 +33,23 @@ NetworkClient::NetworkClient( const uint8_t node_id,
     Ciphertext ciphertext;
     socket_.recv( src, ciphertext.data );
     receive_packet( src, ciphertext );
+    peer_clock_.new_sample( dest_->cursor(), unreceived_beyond_this_frame_index() * opus_frame::NUM_SAMPLES );
   } );
+
+  loop.add_rule(
+    "time passes",
+    [&] {
+      peer_clock_.time_passes( dest_->cursor() );
+
+      /* decode server's Opus frames to output buffer */
+      cursor_.sample( frames(), next_cursor_sample_, peer_clock_.value() );
+
+      /* pop used Opus frames from server */
+      pop_frames( min( cursor_.ok_to_pop( frames() ), next_frame_needed() - frames().range_begin() ) );
+
+      next_cursor_sample_ += opus_frame::NUM_SAMPLES;
+    },
+    [&] { return dest_->cursor() + opus_frame::NUM_SAMPLES + 60 >= next_cursor_sample_; } );
 
   /*
   loop.add_rule(
@@ -92,9 +110,9 @@ NetworkSingleServer::NetworkSingleServer( EventLoop& loop, const Base64Key& send
     Ciphertext ciphertext;
     socket_.recv( src, ciphertext.data );
     receive_packet( src, ciphertext );
+
     const auto clock_sample = server_clock();
     peer_clock_.new_sample( clock_sample, unreceived_beyond_this_frame_index() * opus_frame::NUM_SAMPLES );
-
     if ( ( not outbound_frame_offset_.has_value() ) and has_destination() ) {
       outbound_frame_offset_ = clock_sample / opus_frame::NUM_SAMPLES;
     }

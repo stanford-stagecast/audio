@@ -51,7 +51,7 @@ public:
     if ( synced_ ) {
       return lrint( local_clock_ );
     } else {
-      return {};
+      return std::nullopt;
     }
   }
 

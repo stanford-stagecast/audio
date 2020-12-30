@@ -13,7 +13,9 @@ class NetworkClient : public NetworkConnection
   std::shared_ptr<OpusEncoderProcess> source_;
   std::shared_ptr<AudioDeviceTask> dest_;
 
-  static constexpr uint64_t cursor_sample_interval = 1000000;
+  Clock peer_clock_;
+  Cursor cursor_;
+
   uint64_t next_cursor_sample_;
 
 public:

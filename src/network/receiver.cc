@@ -107,13 +107,13 @@ void NetworkReceiver::summary( ostream& out ) const
   }
 
   if ( stats_.already_acked ) {
-    out << " already_acked=" << stats_.already_acked;
+    out << " already_acked=" << stats_.already_acked << "!";
   }
   if ( stats_.redundant ) {
-    out << " redundant=" << stats_.redundant;
+    out << " redundant=" << stats_.redundant << "!";
   }
   if ( stats_.dropped ) {
-    out << " dropped=" << stats_.dropped;
+    out << " dropped=" << stats_.dropped << "!";
   }
 
   const uint32_t contiguous_count = next_frame_needed_ - frames_.range_begin();
