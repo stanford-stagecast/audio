@@ -54,6 +54,10 @@ bool OpusEncoderProcess::Channel::can_encode_frame( const size_t source_cursor )
 
 void OpusEncoderProcess::Channel::encode_one_frame( const AudioChannel& channel )
 {
+  if ( output_.has_value() ) {
+    throw runtime_error( "internal error: encode_one_frame called but output already has value" );
+  }
+
   output_.emplace();
   enc_.encode( channel.region( cursor(), opus_frame::NUM_SAMPLES ), output_.value() );
   num_pushed_++;

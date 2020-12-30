@@ -63,6 +63,16 @@ NetworkClient::NetworkClient( const uint8_t node_id,
   */
 }
 
+uint64_t NetworkSingleServer::client_mix_cursor() const
+{
+  return mix_cursor_;
+}
+
+uint64_t NetworkSingleServer::server_mix_cursor() const
+{
+  return mix_cursor_ + outbound_frame_offset_.value() * opus_frame::NUM_SAMPLES;
+}
+
 NetworkSingleServer::NetworkSingleServer( EventLoop& loop, const Base64Key& send_key, const Base64Key& receive_key )
   : NetworkConnection( 0, 1, send_key, receive_key )
   , socket_ {}
@@ -70,7 +80,7 @@ NetworkSingleServer::NetworkSingleServer( EventLoop& loop, const Base64Key& send
   , last_server_clock_sample_( server_clock() )
   , peer_clock_( last_server_clock_sample_ )
   , cursor_( 4800 )
-  , writer_( "/tmp/audio.wav", 48000 )
+  , encoder_( 128000, 48000 )
 {
   socket_.set_blocking( false );
   socket_.bind( { "0", 0 } );
@@ -82,27 +92,66 @@ NetworkSingleServer::NetworkSingleServer( EventLoop& loop, const Base64Key& send
     Ciphertext ciphertext;
     socket_.recv( src, ciphertext.data );
     receive_packet( src, ciphertext );
-    last_server_clock_sample_ = server_clock();
-    peer_clock_.new_sample( last_server_clock_sample_,
-                            unreceived_beyond_this_frame_index() * opus_frame::NUM_SAMPLES );
-    send_packet( socket_ );
+    const auto clock_sample = server_clock();
+    peer_clock_.new_sample( clock_sample, unreceived_beyond_this_frame_index() * opus_frame::NUM_SAMPLES );
+
+    if ( ( not outbound_frame_offset_.has_value() ) and has_destination() ) {
+      outbound_frame_offset_ = clock_sample / opus_frame::NUM_SAMPLES;
+    }
   } );
 
   loop.add_rule(
     "time passes",
     [&] {
-      last_server_clock_sample_ = server_clock();
-      peer_clock_.time_passes( last_server_clock_sample_ );
+      const auto clock_sample = server_clock();
+      peer_clock_.time_passes( clock_sample );
 
-      cursor_.sample( frames(), last_server_clock_sample_, peer_clock_.value() );
+      /* decode client's Opus frames to output buffer */
+      cursor_.sample( frames(), clock_sample, peer_clock_.value() );
 
+      /* pop used Opus frames from client */
       pop_frames( min( cursor_.ok_to_pop( frames() ), next_frame_needed() - frames().range_begin() ) );
 
-      writer_.write( cursor_.decoder().output(), last_server_clock_sample_ );
+      if ( outbound_frame_offset_.has_value() ) {
+        /* mix audio */
+        while ( server_mix_cursor() + opus_frame::NUM_SAMPLES < clock_sample ) {
+          span<float> ch1 = mixed_audio_.ch1().region( client_mix_cursor(), opus_frame::NUM_SAMPLES );
+          span<float> ch2 = mixed_audio_.ch2().region( client_mix_cursor(), opus_frame::NUM_SAMPLES );
 
-      cursor_.decoder().output().pop( last_server_clock_sample_ - cursor_.decoder().output().range_begin() );
+          fill( ch1.begin(), ch1.end(), 0.0 ); /* leave left channel silent */
+
+          /* copy left channel to right */
+          for ( unsigned int i = 0; i < opus_frame::NUM_SAMPLES; i++ ) {
+            ch2.at( i ) = cursor_.decoder().output().ch1().at( server_mix_cursor() + i );
+          }
+
+          mix_cursor_ += opus_frame::NUM_SAMPLES;
+        }
+
+        /* pop used decoded audio */
+        cursor_.decoder().output().pop( server_mix_cursor() - cursor_.decoder().output().range_begin() );
+
+        /* encode audio */
+        while ( encoder_.min_encode_cursor() + opus_frame::NUM_SAMPLES < client_mix_cursor() ) {
+          /* encode */
+          encoder_.encode_one_frame( mixed_audio_.ch1(), mixed_audio_.ch2() );
+
+          /* transmit */
+          push_frame( encoder_ );
+          send_packet( socket_ );
+        }
+
+        /* pop used mixed audio */
+        mixed_audio_.pop( encoder_.min_encode_cursor() - mixed_audio_.range_begin() );
+      } else {
+        /* pop ignored decoded audio */
+        cursor_.decoder().output().pop( ( clock_sample / opus_frame::NUM_SAMPLES ) * opus_frame::NUM_SAMPLES
+                                        - cursor_.decoder().output().range_begin() );
+      }
+
+      last_server_clock_sample_ = clock_sample;
     },
-    [&] { return server_clock() > last_server_clock_sample_ + 48; } );
+    [&] { return server_clock() > last_server_clock_sample_ + opus_frame::NUM_SAMPLES; } );
 }
 
 NetworkSingleServer::NetworkSingleServer( EventLoop& loop )

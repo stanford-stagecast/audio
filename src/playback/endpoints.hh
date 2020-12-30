@@ -35,11 +35,19 @@ class NetworkSingleServer : public NetworkConnection
 
   Clock peer_clock_;
   Cursor cursor_;
-  WavWriter writer_;
+
+  AudioBuffer mixed_audio_ { 8192 };
+  uint64_t mix_cursor_ {};
+
+  std::optional<uint32_t> outbound_frame_offset_ {};
+  OpusEncoderProcess encoder_;
 
   uint64_t server_clock() const;
 
   NetworkSingleServer( EventLoop& loop, const Base64Key& send_key, const Base64Key& receive_key );
+
+  uint64_t server_mix_cursor() const;
+  uint64_t client_mix_cursor() const;
 
 public:
   NetworkSingleServer( EventLoop& loop );
