@@ -31,7 +31,7 @@ class NetworkSingleServer : public NetworkConnection
   UDPSocket socket_;
 
   uint64_t global_ns_timestamp_at_creation_;
-  uint64_t last_server_clock_sample_;
+  uint64_t next_cursor_sample_;
 
   Clock peer_clock_;
   Cursor cursor_;
