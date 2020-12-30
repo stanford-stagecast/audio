@@ -20,7 +20,7 @@ void Cursor::sample( const PartialFrameStore& frames,
   }
 
   /* adjust lag if necessary */
-  if ( minimize_lag_ ) {
+  if ( minimize_lag_ and cursor_location_.has_value() ) {
     if ( quality_ > 0.9999 and target_lag_samples_ > max( jitter_samples * 5, 240.0f ) ) {
       target_lag_samples_--;
     }
