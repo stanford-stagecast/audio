@@ -4,7 +4,8 @@ using namespace std;
 
 void Cursor::sample( const PartialFrameStore& frames,
                      const size_t global_sample_index,
-                     const std::optional<size_t> local_clock_sample_index )
+                     const std::optional<size_t> local_clock_sample_index,
+                     AudioBuffer& output )
 {
   /* initialize cursor if necessary */
   if ( local_clock_sample_index.has_value() ) {
@@ -42,7 +43,7 @@ void Cursor::sample( const PartialFrameStore& frames,
     /* do we even know where to get them from? */
     if ( not cursor_location_.has_value() ) {
       miss();
-      output_.decode_missing( num_samples_output_ );
+      decoder_.decode_missing( num_samples_output_, output );
       num_samples_output_ += opus_frame::NUM_SAMPLES;
       continue;
     }
@@ -65,7 +66,7 @@ void Cursor::sample( const PartialFrameStore& frames,
     const uint32_t frame_no = cursor_location_.value() / opus_frame::NUM_SAMPLES;
     if ( not frames.has_value( cursor_location_.value() / opus_frame::NUM_SAMPLES ) ) {
       miss();
-      output_.decode_missing( num_samples_output_ );
+      decoder_.decode_missing( num_samples_output_, output );
       num_samples_output_ += samples_to_output;
       cursor_location_.value() += opus_frame::NUM_SAMPLES;
       continue;
@@ -73,7 +74,8 @@ void Cursor::sample( const PartialFrameStore& frames,
 
     /* decode a frame! */
     hit();
-    output_.decode( frames.at( frame_no ).value().ch1, frames.at( frame_no ).value().ch2, num_samples_output_ );
+    decoder_.decode(
+      frames.at( frame_no ).value().ch1, frames.at( frame_no ).value().ch2, num_samples_output_, output );
     num_samples_output_ += samples_to_output;
     cursor_location_.value() += opus_frame::NUM_SAMPLES;
   }
@@ -88,8 +90,8 @@ void Cursor::summary( ostream& out ) const
   out << " resets=" << stats_.resets;
   out << " slew=" << int( slew_ );
   out << " last_skew=" << int( stats_.last_skew );
-  out << " ignored/success/missing=" << decoder().stats().ignored_decodes << "/"
-      << decoder().stats().successful_decodes << "/" << decoder().stats().missing_decodes;
+  out << " ignored/success/missing=" << decoder_.stats().ignored_decodes << "/"
+      << decoder_.stats().successful_decodes << "/" << decoder_.stats().missing_decodes;
   out << "\n";
 }
 

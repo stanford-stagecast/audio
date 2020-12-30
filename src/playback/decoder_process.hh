@@ -5,7 +5,6 @@
 
 class OpusDecoderProcess
 {
-  AudioBuffer output_ { 65536 };
   OpusDecoder dec1 { 48000 }, dec2 { 48000 };
 
   struct Statistics
@@ -14,10 +13,11 @@ class OpusDecoderProcess
   } stats_ {};
 
 public:
-  void decode( const opus_frame& ch1, const opus_frame& ch2, const size_t global_sample_index );
-  void decode_missing( const size_t global_sample_index );
+  void decode( const opus_frame& ch1,
+               const opus_frame& ch2,
+               const size_t global_sample_index,
+               AudioBuffer& output );
+  void decode_missing( const size_t global_sample_index, AudioBuffer& output );
 
   const Statistics& stats() const { return stats_; }
-  const AudioBuffer& output() const { return output_; }
-  AudioBuffer& output() { return output_; }
 };

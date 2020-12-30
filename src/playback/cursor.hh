@@ -13,7 +13,7 @@ class Cursor
     int64_t last_skew;
   } stats_ {};
 
-  OpusDecoderProcess output_ {};
+  OpusDecoderProcess decoder_ {};
 
   size_t num_samples_output_ {};
   std::optional<size_t> cursor_location_ {};
@@ -39,12 +39,10 @@ public:
 
   void sample( const PartialFrameStore& frames,
                const size_t global_sample_index,
-               const std::optional<size_t> local_clock_sample_index );
+               const std::optional<size_t> local_clock_sample_index,
+               AudioBuffer& output );
 
   void summary( std::ostream& out ) const;
-
-  OpusDecoderProcess& decoder() { return output_; }
-  const OpusDecoderProcess& decoder() const { return output_; }
 
   size_t ok_to_pop( const PartialFrameStore& frames ) const;
 };

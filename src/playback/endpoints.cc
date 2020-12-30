@@ -15,7 +15,7 @@ NetworkClient::NetworkClient( const uint8_t node_id,
   , source_( source )
   , dest_( dest )
   , peer_clock_( dest_->cursor() )
-  , cursor_( 4800 )
+  , cursor_( 480 )
   , next_cursor_sample_( dest_->cursor() + opus_frame::NUM_SAMPLES )
 {
   socket_.set_blocking( false );
@@ -41,8 +41,8 @@ NetworkClient::NetworkClient( const uint8_t node_id,
     [&] {
       peer_clock_.time_passes( dest_->cursor() );
 
-      /* decode server's Opus frames to output buffer */
-      cursor_.sample( frames(), next_cursor_sample_, peer_clock_.value() );
+      /* decode server's Opus frames to playback buffer */
+      cursor_.sample( frames(), next_cursor_sample_, peer_clock_.value(), dest_->playback() );
 
       /* pop used Opus frames from server */
       pop_frames( min( cursor_.ok_to_pop( frames() ), next_frame_needed() - frames().range_begin() ) );
@@ -97,7 +97,7 @@ NetworkSingleServer::NetworkSingleServer( EventLoop& loop, const Base64Key& send
   , global_ns_timestamp_at_creation_( Timer::timestamp_ns() )
   , next_cursor_sample_( server_clock() + opus_frame::NUM_SAMPLES )
   , peer_clock_( server_clock() )
-  , cursor_( 4800 )
+  , cursor_( 480 )
   , encoder_( 128000, 48000 )
 {
   socket_.set_blocking( false );
@@ -124,7 +124,7 @@ NetworkSingleServer::NetworkSingleServer( EventLoop& loop, const Base64Key& send
       peer_clock_.time_passes( server_clock() );
 
       /* decode client's Opus frames to output buffer */
-      cursor_.sample( frames(), next_cursor_sample_, peer_clock_.value() );
+      cursor_.sample( frames(), next_cursor_sample_, peer_clock_.value(), decoded_audio_ );
 
       /* pop used Opus frames from client */
       pop_frames( min( cursor_.ok_to_pop( frames() ), next_frame_needed() - frames().range_begin() ) );
@@ -139,14 +139,14 @@ NetworkSingleServer::NetworkSingleServer( EventLoop& loop, const Base64Key& send
 
           /* copy left channel to right */
           for ( unsigned int i = 0; i < opus_frame::NUM_SAMPLES; i++ ) {
-            ch2.at( i ) = cursor_.decoder().output().ch1().at( server_mix_cursor() + i );
+            ch2.at( i ) = decoded_audio_.ch1().at( server_mix_cursor() + i );
           }
 
           mix_cursor_ += opus_frame::NUM_SAMPLES;
         }
 
         /* pop used decoded audio */
-        cursor_.decoder().output().pop( server_mix_cursor() - cursor_.decoder().output().range_begin() );
+        decoded_audio_.pop( server_mix_cursor() - decoded_audio_.range_begin() );
 
         /* encode audio */
         while ( encoder_.min_encode_cursor() + opus_frame::NUM_SAMPLES < client_mix_cursor() ) {
@@ -162,8 +162,8 @@ NetworkSingleServer::NetworkSingleServer( EventLoop& loop, const Base64Key& send
         mixed_audio_.pop( encoder_.min_encode_cursor() - mixed_audio_.range_begin() );
       } else {
         /* pop ignored decoded audio */
-        cursor_.decoder().output().pop( ( next_cursor_sample_ / opus_frame::NUM_SAMPLES ) * opus_frame::NUM_SAMPLES
-                                        - cursor_.decoder().output().range_begin() );
+        decoded_audio_.pop( ( next_cursor_sample_ / opus_frame::NUM_SAMPLES ) * opus_frame::NUM_SAMPLES
+                            - decoded_audio_.range_begin() );
       }
 
       next_cursor_sample_ += opus_frame::NUM_SAMPLES;

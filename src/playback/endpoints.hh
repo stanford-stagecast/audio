@@ -40,6 +40,7 @@ class NetworkSingleServer : public NetworkConnection
   Clock peer_clock_;
   Cursor cursor_;
 
+  AudioBuffer decoded_audio_ { 8192 };
   AudioBuffer mixed_audio_ { 8192 };
   uint64_t mix_cursor_ {};
 
