@@ -36,6 +36,85 @@ NetworkMultiServer::Client::Client( const uint8_t node_id,
 {
   cerr << "Client " << int( node_id ) << " " << server_port << " " << receive_key.printable_key().as_string_view()
        << " " << send_key.printable_key().as_string_view() << endl;
+
+  /* XXX set default gains */
+  for ( uint8_t channel_i = 0; channel_i < 2 * MAX_CLIENTS; channel_i++ ) {
+    gains.at( channel_i ) = { 1.0, 1.0 };
+  }
+}
+
+void NetworkMultiServer::Client::receive_packet( const Address& source,
+                                                 const Ciphertext& ciphertext,
+                                                 const uint64_t clock_sample )
+{
+  if ( connection.receive_packet( source, ciphertext ) ) {
+    clock.new_sample( clock_sample, connection.unreceived_beyond_this_frame_index() * opus_frame::NUM_SAMPLES );
+    if ( ( not outbound_frame_offset_.has_value() ) and connection.has_destination() ) {
+      outbound_frame_offset_ = clock_sample / opus_frame::NUM_SAMPLES;
+    }
+  }
+}
+
+void NetworkMultiServer::Client::decode_audio( const uint64_t clock_sample, const uint64_t cursor_sample )
+{
+  clock.time_passes( clock_sample );
+
+  cursor.sample( connection.frames(), cursor_sample, clock.value(), clock.jitter(), decoded_audio );
+
+  connection.pop_frames( min( cursor.ok_to_pop( connection.frames() ),
+                              connection.next_frame_needed() - connection.frames().range_begin() ) );
+}
+
+void NetworkMultiServer::Client::mix_and_encode( const std::array<std::optional<Client>, MAX_CLIENTS>& clients,
+                                                 const uint64_t cursor_sample )
+{
+  if ( not outbound_frame_offset_.has_value() ) {
+    return;
+  }
+
+  while ( server_mix_cursor() + opus_frame::NUM_SAMPLES <= cursor_sample ) {
+    span<float> ch1 = mixed_audio.ch1().region( client_mix_cursor(), opus_frame::NUM_SAMPLES );
+    span<float> ch2 = mixed_audio.ch2().region( client_mix_cursor(), opus_frame::NUM_SAMPLES );
+
+    for ( uint8_t channel_i = 0; channel_i < 2 * MAX_CLIENTS; channel_i += 2 ) {
+      const Client& other_client = clients.at( channel_i / 2 ).value();
+      const span_view<float> other_ch1
+        = other_client.decoded_audio.ch1().region( server_mix_cursor(), opus_frame::NUM_SAMPLES );
+      const span_view<float> other_ch2
+        = other_client.decoded_audio.ch2().region( server_mix_cursor(), opus_frame::NUM_SAMPLES );
+
+      const float gain1into1 = gains[channel_i].first;
+      const float gain1into2 = gains[channel_i].second;
+      const float gain2into1 = gains[channel_i + 1].first;
+      const float gain2into2 = gains[channel_i + 1].second;
+
+      for ( size_t sample_i = 0; sample_i < opus_frame::NUM_SAMPLES; sample_i++ ) {
+        ch1[sample_i] += gain1into1 * other_ch1[sample_i] + gain2into1 * other_ch2[sample_i];
+        ch2[sample_i] += gain1into2 * other_ch1[sample_i] + gain2into2 * other_ch2[sample_i];
+      }
+    }
+
+    mix_cursor_ += opus_frame::NUM_SAMPLES;
+  }
+
+  /* encode audio */
+  while ( encoder.min_encode_cursor() + opus_frame::NUM_SAMPLES <= client_mix_cursor() ) {
+    encoder.encode_one_frame( mixed_audio.ch1(), mixed_audio.ch2() );
+    connection.push_frame( encoder );
+  }
+
+  /* pop used mixed audio */
+  mixed_audio.pop( encoder.min_encode_cursor() - mixed_audio.range_begin() );
+}
+
+void NetworkMultiServer::Client::pop_decoded_audio( const uint64_t cursor_sample )
+{
+  if ( outbound_frame_offset_.has_value() ) {
+    decoded_audio.pop( server_mix_cursor() - decoded_audio.range_begin() );
+  } else {
+    decoded_audio.pop( ( cursor_sample / opus_frame::NUM_SAMPLES ) * opus_frame::NUM_SAMPLES
+                       - decoded_audio.range_begin() );
+  }
 }
 
 NetworkMultiServer::NetworkMultiServer( EventLoop& loop )
@@ -54,18 +133,6 @@ NetworkMultiServer::NetworkMultiServer( EventLoop& loop )
     }
   }
 
-  /* set up mixing constants XXX */
-  for ( unsigned int i = 0; i < MAX_CLIENTS; i++ ) {
-    auto& client = clients_.at( i ).value();
-    for ( uint8_t channel_i = 0; channel_i < 2 * MAX_CLIENTS; channel_i++ ) {
-      if ( channel_i / 2 == i ) {
-        client.gains[channel_i] = { 0.0, 0.0 };
-      } else {
-        client.gains[channel_i] = { 1.0, 1.0 };
-      }
-    }
-  }
-
   loop.add_rule( "network receive", socket_, Direction::In, [&] {
     Address src { nullptr, 0 };
     Ciphertext ciphertext;
@@ -74,14 +141,7 @@ NetworkMultiServer::NetworkMultiServer( EventLoop& loop )
       const uint8_t node_id = ciphertext.data.back();
       if ( node_id > 0 and node_id <= MAX_CLIENTS ) {
         auto& client = clients_.at( node_id - 1 ).value();
-        if ( client.connection.receive_packet( src, ciphertext ) ) {
-          const auto clock_sample = server_clock();
-          client.clock.new_sample(
-            clock_sample, client.connection.unreceived_beyond_this_frame_index() * opus_frame::NUM_SAMPLES );
-          if ( ( not client.outbound_frame_offset_.has_value() ) and client.connection.has_destination() ) {
-            client.outbound_frame_offset_ = clock_sample / opus_frame::NUM_SAMPLES;
-          }
-        }
+        client.receive_packet( src, ciphertext, server_clock() );
       }
     }
   } );
@@ -93,77 +153,22 @@ NetworkMultiServer::NetworkMultiServer( EventLoop& loop )
 
       /* decode all audio */
       for ( auto& client_opt : clients_ ) {
-        auto& client = client_opt.value();
-        client.clock.time_passes( clock_sample );
-
-        client.cursor.sample( client.connection.frames(),
-                              next_cursor_sample_,
-                              client.clock.value(),
-                              client.clock.jitter(),
-                              client.decoded_audio );
-
-        client.connection.pop_frames(
-          min( client.cursor.ok_to_pop( client.connection.frames() ),
-               client.connection.next_frame_needed() - client.connection.frames().range_begin() ) );
+        client_opt.value().decode_audio( clock_sample, next_cursor_sample_ );
       }
 
       /* mix all audio */
       for ( auto& client_opt : clients_ ) {
-        auto& client = client_opt.value();
+        client_opt.value().mix_and_encode( clients_, next_cursor_sample_ );
+      }
 
-        if ( not client.outbound_frame_offset_.has_value() ) {
-          continue;
-        }
-
-        while ( client.server_mix_cursor() + opus_frame::NUM_SAMPLES <= next_cursor_sample_ ) {
-          span<float> ch1 = client.mixed_audio.ch1().region( client.client_mix_cursor(), opus_frame::NUM_SAMPLES );
-          span<float> ch2 = client.mixed_audio.ch2().region( client.client_mix_cursor(), opus_frame::NUM_SAMPLES );
-
-          for ( uint8_t channel_i = 0; channel_i < 2 * MAX_CLIENTS; channel_i += 2 ) {
-            const Client& other_client = clients_.at( channel_i / 2 ).value();
-            const span_view<float> other_ch1
-              = other_client.decoded_audio.ch1().region( client.server_mix_cursor(), opus_frame::NUM_SAMPLES );
-            const span_view<float> other_ch2
-              = other_client.decoded_audio.ch2().region( client.server_mix_cursor(), opus_frame::NUM_SAMPLES );
-
-            const float gain1into1 = client.gains[channel_i].first;
-            const float gain1into2 = client.gains[channel_i].second;
-            const float gain2into1 = client.gains[channel_i + 1].first;
-            const float gain2into2 = client.gains[channel_i + 1].second;
-
-            for ( size_t sample_i = 0; sample_i < opus_frame::NUM_SAMPLES; sample_i++ ) {
-              ch1[sample_i] += gain1into1 * other_ch1[sample_i];
-              ch2[sample_i] += gain1into2 * other_ch1[sample_i];
-
-              ch1[sample_i] += gain2into1 * other_ch2[sample_i];
-              ch2[sample_i] += gain2into2 * other_ch2[sample_i];
-            }
-          }
-
-          client.mix_cursor_ += opus_frame::NUM_SAMPLES;
-        }
-
-        /* encode audio */
-        while ( client.encoder.min_encode_cursor() + opus_frame::NUM_SAMPLES <= client.client_mix_cursor() ) {
-          client.encoder.encode_one_frame( client.mixed_audio.ch1(), client.mixed_audio.ch2() );
-          client.connection.push_frame( client.encoder );
-          client.connection.send_packet( socket_ );
-        }
-
-        /* pop used mixed audio */
-        client.mixed_audio.pop( client.encoder.min_encode_cursor() - client.mixed_audio.range_begin() );
+      /* send audio to clients */
+      for ( auto& client_opt : clients_ ) {
+        client_opt.value().send_packet( socket_ );
       }
 
       /* pop used decoded audio */
       for ( auto& client_opt : clients_ ) {
-        auto& client = client_opt.value();
-
-        if ( client.outbound_frame_offset_.has_value() ) {
-          client.decoded_audio.pop( client.server_mix_cursor() - client.decoded_audio.range_begin() );
-        } else {
-          client.decoded_audio.pop( ( next_cursor_sample_ / opus_frame::NUM_SAMPLES ) * opus_frame::NUM_SAMPLES
-                                    - client.decoded_audio.range_begin() );
-        }
+        client_opt.value().pop_decoded_audio( next_cursor_sample_ );
       }
 
       next_cursor_sample_ += opus_frame::NUM_SAMPLES;
@@ -171,16 +176,28 @@ NetworkMultiServer::NetworkMultiServer( EventLoop& loop )
     [&] { return server_clock() >= next_cursor_sample_; } );
 }
 
+void NetworkMultiServer::Client::send_packet( UDPSocket& socket )
+{
+  if ( connection.has_destination() ) {
+    connection.send_packet( socket );
+  }
+}
+
 void NetworkMultiServer::summary( ostream& out ) const
 {
   for ( unsigned int i = 0; i < clients_.size(); i++ ) {
     auto& client = clients_.at( i ).value();
     out << "#" << i + 1 << ": ";
-    if ( client.connection.has_destination() ) {
-      out << " (" << client.connection.destination().to_string() << ") ";
-    }
-    client.clock.summary( out );
-    client.cursor.summary( out );
-    client.connection.summary( out );
+    client.summary( out );
   }
+}
+
+void NetworkMultiServer::Client::summary( ostream& out ) const
+{
+  if ( connection.has_destination() ) {
+    out << " (" << connection.destination().to_string() << ") ";
+  }
+  clock.summary( out );
+  cursor.summary( out );
+  connection.summary( out );
 }
