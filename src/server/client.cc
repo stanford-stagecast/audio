@@ -54,8 +54,7 @@ void Client::decode_audio( const uint64_t clock_sample, const uint64_t cursor_sa
                               connection.next_frame_needed() - connection.frames().range_begin() ) );
 }
 
-void Client::mix_and_encode( const std::array<std::optional<Client>, MAX_CLIENTS>& clients,
-                             const uint64_t cursor_sample )
+void Client::mix_and_encode( const vector<Client>& clients, const uint64_t cursor_sample )
 {
   if ( not outbound_frame_offset_.has_value() ) {
     return;
@@ -65,8 +64,9 @@ void Client::mix_and_encode( const std::array<std::optional<Client>, MAX_CLIENTS
     span<float> ch1 = mixed_audio.ch1().region( client_mix_cursor(), opus_frame::NUM_SAMPLES );
     span<float> ch2 = mixed_audio.ch2().region( client_mix_cursor(), opus_frame::NUM_SAMPLES );
 
-    for ( uint8_t channel_i = 0; channel_i < 2 * MAX_CLIENTS; channel_i += 2 ) {
-      const Client& other_client = clients.at( channel_i / 2 ).value();
+    // XXX need to scale gains with newly arriving clients
+    for ( uint8_t channel_i = 0; channel_i < 2 * clients.size(); channel_i += 2 ) {
+      const Client& other_client = clients.at( channel_i / 2 );
       const span_view<float> other_ch1
         = other_client.decoded_audio.ch1().region( server_mix_cursor(), opus_frame::NUM_SAMPLES );
       const span_view<float> other_ch2

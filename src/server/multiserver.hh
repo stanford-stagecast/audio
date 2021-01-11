@@ -1,6 +1,7 @@
 #pragma once
 
 #include <ostream>
+#include <vector>
 
 #include "client.hh"
 #include "summarize.hh"
@@ -13,7 +14,7 @@ class NetworkMultiServer : public Summarizable
 
   uint64_t server_clock() const;
 
-  std::array<std::optional<Client>, MAX_CLIENTS> clients_ {};
+  std::vector<Client> clients_ {};
 
   void summary( std::ostream& out ) const override;
 

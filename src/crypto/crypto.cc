@@ -8,32 +8,31 @@
 
 using namespace std;
 
-void CryptoSession::AEContext::ae_deleter::operator()( ae_ctx* x ) const
+void CryptoSession::ae_deleter::operator()( ae_ctx* x ) const noexcept
 {
+  if ( ae_clear( x ) != AE_SUCCESS ) {
+    cerr << "Error clearing AE context.\n";
+  }
+
   ae_free( x );
 }
 
-CryptoSession::AEContext::AEContext( const Base64Key& key )
-  : ctx( ae_allocate( nullptr ) )
+static ae_ctx* make_context( const Base64Key& key )
 {
-  if ( AE_SUCCESS != ae_init( ctx.get(), key.key().data(), 16, 12, TAG_LEN ) ) {
+  ae_ctx* context = notnull( "ae_allocate", ae_allocate( nullptr ) );
+  if ( AE_SUCCESS
+       != ae_init( context, key.key().data(), key.key().size(), Nonce::INTERNAL_LEN, CryptoSession::TAG_LEN ) ) {
     throw runtime_error( "Could not initialize AE context" );
   }
-}
-
-CryptoSession::AEContext::~AEContext()
-{
-  if ( ae_clear( ctx.get() ) != AE_SUCCESS ) {
-    cerr << "Error clearing AE context.\n";
-  }
+  return context;
 }
 
 CryptoSession::CryptoSession( const Base64Key& encrypt_key, const Base64Key& decrypt_key )
   : nonce_val_()
-  , encrypt_ctx_( encrypt_key )
-  , decrypt_ctx_( decrypt_key )
+  , encrypt_context_( make_context( encrypt_key ) )
+  , decrypt_context_( make_context( decrypt_key ) )
 {
-  CheckSystemCall( "getentropy", getentropy( &nonce_val_, sizeof( nonce_val_ ) ) ); /* XXX avoid reuse of nonce */
+  CheckSystemCall( "getentropy", getentropy( &nonce_val_, sizeof( nonce_val_ ) ) ); /* start with random nonce */
 }
 
 template<int max_len>
@@ -70,12 +69,21 @@ uint64_t Nonce::value() const
   return ret;
 }
 
+CryptoSession::CryptoSession( CryptoSession&& other )
+  : nonce_val_( other.nonce_val_ )
+  , blocks_encrypted_( other.blocks_encrypted_ )
+  , encrypt_context_( move( other.encrypt_context_ ) )
+  , decrypt_context_( move( other.decrypt_context_ ) )
+{
+  other.blocks_encrypted_ = numeric_limits<uint64_t>::max();
+}
+
 void CryptoSession::encrypt( const string_view associated_data, const Plaintext& plaintext, Ciphertext& ciphertext )
 {
   plaintext.validate();
 
   Nonce nonce { nonce_val_++ };
-  const int ciphertext_len = plaintext.size() + AEContext::TAG_LEN;
+  const int ciphertext_len = plaintext.size() + TAG_LEN;
 
   ciphertext.resize( ciphertext_len + Nonce::SERIALIZED_LEN + associated_data.size() );
 
@@ -85,7 +93,7 @@ void CryptoSession::encrypt( const string_view associated_data, const Plaintext&
           associated_data.size() );
 
   if ( ciphertext_len
-       != ae_encrypt( encrypt_ctx_.ctx.get(),   /* ctx */
+       != ae_encrypt( encrypt_context_.get(),   /* ctx */
                       nonce.data().data(),      /* nonce */
                       plaintext.buffer.data(),  /* pt */
                       plaintext.size(),         /* pt_len */
@@ -96,6 +104,17 @@ void CryptoSession::encrypt( const string_view associated_data, const Plaintext&
                       AE_FINALIZE ) ) {         /* final */
     throw runtime_error( "ae_encrypt() returned error" );
   }
+
+  /* track use of key per RFC 7253 */
+  blocks_encrypted_ += plaintext.size() >> 4;
+  if ( plaintext.size() & 0xF ) {
+    /* partial block */
+    blocks_encrypted_++;
+  }
+
+  if ( blocks_encrypted_ >> 47 ) {
+    throw runtime_error( "encrypted 2^47 blocks" );
+  }
 }
 
 bool CryptoSession::decrypt( const Ciphertext& ciphertext,
@@ -104,19 +123,19 @@ bool CryptoSession::decrypt( const Ciphertext& ciphertext,
 {
   ciphertext.validate();
 
-  if ( ciphertext.size() < AEContext::TAG_LEN + Nonce::SERIALIZED_LEN + expected_associated_data.size() ) {
+  if ( ciphertext.size() < TAG_LEN + Nonce::SERIALIZED_LEN + expected_associated_data.size() ) {
     return false;
   }
 
   const int body_len = ciphertext.size() - Nonce::SERIALIZED_LEN - expected_associated_data.size();
 
-  const int pt_len = body_len - AEContext::TAG_LEN;
+  const int pt_len = body_len - TAG_LEN;
   plaintext.resize( pt_len );
 
   Nonce nonce { static_cast<string_view>( ciphertext ).substr( body_len, Nonce::SERIALIZED_LEN ) };
 
   if ( pt_len
-       != ae_decrypt( decrypt_ctx_.ctx.get(),          /* ctx */
+       != ae_decrypt( decrypt_context_.get(),          /* ctx */
                       nonce.data().data(),             /* nonce */
                       ciphertext.buffer.data(),        /* ct */
                       body_len,                        /* ct_len */

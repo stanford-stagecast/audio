@@ -19,13 +19,8 @@ NetworkMultiServer::NetworkMultiServer( EventLoop& loop )
   socket_.set_blocking( false );
   socket_.bind( { "0", 0 } );
 
-  /* construct clients */
-  {
-    const uint16_t server_port = socket_.local_address().port();
-    for ( unsigned int i = 0; i < MAX_CLIENTS; i++ ) {
-      clients_.at( i ).emplace( i + 1, server_port );
-    }
-  }
+  /* XXX create some clients */
+  clients_.emplace_back( 1, socket_.local_address().port() );
 
   loop.add_rule( "network receive", socket_, Direction::In, [&] {
     Address src { nullptr, 0 };
@@ -34,8 +29,7 @@ NetworkMultiServer::NetworkMultiServer( EventLoop& loop )
     if ( ciphertext.size() > 20 ) {
       const uint8_t node_id = ciphertext.data.back();
       if ( node_id > 0 and node_id <= MAX_CLIENTS ) {
-        auto& client = clients_.at( node_id - 1 ).value();
-        client.receive_packet( src, ciphertext, server_clock() );
+        clients_.at( node_id - 1 ).receive_packet( src, ciphertext, server_clock() );
       }
     }
   } );
@@ -46,23 +40,23 @@ NetworkMultiServer::NetworkMultiServer( EventLoop& loop )
       const auto clock_sample = server_clock();
 
       /* decode all audio */
-      for ( auto& client_opt : clients_ ) {
-        client_opt.value().decode_audio( clock_sample, next_cursor_sample_ );
+      for ( auto& client : clients_ ) {
+        client.decode_audio( clock_sample, next_cursor_sample_ );
       }
 
       /* mix all audio */
-      for ( auto& client_opt : clients_ ) {
-        client_opt.value().mix_and_encode( clients_, next_cursor_sample_ );
+      for ( auto& client : clients_ ) {
+        client.mix_and_encode( clients_, next_cursor_sample_ );
       }
 
       /* send audio to clients */
-      for ( auto& client_opt : clients_ ) {
-        client_opt.value().send_packet( socket_ );
+      for ( auto& client : clients_ ) {
+        client.send_packet( socket_ );
       }
 
       /* pop used decoded audio */
-      for ( auto& client_opt : clients_ ) {
-        client_opt.value().pop_decoded_audio( next_cursor_sample_ );
+      for ( auto& client : clients_ ) {
+        client.pop_decoded_audio( next_cursor_sample_ );
       }
 
       next_cursor_sample_ += opus_frame::NUM_SAMPLES;
@@ -73,8 +67,7 @@ NetworkMultiServer::NetworkMultiServer( EventLoop& loop )
 void NetworkMultiServer::summary( ostream& out ) const
 {
   for ( unsigned int i = 0; i < clients_.size(); i++ ) {
-    auto& client = clients_.at( i ).value();
     out << "#" << i + 1 << ": ";
-    client.summary( out );
+    clients_.at( i ).summary( out );
   }
 }

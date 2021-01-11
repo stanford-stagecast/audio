@@ -24,6 +24,10 @@ public:
   MMap_Region( const MMap_Region& other ) = delete;
   MMap_Region& operator=( const MMap_Region& other ) = delete;
 
+  /* Allow move-construction */
+  MMap_Region( MMap_Region&& other ) noexcept;
+  MMap_Region& operator=( MMap_Region&& other ) = delete;
+
   char* addr() const { return addr_; }
   size_t length() const { return length_; }
 };

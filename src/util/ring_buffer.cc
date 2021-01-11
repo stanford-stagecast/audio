@@ -32,6 +32,14 @@ MMap_Region::~MMap_Region()
   }
 }
 
+MMap_Region::MMap_Region( MMap_Region&& other ) noexcept
+  : addr_( other.addr_ )
+  , length_( other.length_ )
+{
+  other.addr_ = nullptr;
+  other.length_ = 0;
+}
+
 RingStorage::RingStorage( const size_t capacity )
   : fd_( [&] {
     if ( capacity % sysconf( _SC_PAGESIZE ) ) {
