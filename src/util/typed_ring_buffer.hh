@@ -110,6 +110,15 @@ public:
     num_popped_ += num_elems;
   }
 
+  void pop_before( const size_t index )
+  {
+    if ( index <= range_begin() ) {
+      return;
+    }
+
+    pop( index - range_begin() );
+  }
+
   size_t range_begin() const { return num_popped_; }
   size_t range_end() const { return range_begin() + TypedRingStorage<T>::capacity(); }
 

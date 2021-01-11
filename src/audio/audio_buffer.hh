@@ -23,6 +23,12 @@ public:
     ch2_.pop( num_samples );
   }
 
+  void pop_before( const size_t index )
+  {
+    ch1_.pop_before( index );
+    ch2_.pop_before( index );
+  }
+
   std::pair<float, float> safe_get( const size_t index ) const
   {
     return { ch1_.safe_get( index ), ch2_.safe_get( index ) };

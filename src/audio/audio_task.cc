@@ -33,7 +33,7 @@ void AudioDeviceTask::install_rules( EventLoop& loop )
 void AudioDeviceTask::service_device()
 {
   device_.loopback( capture_, playback_ );
-  playback_.pop( device_.cursor() - playback_.range_begin() );
+  playback_.pop_before( device_.cursor() );
 }
 
 void AudioDeviceTask::summary( ostream& out ) const

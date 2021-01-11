@@ -117,7 +117,7 @@ NetworkSingleServer::NetworkSingleServer( EventLoop& loop, const Base64Key& send
         }
 
         /* pop used decoded audio */
-        decoded_audio_.pop( server_mix_cursor() - decoded_audio_.range_begin() );
+        decoded_audio_.pop_before( server_mix_cursor() );
 
         /* encode audio */
         while ( encoder_.min_encode_cursor() + opus_frame::NUM_SAMPLES <= client_mix_cursor() ) {
@@ -130,11 +130,10 @@ NetworkSingleServer::NetworkSingleServer( EventLoop& loop, const Base64Key& send
         }
 
         /* pop used mixed audio */
-        mixed_audio_.pop( encoder_.min_encode_cursor() - mixed_audio_.range_begin() );
+        mixed_audio_.pop_before( encoder_.min_encode_cursor() );
       } else {
         /* pop ignored decoded audio */
-        decoded_audio_.pop( ( next_cursor_sample_ / opus_frame::NUM_SAMPLES ) * opus_frame::NUM_SAMPLES
-                            - decoded_audio_.range_begin() );
+        decoded_audio_.pop_before( ( next_cursor_sample_ / opus_frame::NUM_SAMPLES ) * opus_frame::NUM_SAMPLES );
       }
 
       next_cursor_sample_ += opus_frame::NUM_SAMPLES;

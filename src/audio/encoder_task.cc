@@ -34,7 +34,7 @@ void EncoderTask<AudioSource>::pop_from_source()
 {
   const auto encode_cursor = min_encode_cursor();
   if ( encode_cursor > source_->capture().range_begin() ) {
-    source_->capture().pop( encode_cursor - source_->capture().range_begin() );
+    source_->capture().pop_before( encode_cursor );
   }
 }
 

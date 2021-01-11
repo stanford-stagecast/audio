@@ -93,16 +93,15 @@ void Client::mix_and_encode( const vector<Client>& clients, const uint64_t curso
   }
 
   /* pop used mixed audio */
-  mixed_audio.pop( encoder.min_encode_cursor() - mixed_audio.range_begin() );
+  mixed_audio.pop_before( encoder.min_encode_cursor() );
 }
 
 void Client::pop_decoded_audio( const uint64_t cursor_sample )
 {
   if ( outbound_frame_offset_.has_value() ) {
-    decoded_audio.pop( server_mix_cursor() - decoded_audio.range_begin() );
+    decoded_audio.pop_before( server_mix_cursor() );
   } else {
-    decoded_audio.pop( ( cursor_sample / opus_frame::NUM_SAMPLES ) * opus_frame::NUM_SAMPLES
-                       - decoded_audio.range_begin() );
+    decoded_audio.pop_before( ( cursor_sample / opus_frame::NUM_SAMPLES ) * opus_frame::NUM_SAMPLES );
   }
 }
 
