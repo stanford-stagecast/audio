@@ -25,7 +25,7 @@ void program_body( const string& host,
 
   /* Audio task gets first priority in EventLoop */
   const auto [name, interface_name] = ALSADevices::find_device( "UAC-2, USB Audio" );
-  const auto device_claim = AudioDeviceClaim::try_claim( name );
+  //  const auto device_claim = AudioDeviceClaim::try_claim( name );
   auto uac2 = make_shared<AudioDeviceTask>( interface_name, *loop );
 
   /* Opus encoder task registers itself in EventLoop */

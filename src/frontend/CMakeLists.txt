@@ -2,7 +2,7 @@ add_library (stats STATIC "stats_printer.cc")
 
 add_executable (stagecast-client "stagecast-client.cc")
 target_link_libraries ("stagecast-client" stats)
-target_link_libraries ("stagecast-client" dbus)
+#target_link_libraries ("stagecast-client" dbus)
 target_link_libraries ("stagecast-client" playback)
 target_link_libraries ("stagecast-client" network)
 target_link_libraries ("stagecast-client" audio)

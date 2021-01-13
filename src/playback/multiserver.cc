@@ -61,7 +61,7 @@ NetworkMultiServer::NetworkMultiServer( EventLoop& loop )
       if ( channel_i / 2 == i ) {
         client.gains[channel_i] = { 0.0, 0.0 };
       } else {
-        client.gains[channel_i] = { 1.0, 1.0 };
+        client.gains[channel_i] = { 2.0, 2.0 };
       }
     }
   }
