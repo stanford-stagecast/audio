@@ -21,6 +21,7 @@ NetworkMultiServer::NetworkMultiServer( EventLoop& loop )
 
   /* XXX create some clients */
   clients_.emplace_back( 1, socket_.local_address().port() );
+  clients_.emplace_back( 2, socket_.local_address().port() );
 
   loop.add_rule( "network receive", socket_, Direction::In, [&] {
     Address src { nullptr, 0 };
