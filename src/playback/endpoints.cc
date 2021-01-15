@@ -15,7 +15,7 @@ NetworkClient::NetworkClient( const uint8_t node_id,
   , source_( source )
   , dest_( dest )
   , peer_clock_( dest_->cursor() )
-  , cursor_( 600, true )
+  , cursor_( 720, false )
   , next_cursor_sample_( dest_->cursor() + opus_frame::NUM_SAMPLES )
 {
   socket_.set_blocking( false );
@@ -68,7 +68,7 @@ NetworkSingleServer::NetworkSingleServer( EventLoop& loop, const Base64Key& send
   , global_ns_timestamp_at_creation_( Timer::timestamp_ns() )
   , next_cursor_sample_( server_clock() + opus_frame::NUM_SAMPLES )
   , peer_clock_( server_clock() )
-  , cursor_( 600, true )
+  , cursor_( 720, false )
   , encoder_( 128000, 48000 )
 {
   socket_.set_blocking( false );
