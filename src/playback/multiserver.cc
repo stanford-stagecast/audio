@@ -31,7 +31,7 @@ NetworkMultiServer::Client::Client( const uint8_t node_id,
                                     const Base64Key& receive_key )
   : connection( 0, node_id, send_key, receive_key )
   , clock( 0 )
-  , cursor( 600, true )
+  , cursor( 960, false )
   , encoder( 128000, 48000 )
 {
   cerr << "Client " << int( node_id ) << " " << server_port << " " << receive_key.printable_key().as_string_view()

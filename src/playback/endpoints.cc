@@ -15,7 +15,7 @@ NetworkClient::NetworkClient( const uint8_t node_id,
   , source_( source )
   , dest_( dest )
   , peer_clock_( dest_->cursor() )
-  , cursor_( 600, true )
+  , cursor_( 960, false )
   , next_cursor_sample_( dest_->cursor() + opus_frame::NUM_SAMPLES )
 {
   socket_.set_blocking( false );

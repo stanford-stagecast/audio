@@ -16,7 +16,7 @@ class NetworkMultiServer : public Summarizable
 
   uint64_t server_clock() const;
 
-  static constexpr uint8_t MAX_CLIENTS = 8;
+  static constexpr uint8_t MAX_CLIENTS = 12;
 
   struct Client
   {
@@ -32,7 +32,7 @@ class NetworkMultiServer : public Summarizable
     uint64_t server_mix_cursor() const;
     uint64_t client_mix_cursor() const;
 
-    OpusEncoderProcess encoder { 128000, 48000 };
+    OpusEncoderProcess encoder { 96000, 48000 };
 
     using mix_gain = std::pair<float, float>;
     std::array<mix_gain, 2 * MAX_CLIENTS> gains {};
