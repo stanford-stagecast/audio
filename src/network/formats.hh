@@ -97,6 +97,14 @@ struct NetArray
     elements[length] = element;
     length++;
   }
+
+  NetArray() {}
+  NetArray( const span_view<T> src )
+  {
+    for ( const auto& elem : src ) {
+      push_back( elem );
+    }
+  }
 };
 
 struct Packet

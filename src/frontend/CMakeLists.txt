@@ -65,3 +65,9 @@ target_link_libraries ("stagecast-server" ${ALSA_LIBRARIES})
 
 target_link_libraries ("stagecast-server" ${Opus_LDFLAGS_OTHER})
 target_link_libraries ("stagecast-server" ${Opus_LIBRARIES})
+
+add_executable (make-key "make-key.cc")
+target_link_libraries ("make-key" server)
+target_link_libraries ("make-key" network)
+target_link_libraries ("make-key" crypto)
+target_link_libraries ("make-key" util)
