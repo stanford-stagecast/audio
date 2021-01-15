@@ -114,13 +114,15 @@ void UDPSocket::recv( Address& source_address, string_span& payload, const size_
   const ssize_t recv_len = CheckSystemCall(
     "recvfrom", ::recvfrom( fd_num(), payload.mutable_data(), mtu, MSG_TRUNC, datagram_source_address, &fromlen ) );
 
-  if ( recv_len > ssize_t( mtu ) ) {
-    throw runtime_error( "recvfrom (oversized datagram)" );
-  }
-
   register_read();
   source_address = { datagram_source_address, fromlen };
-  payload = payload.substr( 0, recv_len );
+
+  if ( recv_len > ssize_t( mtu ) ) {
+    //    throw runtime_error( "recvfrom (oversized datagram)" );
+    payload = payload.substr( 0, 0 );
+  } else {
+    payload = payload.substr( 0, recv_len );
+  }
 }
 
 void UDPSocket::sendto( const Address& destination, const string_view payload )

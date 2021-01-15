@@ -2,9 +2,10 @@
 
 #include <cstdint>
 
+#include "base64.hh"
+#include "crypto.hh"
 #include "opus.hh"
 #include "parser.hh"
-#include "spans.hh"
 
 struct AudioFrame
 {
@@ -173,4 +174,17 @@ struct Packet
 
   Packet() {}
   Packet( Parser& p ) { parse( p ); }
+};
+
+struct KeyMessage
+{
+  static constexpr char keyreq_id = uint8_t( 254 );
+  static constexpr char keyreq_server_id = uint8_t( 255 );
+
+  NetInteger<uint8_t> id {};
+  KeyPair key_pair {};
+
+  constexpr uint32_t serialized_length() const { return id.serialized_length() + key_pair.serialized_length(); }
+  void serialize( Serializer& s ) const;
+  void parse( Parser& p );
 };

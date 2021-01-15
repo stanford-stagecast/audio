@@ -47,8 +47,11 @@ using Ciphertext = TextBuffer<1456 + 16 + 8 + 8>; /* + tag + nonce + AD */
 
 class CryptoSession
 {
+  bool randomize_nonce_ {};
   uint64_t nonce_val_;
   uint64_t blocks_encrypted_ {};
+
+  void set_random_nonce();
 
   struct ae_deleter
   {
@@ -60,9 +63,10 @@ class CryptoSession
 public:
   static constexpr uint8_t TAG_LEN = 16;
 
-  CryptoSession( const Base64Key& encrypt_key, const Base64Key& decrypt_key );
+  CryptoSession( const Base64Key& encrypt_key, const Base64Key& decrypt_key, const bool randomize_nonce = false );
 
   void encrypt( const std::string_view associated_data, const Plaintext& plaintext, Ciphertext& ciphertext );
+
   bool decrypt( const Ciphertext& ciphertext,
                 const std::string_view expected_associated_data,
                 Plaintext& plaintext ) const;

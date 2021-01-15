@@ -39,6 +39,7 @@ class NetworkSender
 
   void assume_departed( const PacketSentRecord& pack, const bool is_loss );
 
+public:
   struct Statistics
   {
     static constexpr float SRTT_ALPHA = 1 / 100.0;
@@ -50,7 +51,12 @@ class NetworkSender
     float smoothed_rtt {};
 
     unsigned int packet_losses() const { return packet_losses_detected - packet_loss_false_positives; }
-  } stats_ {};
+
+    uint64_t last_good_ack_ts = Timer::timestamp_ns();
+  };
+
+private:
+  Statistics stats_ {};
 
 public:
   void push_frame( OpusEncoderProcess& encoder );
@@ -59,4 +65,6 @@ public:
   void receive_receiver_section( const Packet::ReceiverSection& receiver_section );
 
   void summary( std::ostream& out ) const;
+
+  const Statistics& stats() const { return stats_; }
 };

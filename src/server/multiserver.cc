@@ -11,19 +11,23 @@ uint64_t NetworkMultiServer::server_clock() const
   return ( Timer::timestamp_ns() - global_ns_timestamp_at_creation_ ) * 48 / 1000000;
 }
 
-void NetworkMultiServer::add_client()
+void NetworkMultiServer::receive_keyrequest( const Address& src, const Ciphertext& ciphertext )
 {
-  const size_t index = clients_.get_index();
-  if ( index >= numeric_limits<uint8_t>::max() ) {
-    throw runtime_error( "too many clients" );
+  /* decrypt */
+  Plaintext plaintext;
+  for ( auto& client : clients_ ) {
+    if ( client.try_keyrequest( src, ciphertext, socket_ ) ) {
+      return;
+    }
   }
-  clients_.insert( index, Client( index + 1, socket_.local_address().port() ) );
+  stats_.bad_packets++;
 }
 
 void NetworkMultiServer::add_key( const LongLivedKey& key )
 {
-  keys_.push_back( key );
-  cerr << "Added key for: " << key.name() << "\n";
+  const uint8_t next_id = clients_.size() + 1;
+  clients_.emplace_back( next_id, key );
+  cerr << "Added key #" << int( next_id ) << " for: " << key.name() << "\n";
 }
 
 NetworkMultiServer::NetworkMultiServer( EventLoop& loop )
@@ -32,22 +36,20 @@ NetworkMultiServer::NetworkMultiServer( EventLoop& loop )
   , next_cursor_sample_( server_clock() + opus_frame::NUM_SAMPLES )
 {
   socket_.set_blocking( false );
-  socket_.bind( { "0", 0 } );
-
-  /* XXX create some clients */
-  add_client();
-  add_client();
-  add_client();
-  add_client();
+  socket_.bind( { "0", 9101 } );
 
   loop.add_rule( "network receive", socket_, Direction::In, [&] {
     Address src { nullptr, 0 };
     Ciphertext ciphertext;
     socket_.recv( src, ciphertext.data );
-    if ( ciphertext.size() > 20 ) {
+    if ( ciphertext.size() > 24 ) {
       const uint8_t node_id = ciphertext.data.back();
-      if ( node_id > 0 and clients_.has_value( node_id - 1 ) ) {
+      if ( node_id == uint8_t( KeyMessage::keyreq_id ) ) {
+        receive_keyrequest( src, ciphertext );
+      } else if ( node_id > 0 and node_id <= clients_.size() ) {
         clients_.at( node_id - 1 ).receive_packet( src, ciphertext, server_clock() );
+      } else {
+        stats_.bad_packets++;
       }
     } else {
       stats_.bad_packets++;
@@ -57,26 +59,32 @@ NetworkMultiServer::NetworkMultiServer( EventLoop& loop )
   loop.add_rule(
     "mix+encode+send",
     [&] {
+      const uint64_t ts_now = Timer::timestamp_ns();
       const auto clock_sample = server_clock();
 
       /* decode all audio */
       for ( auto& client : clients_ ) {
-        client.decode_audio( clock_sample, next_cursor_sample_ );
+        if ( client ) {
+          client.client().decode_audio( clock_sample, next_cursor_sample_ );
+          if ( client.client().connection().sender_stats().last_good_ack_ts + CLIENT_TIMEOUT_NS < ts_now ) {
+            client.clear_current_session();
+          }
+        }
       }
 
       /* mix all audio */
       for ( auto& client : clients_ ) {
-        client.mix_and_encode( clients_, next_cursor_sample_ );
+        if ( client ) {
+          client.client().mix_and_encode( clients_, next_cursor_sample_ );
+        }
       }
 
       /* send audio to clients */
       for ( auto& client : clients_ ) {
-        client.send_packet( socket_ );
-      }
-
-      /* pop used decoded audio */
-      for ( auto& client : clients_ ) {
-        client.pop_decoded_audio( next_cursor_sample_ );
+        if ( client ) {
+          client.client().send_packet( socket_ );
+          client.client().pop_decoded_audio( next_cursor_sample_ );
+        }
       }
 
       next_cursor_sample_ += opus_frame::NUM_SAMPLES;
@@ -88,7 +96,9 @@ void NetworkMultiServer::summary( ostream& out ) const
 {
   out << "bad packets: " << stats_.bad_packets << "\n";
   for ( const auto& client : clients_ ) {
-    out << "#" << int( client.peer_id() ) << ": ";
-    client.summary( out );
+    if ( client ) {
+      out << "#" << int( client.client().peer_id() ) << ": ";
+      client.summary( out );
+    }
   }
 }

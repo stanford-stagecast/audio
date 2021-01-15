@@ -157,3 +157,15 @@ Base64Key::Base64Key( const string_view printable_key )
     throw runtime_error( "Base64Key was not encoded from a 128-bit key" );
   }
 }
+
+void Base64Key::serialize( Serializer& s ) const
+{
+  std::string_view key_view { reinterpret_cast<const char*>( key_.data() ), KEY_LEN };
+  s.string( key_view );
+}
+
+void Base64Key::parse( Parser& p )
+{
+  string_span keybuf_span { reinterpret_cast<const char*>( key_.data() ), KEY_LEN };
+  p.string( keybuf_span );
+}

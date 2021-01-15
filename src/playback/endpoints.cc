@@ -2,171 +2,162 @@
 #include "timestamp.hh"
 
 using namespace std;
+using namespace std::chrono;
 
-NetworkClient::NetworkClient( const uint8_t node_id,
-                              const Address& server,
-                              const Base64Key& send_key,
-                              const Base64Key& receive_key,
+NetworkClient::NetworkSession::NetworkSession( const uint8_t node_id,
+                                               const KeyPair& session_key,
+                                               const Address& destination,
+                                               const size_t audio_cursor )
+  : connection( node_id, 0, CryptoSession( session_key.uplink, session_key.downlink ), destination )
+  , peer_clock( audio_cursor )
+  , cursor( 720, false )
+{}
+
+void NetworkClient::NetworkSession::transmit_frame( OpusEncoderProcess& source, UDPSocket& socket )
+{
+  connection.push_frame( source );
+  connection.send_packet( socket );
+}
+
+void NetworkClient::NetworkSession::network_receive( const Ciphertext& ciphertext, const size_t audio_cursor )
+{
+  connection.receive_packet( ciphertext );
+  peer_clock.new_sample( audio_cursor, connection.unreceived_beyond_this_frame_index() * opus_frame::NUM_SAMPLES );
+}
+
+void NetworkClient::NetworkSession::decode( const size_t audio_cursor,
+                                            const size_t decode_cursor,
+                                            AudioBuffer& output )
+{
+  peer_clock.time_passes( audio_cursor );
+
+  /* decode server's Opus frames to playback buffer */
+  cursor.sample( connection.frames(), decode_cursor, peer_clock.value(), peer_clock.jitter(), output );
+
+  /* pop used Opus frames from server */
+  connection.pop_frames( min( cursor.ok_to_pop( connection.frames() ),
+                              connection.next_frame_needed() - connection.frames().range_begin() ) );
+}
+
+void NetworkClient::NetworkSession::summary( std::ostream& out ) const
+{
+  peer_clock.summary( out );
+  cursor.summary( out );
+  connection.summary( out );
+}
+
+void NetworkClient::process_keyreply( const Ciphertext& ciphertext )
+{
+  /* decrypt */
+  Plaintext plaintext;
+  if ( long_lived_crypto_.decrypt( ciphertext, { &KeyMessage::keyreq_server_id, 1 }, plaintext ) ) {
+    Parser p { plaintext };
+    KeyMessage keys;
+    p.object( keys );
+    if ( p.error() ) {
+      stats_.bad_packets++;
+      p.clear_error();
+      return;
+    }
+    session_.emplace( keys.id, keys.key_pair, server_, dest_->cursor() );
+    stats_.new_sessions++;
+  } else {
+    stats_.bad_packets++;
+  }
+}
+
+NetworkClient::NetworkClient( const Address& server,
+                              const LongLivedKey& key,
                               shared_ptr<OpusEncoderProcess> source,
                               shared_ptr<AudioDeviceTask> dest,
                               EventLoop& loop )
-  : NetworkConnection( node_id, 0, send_key, receive_key, server )
-  , socket_()
+  : server_( server )
+  , name_( key.name() )
+  , long_lived_crypto_( key.key_pair().uplink, key.key_pair().downlink, true )
   , source_( source )
   , dest_( dest )
-  , peer_clock_( dest_->cursor() )
-  , cursor_( 720, false )
-  , next_cursor_sample_( dest_->cursor() + opus_frame::NUM_SAMPLES )
+  , next_key_request_( steady_clock::now() )
 {
   socket_.set_blocking( false );
 
   loop.add_rule(
     "network transmit",
-    [&] {
-      push_frame( *source_ );
-      send_packet( socket_ );
-    },
-    [&] { return source_->has_frame(); } );
+    [&] { session_->transmit_frame( *source_, socket_ ); },
+    [&] { return source_->has_frame() and session_.has_value(); } );
+
+  loop.add_rule(
+    "discard audio",
+    [&] { source_->pop_frame(); },
+    [&] { return source_->has_frame() and not session_.has_value(); } );
 
   loop.add_rule( "network receive", socket_, Direction::In, [&] {
     Address src { nullptr, 0 };
     Ciphertext ciphertext;
     socket_.recv( src, ciphertext.data );
-    receive_packet( src, ciphertext );
-    peer_clock_.new_sample( dest_->cursor(), unreceived_beyond_this_frame_index() * opus_frame::NUM_SAMPLES );
+    if ( ciphertext.size() > 24 ) {
+      const uint8_t node_id = ciphertext.data.back();
+      switch ( node_id ) {
+        case uint8_t( KeyMessage::keyreq_server_id ):
+          if ( not session_.has_value() ) {
+            process_keyreply( ciphertext );
+          }
+          break;
+        case 0:
+          if ( session_.has_value() ) {
+            session_->network_receive( ciphertext, dest_->cursor() );
+          }
+          break;
+        default:
+          stats_.bad_packets++;
+          break;
+      }
+    } else {
+      stats_.bad_packets++;
+    }
   } );
 
   loop.add_rule(
     "decode",
     [&] {
-      peer_clock_.time_passes( dest_->cursor() );
+      session_->decode( dest_->cursor(), decode_cursor_, dest_->playback() );
+      decode_cursor_ += opus_frame::NUM_SAMPLES;
 
-      /* decode server's Opus frames to playback buffer */
-      cursor_.sample( frames(), next_cursor_sample_, peer_clock_.value(), peer_clock_.jitter(), dest_->playback() );
-
-      /* pop used Opus frames from server */
-      pop_frames( min( cursor_.ok_to_pop( frames() ), next_frame_needed() - frames().range_begin() ) );
-
-      next_cursor_sample_ += opus_frame::NUM_SAMPLES;
+      if ( session_->connection.sender_stats().last_good_ack_ts + 4'000'000'000 < Timer::timestamp_ns() ) {
+        stats_.timeouts++;
+        session_.reset();
+      }
     },
-    [&] { return dest_->cursor() + opus_frame::NUM_SAMPLES + 60 >= next_cursor_sample_; } );
-}
-
-uint64_t NetworkSingleServer::client_mix_cursor() const
-{
-  return mix_cursor_;
-}
-
-uint64_t NetworkSingleServer::server_mix_cursor() const
-{
-  return mix_cursor_ + outbound_frame_offset_.value() * opus_frame::NUM_SAMPLES;
-}
-
-NetworkSingleServer::NetworkSingleServer( EventLoop& loop, const Base64Key& send_key, const Base64Key& receive_key )
-  : NetworkConnection( 0, 1, send_key, receive_key )
-  , socket_()
-  , global_ns_timestamp_at_creation_( Timer::timestamp_ns() )
-  , next_cursor_sample_( server_clock() + opus_frame::NUM_SAMPLES )
-  , peer_clock_( server_clock() )
-  , cursor_( 720, false )
-  , encoder_( 128000, 48000 )
-{
-  socket_.set_blocking( false );
-  socket_.bind( { "0", 0 } );
-  cerr << "Port " << socket_.local_address().port() << " " << receive_key.printable_key().as_string_view() << " "
-       << send_key.printable_key().as_string_view() << endl;
-
-  loop.add_rule( "network receive", socket_, Direction::In, [&] {
-    Address src { nullptr, 0 };
-    Ciphertext ciphertext;
-    socket_.recv( src, ciphertext.data );
-    receive_packet( src, ciphertext );
-
-    const auto clock_sample = server_clock();
-    peer_clock_.new_sample( clock_sample, unreceived_beyond_this_frame_index() * opus_frame::NUM_SAMPLES );
-    if ( ( not outbound_frame_offset_.has_value() ) and has_destination() ) {
-      outbound_frame_offset_ = clock_sample / opus_frame::NUM_SAMPLES;
-    }
-  } );
+    [&] { return session_.has_value() and ( dest_->cursor() + opus_frame::NUM_SAMPLES + 60 >= decode_cursor_ ); } );
 
   loop.add_rule(
-    "mix+encode+send",
+    "play silence",
+    [&] { decode_cursor_ += opus_frame::NUM_SAMPLES; },
     [&] {
-      peer_clock_.time_passes( server_clock() );
+      return ( !session_.has_value() ) and ( dest_->cursor() + opus_frame::NUM_SAMPLES + 60 >= decode_cursor_ );
+    } );
 
-      /* decode client's Opus frames to output buffer */
-      cursor_.sample( frames(), next_cursor_sample_, peer_clock_.value(), peer_clock_.jitter(), decoded_audio_ );
-
-      /* pop used Opus frames from client */
-      pop_frames( min( cursor_.ok_to_pop( frames() ), next_frame_needed() - frames().range_begin() ) );
-
-      if ( outbound_frame_offset_.has_value() ) {
-        /* mix audio */
-        while ( server_mix_cursor() + opus_frame::NUM_SAMPLES <= next_cursor_sample_ ) {
-          span<float> ch1 = mixed_audio_.ch1().region( client_mix_cursor(), opus_frame::NUM_SAMPLES );
-          span<float> ch2 = mixed_audio_.ch2().region( client_mix_cursor(), opus_frame::NUM_SAMPLES );
-
-          fill( ch1.begin(), ch1.end(), 0.0 ); /* leave left channel silent */
-
-          /* copy left channel to right */
-          for ( unsigned int i = 0; i < opus_frame::NUM_SAMPLES; i++ ) {
-            ch2.at( i ) = decoded_audio_.ch1().at( server_mix_cursor() + i );
-          }
-
-          mix_cursor_ += opus_frame::NUM_SAMPLES;
-        }
-
-        /* pop used decoded audio */
-        decoded_audio_.pop_before( server_mix_cursor() );
-
-        /* encode audio */
-        while ( encoder_.min_encode_cursor() + opus_frame::NUM_SAMPLES <= client_mix_cursor() ) {
-          /* encode */
-          encoder_.encode_one_frame( mixed_audio_.ch1(), mixed_audio_.ch2() );
-
-          /* transmit */
-          push_frame( encoder_ );
-          send_packet( socket_ );
-        }
-
-        /* pop used mixed audio */
-        mixed_audio_.pop_before( encoder_.min_encode_cursor() );
-      } else {
-        /* pop ignored decoded audio */
-        decoded_audio_.pop_before( ( next_cursor_sample_ / opus_frame::NUM_SAMPLES ) * opus_frame::NUM_SAMPLES );
-      }
-
-      next_cursor_sample_ += opus_frame::NUM_SAMPLES;
+  loop.add_rule(
+    "key request",
+    [&] {
+      next_key_request_ = steady_clock::now() + milliseconds( 250 );
+      Plaintext empty;
+      empty.resize( 0 );
+      Ciphertext keyreq;
+      long_lived_crypto_.encrypt( { &KeyMessage::keyreq_id, 1 }, empty, keyreq );
+      socket_.sendto( server_, keyreq );
+      stats_.key_requests++;
     },
-    [&] { return server_clock() >= next_cursor_sample_; } );
-}
-
-NetworkSingleServer::NetworkSingleServer( EventLoop& loop )
-  : NetworkSingleServer( loop, {}, {} )
-{}
-
-uint64_t NetworkSingleServer::server_clock() const
-{
-  return ( Timer::timestamp_ns() - global_ns_timestamp_at_creation_ ) * 48 / 1000000;
-}
-
-void NetworkSingleServer::summary( ostream& out ) const
-{
-  out << "Server clock: ";
-  pp_samples( out, server_clock() );
-  out << "\n";
-  out << "Peer: ";
-  peer_clock_.summary( out );
-  cursor_.summary( out );
-
-  NetworkConnection::summary( out );
+    [&] { return ( !session_.has_value() ) and ( next_key_request_ < steady_clock::now() ); } );
 }
 
 void NetworkClient::summary( ostream& out ) const
 {
-  out << "Peer: ";
-  peer_clock_.summary( out );
-  cursor_.summary( out );
-
-  NetworkConnection::summary( out );
+  out << "Peer [" << name_ << "]:";
+  out << " key_requests=" << stats_.key_requests;
+  out << " sessions=" << stats_.new_sessions;
+  out << " bad_packets=" << stats_.bad_packets;
+  out << " timeouts=" << stats_.timeouts << "\n";
+  if ( session_.has_value() ) {
+    session_->summary( out );
+  }
 }

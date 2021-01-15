@@ -1,6 +1,9 @@
 #include <iostream>
 
+#include <fcntl.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #include "exception.hh"
 #include "mmap.hh"
@@ -43,6 +46,11 @@ MMap_Region::MMap_Region( MMap_Region&& other ) noexcept
 ReadOnlyFile::ReadOnlyFile( FileDescriptor&& fd )
   : MMap_Region( nullptr, fd.size(), PROT_READ, MAP_SHARED, fd.fd_num() )
   , fd_( move( fd ) )
+{}
+
+ReadOnlyFile::ReadOnlyFile( const string& filename )
+  : ReadOnlyFile(
+    FileDescriptor { CheckSystemCall( "open \"" + filename + "\" )", open( filename.c_str(), O_RDONLY ) ) } )
 {}
 
 ReadWriteFile::ReadWriteFile( FileDescriptor&& fd )

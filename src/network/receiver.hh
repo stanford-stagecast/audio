@@ -34,11 +34,15 @@ class NetworkReceiver
   void discard_frames( const unsigned int num );
   void advance_next_frame_needed();
 
-  struct FrameStatistics
+public:
+  struct Statistics
   {
     unsigned int already_acked, redundant, dropped, popped;
     std::optional<uint64_t> last_new_frame_received;
-  } stats_ {};
+  };
+
+private:
+  Statistics stats_ {};
 
 public:
   void receive_sender_section( const Packet::SenderSection& sender_section );
@@ -53,4 +57,6 @@ public:
   void pop_frames( const size_t num );
 
   uint32_t biggest_seqno_received() const { return biggest_seqno_received_.value(); }
+
+  const Statistics& stats() const { return stats_; }
 };

@@ -40,6 +40,7 @@ class ReadOnlyFile : public MMap_Region
 
 public:
   ReadOnlyFile( FileDescriptor&& fd );
+  ReadOnlyFile( const std::string& filename );
 };
 
 class ReadWriteFile : public MMap_Region

@@ -27,12 +27,20 @@ static ae_ctx* make_context( const Base64Key& key )
   return context;
 }
 
-CryptoSession::CryptoSession( const Base64Key& encrypt_key, const Base64Key& decrypt_key )
-  : nonce_val_()
+void CryptoSession::set_random_nonce()
+{
+  CheckSystemCall( "getentropy", getentropy( &nonce_val_, sizeof( nonce_val_ ) ) ); /* start with random nonce */
+}
+
+CryptoSession::CryptoSession( const Base64Key& encrypt_key,
+                              const Base64Key& decrypt_key,
+                              const bool randomize_nonce )
+  : randomize_nonce_( randomize_nonce )
+  , nonce_val_()
   , encrypt_context_( make_context( encrypt_key ) )
   , decrypt_context_( make_context( decrypt_key ) )
 {
-  CheckSystemCall( "getentropy", getentropy( &nonce_val_, sizeof( nonce_val_ ) ) ); /* start with random nonce */
+  set_random_nonce();
 }
 
 template<int max_len>
@@ -82,7 +90,14 @@ void CryptoSession::encrypt( const string_view associated_data, const Plaintext&
 {
   plaintext.validate();
 
-  Nonce nonce { nonce_val_++ };
+  if ( randomize_nonce_ ) {
+    set_random_nonce();
+  } else {
+    nonce_val_++;
+  }
+
+  Nonce nonce { nonce_val_ };
+
   const int ciphertext_len = plaintext.size() + TAG_LEN;
 
   ciphertext.resize( ciphertext_len + Nonce::SERIALIZED_LEN + associated_data.size() );

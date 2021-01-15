@@ -23,13 +23,10 @@ void program_body( const vector<string>& keyfiles )
   /* Network server registeres itself in EventLoop */
   auto server = make_shared<NetworkMultiServer>( *loop );
 
-  LongLivedKey k { {} };
   for ( const auto& filename : keyfiles ) {
-    ReadOnlyFile file { FileDescriptor {
-      CheckSystemCall( "open \"" + filename + "\" )", open( filename.c_str(), O_RDONLY ) ) } };
+    ReadOnlyFile file { filename };
     Parser p { file };
-    k.parse( p );
-    server->add_key( k );
+    server->add_key( LongLivedKey { p } );
   }
 
   /* Print out statistics to terminal */

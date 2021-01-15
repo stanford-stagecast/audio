@@ -7,23 +7,18 @@ using namespace std;
 
 NetworkConnection::NetworkConnection( const char node_id,
                                       const char peer_id,
-                                      const Base64Key& encrypt_key,
-                                      const Base64Key& decrypt_key,
+                                      CryptoSession&& crypto,
                                       const Address& destination )
-  : node_id_( node_id )
-  , peer_id_( peer_id )
-  , crypto_( encrypt_key, decrypt_key )
-  , auto_home_( false )
-  , destination_( destination )
-{}
+  : NetworkConnection( node_id, peer_id, move( crypto ) )
+{
+  auto_home_ = false;
+  destination_.emplace( destination );
+}
 
-NetworkConnection::NetworkConnection( const char node_id,
-                                      const char peer_id,
-                                      const Base64Key& encrypt_key,
-                                      const Base64Key& decrypt_key )
+NetworkConnection::NetworkConnection( const char node_id, const char peer_id, CryptoSession&& crypto )
   : node_id_( node_id )
   , peer_id_( peer_id )
-  , crypto_( encrypt_key, decrypt_key )
+  , crypto_( move( crypto ) )
   , auto_home_( true )
   , destination_()
 {}
@@ -52,7 +47,27 @@ void NetworkConnection::send_packet( UDPSocket& socket )
   socket.sendto( destination_.value(), ciphertext );
 }
 
-bool NetworkConnection::receive_packet( const Address& source, const Ciphertext& ciphertext )
+bool NetworkConnection::receive_packet( const Ciphertext& ciphertext, const Address& source )
+{
+  if ( not receive_packet( ciphertext ) ) {
+    return false;
+  }
+
+  /* rehome? */
+  if ( auto_home_ ) {
+    if ( not last_biggest_seqno_received_.has_value() ) {
+      destination_ = source;
+      last_biggest_seqno_received_ = receiver_.biggest_seqno_received();
+    } else if ( receiver_.biggest_seqno_received() > last_biggest_seqno_received_.value() ) {
+      destination_ = source;
+      last_biggest_seqno_received_ = receiver_.biggest_seqno_received();
+    }
+  }
+
+  return true;
+}
+
+bool NetworkConnection::receive_packet( const Ciphertext& ciphertext )
 {
   /* decrypt */
   Plaintext plaintext;
@@ -66,22 +81,13 @@ bool NetworkConnection::receive_packet( const Address& source, const Ciphertext&
   const Packet packet { parser };
   if ( parser.error() ) {
     stats_.invalid++;
+    parser.clear_error();
     return false;
   }
 
   /* act on packet contents */
   sender_.receive_receiver_section( packet.receiver_section );
   receiver_.receive_sender_section( packet.sender_section );
-
-  /* rehome? */
-  if ( auto_home_ ) {
-    if ( not last_biggest_seqno_received_.has_value() ) {
-      destination_ = source;
-    } else if ( receiver_.biggest_seqno_received() > last_biggest_seqno_received_.value() ) {
-      destination_ = source;
-      last_biggest_seqno_received_ = receiver_.biggest_seqno_received();
-    }
-  }
 
   return true;
 }

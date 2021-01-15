@@ -59,3 +59,15 @@ Packet::Record Packet::SenderSection::to_record() const
 
   return ret;
 }
+
+void KeyMessage::serialize( Serializer& s ) const
+{
+  s.object( id );
+  s.object( key_pair );
+}
+
+void KeyMessage::parse( Parser& p )
+{
+  p.object( id );
+  p.object( key_pair );
+}

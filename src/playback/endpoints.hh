@@ -1,61 +1,59 @@
 #pragma once
 
+#include <chrono>
+
 #include "clock.hh"
 #include "connection.hh"
-#include "crypto.hh"
 #include "cursor.hh"
 #include "encoder_task.hh"
-#include "wavwriter.hh"
+#include "keys.hh"
 
-class NetworkClient : public NetworkConnection
+class NetworkClient : public Summarizable
 {
-  UDPSocket socket_;
+  struct NetworkSession
+  {
+    NetworkConnection connection;
+    Clock peer_clock;
+    Cursor cursor;
+
+    NetworkSession( const uint8_t node_id,
+                    const KeyPair& session_key,
+                    const Address& destination,
+                    const size_t audio_cursor );
+
+    void transmit_frame( OpusEncoderProcess& source, UDPSocket& socket );
+    void network_receive( const Ciphertext& ciphertext, const size_t audio_cursor );
+    void decode( const size_t audio_cursor, const size_t decode_cursor, AudioBuffer& output );
+    void summary( std::ostream& out ) const;
+  };
+
+  UDPSocket socket_ {};
+  Address server_;
+
+  std::string name_;
+  CryptoSession long_lived_crypto_;
+
+  std::optional<NetworkSession> session_ {};
+
   std::shared_ptr<OpusEncoderProcess> source_;
+
   std::shared_ptr<AudioDeviceTask> dest_;
+  size_t decode_cursor_ {};
 
-  Clock peer_clock_;
-  Cursor cursor_;
+  void process_keyreply( const Ciphertext& ciphertext );
+  std::chrono::steady_clock::time_point next_key_request_;
 
-  uint64_t next_cursor_sample_;
+  struct Statistics
+  {
+    unsigned int key_requests, new_sessions, bad_packets, timeouts;
+  } stats_ {};
 
 public:
-  NetworkClient( const uint8_t node_id,
-                 const Address& server,
-                 const Base64Key& send_key,
-                 const Base64Key& receive_key,
+  NetworkClient( const Address& server,
+                 const LongLivedKey& key,
                  std::shared_ptr<OpusEncoderProcess> source,
                  std::shared_ptr<AudioDeviceTask> dest,
                  EventLoop& loop );
-
-  void summary( std::ostream& out ) const override;
-};
-
-class NetworkSingleServer : public NetworkConnection
-{
-  UDPSocket socket_;
-
-  uint64_t global_ns_timestamp_at_creation_;
-  uint64_t next_cursor_sample_;
-
-  Clock peer_clock_;
-  Cursor cursor_;
-
-  AudioBuffer decoded_audio_ { 8192 };
-  AudioBuffer mixed_audio_ { 8192 };
-  uint64_t mix_cursor_ {};
-
-  std::optional<uint32_t> outbound_frame_offset_ {};
-  OpusEncoderProcess encoder_;
-
-  uint64_t server_clock() const;
-
-  NetworkSingleServer( EventLoop& loop, const Base64Key& send_key, const Base64Key& receive_key );
-
-  uint64_t server_mix_cursor() const;
-  uint64_t client_mix_cursor() const;
-
-public:
-  NetworkSingleServer( EventLoop& loop );
 
   void summary( std::ostream& out ) const override;
 };

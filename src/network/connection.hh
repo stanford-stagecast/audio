@@ -32,16 +32,8 @@ class NetworkConnection : public Summarizable
   } stats_ {};
 
 public:
-  NetworkConnection( const char node_id,
-                     const char peer_id,
-                     const Base64Key& encrypt_key,
-                     const Base64Key& decrypt_key );
-
-  NetworkConnection( const char node_id,
-                     const char peer_id,
-                     const Base64Key& encrypt_key,
-                     const Base64Key& decrypt_key,
-                     const Address& destination );
+  NetworkConnection( const char node_id, const char peer_id, CryptoSession&& crypto );
+  NetworkConnection( const char node_id, const char peer_id, CryptoSession&& crypto, const Address& destination );
 
   bool has_destination() const { return destination_.has_value(); }
   const Address& destination() const { return destination_.value(); }
@@ -50,7 +42,8 @@ public:
   void summary( std::ostream& out ) const override;
 
   void send_packet( UDPSocket& socket );
-  bool receive_packet( const Address& source, const Ciphertext& plaintext );
+  bool receive_packet( const Ciphertext& ciphertext, const Address& source );
+  bool receive_packet( const Ciphertext& ciphertext );
 
   uint32_t next_frame_needed() const { return receiver_.next_frame_needed(); }
   uint32_t unreceived_beyond_this_frame_index() const { return receiver_.unreceived_beyond_this_frame_index(); }
@@ -59,4 +52,7 @@ public:
 
   uint8_t node_id() const { return node_id_; }
   uint8_t peer_id() const { return peer_id_; }
+
+  const NetworkSender::Statistics& sender_stats() const { return sender_.stats(); }
+  const NetworkReceiver::Statistics& receiver_stats() const { return receiver_.stats(); }
 };

@@ -8,7 +8,7 @@
 
 class LongLivedKey
 {
-  Base64Key encrypt_key_, decrypt_key_;
+  KeyPair key_pair_;
   NetString<32> name_;
 
 public:
@@ -20,4 +20,5 @@ public:
   void parse( Parser& p );
 
   const std::string& name() const { return name_; }
+  const KeyPair& key_pair() const { return key_pair_; }
 };

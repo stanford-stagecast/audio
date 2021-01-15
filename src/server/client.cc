@@ -1,6 +1,7 @@
 #include "client.hh"
 
 using namespace std;
+using namespace chrono;
 
 uint64_t Client::client_mix_cursor() const
 {
@@ -12,71 +13,67 @@ uint64_t Client::server_mix_cursor() const
   return mix_cursor_ + outbound_frame_offset_.value() * opus_frame::NUM_SAMPLES;
 }
 
-Client::Client( const uint8_t node_id, const uint16_t server_port )
-  : Client( node_id, server_port, {}, {} )
-{}
-
-Client::Client( const uint8_t node_id,
-                const uint16_t server_port,
-                const Base64Key& send_key,
-                const Base64Key& receive_key )
-  : connection( 0, node_id, send_key, receive_key )
-  , clock( 0 )
-  , cursor( 720, false )
-  , encoder( 128000, 48000 )
+Client::Client( const uint8_t node_id, CryptoSession&& crypto )
+  : connection_( 0, node_id, move( crypto ) )
+  , clock_( 0 )
+  , cursor_( 720, false )
+  , encoder_( 128000, 48000 )
 {
-  cerr << "Client " << int( node_id ) << " " << server_port << " " << receive_key.printable_key().as_string_view()
-       << " " << send_key.printable_key().as_string_view() << endl;
-
   /* XXX set default gains */
   for ( uint8_t channel_i = 0; channel_i < 2 * MAX_CLIENTS; channel_i++ ) {
-    gains.at( channel_i ) = { 1.0, 1.0 };
-  }
-}
-
-void Client::receive_packet( const Address& source, const Ciphertext& ciphertext, const uint64_t clock_sample )
-{
-  if ( connection.receive_packet( source, ciphertext ) ) {
-    clock.new_sample( clock_sample, connection.unreceived_beyond_this_frame_index() * opus_frame::NUM_SAMPLES );
-    if ( ( not outbound_frame_offset_.has_value() ) and connection.has_destination() ) {
-      outbound_frame_offset_ = clock_sample / opus_frame::NUM_SAMPLES;
+    gains_.at( channel_i ) = { 2.0, 2.0 };
+    if ( channel_i / 2 == node_id - 1 ) {
+      gains_.at( channel_i ) = { 0.0, 0.0 };
     }
   }
 }
 
-void Client::decode_audio( const uint64_t clock_sample, const uint64_t cursor_sample )
+bool Client::receive_packet( const Address& source, const Ciphertext& ciphertext, const uint64_t clock_sample )
 {
-  clock.time_passes( clock_sample );
-
-  cursor.sample( connection.frames(), cursor_sample, clock.value(), clock.jitter(), decoded_audio );
-
-  connection.pop_frames( min( cursor.ok_to_pop( connection.frames() ),
-                              connection.next_frame_needed() - connection.frames().range_begin() ) );
+  if ( connection_.receive_packet( ciphertext, source ) ) {
+    clock_.new_sample( clock_sample, connection_.unreceived_beyond_this_frame_index() * opus_frame::NUM_SAMPLES );
+    if ( ( not outbound_frame_offset_.has_value() ) and connection_.has_destination() ) {
+      outbound_frame_offset_ = clock_sample / opus_frame::NUM_SAMPLES;
+    }
+    return true;
+  }
+  return false;
 }
 
-void Client::mix_and_encode( const Set<Client>& clients, const uint64_t cursor_sample )
+void Client::decode_audio( const uint64_t clock_sample, const uint64_t cursor_sample )
+{
+  clock_.time_passes( clock_sample );
+
+  cursor_.sample( connection_.frames(), cursor_sample, clock_.value(), clock_.jitter(), decoded_audio_ );
+
+  connection_.pop_frames( min( cursor_.ok_to_pop( connection_.frames() ),
+                               connection_.next_frame_needed() - connection_.frames().range_begin() ) );
+}
+
+void Client::mix_and_encode( const vector<KnownClient>& clients, const uint64_t cursor_sample )
 {
   if ( not outbound_frame_offset_.has_value() ) {
     return;
   }
 
   while ( server_mix_cursor() + opus_frame::NUM_SAMPLES <= cursor_sample ) {
-    span<float> ch1 = mixed_audio.ch1().region( client_mix_cursor(), opus_frame::NUM_SAMPLES );
-    span<float> ch2 = mixed_audio.ch2().region( client_mix_cursor(), opus_frame::NUM_SAMPLES );
+    span<float> ch1 = mixed_audio_.ch1().region( client_mix_cursor(), opus_frame::NUM_SAMPLES );
+    span<float> ch2 = mixed_audio_.ch2().region( client_mix_cursor(), opus_frame::NUM_SAMPLES );
 
     // XXX need to scale gains with newly arriving clients
-    for ( uint8_t channel_i = 0; channel_i < 2 * MAX_CLIENTS; channel_i += 2 ) {
-      if ( clients.has_value( channel_i / 2 ) ) {
-        const Client& other_client = clients.at( channel_i / 2 );
+    for ( uint8_t channel_i = 0; channel_i < min( size_t( 2 * MAX_CLIENTS ), clients.size() * 2 );
+          channel_i += 2 ) {
+      if ( clients.at( channel_i / 2 ) ) {
+        const Client& other_client = clients.at( channel_i / 2 ).client();
         const span_view<float> other_ch1
-          = other_client.decoded_audio.ch1().region( server_mix_cursor(), opus_frame::NUM_SAMPLES );
+          = other_client.decoded_audio_.ch1().region( server_mix_cursor(), opus_frame::NUM_SAMPLES );
         const span_view<float> other_ch2
-          = other_client.decoded_audio.ch2().region( server_mix_cursor(), opus_frame::NUM_SAMPLES );
+          = other_client.decoded_audio_.ch2().region( server_mix_cursor(), opus_frame::NUM_SAMPLES );
 
-        const float gain1into1 = gains[channel_i].first;
-        const float gain1into2 = gains[channel_i].second;
-        const float gain2into1 = gains[channel_i + 1].first;
-        const float gain2into2 = gains[channel_i + 1].second;
+        const float gain1into1 = gains_[channel_i].first;
+        const float gain1into2 = gains_[channel_i].second;
+        const float gain2into1 = gains_[channel_i + 1].first;
+        const float gain2into2 = gains_[channel_i + 1].second;
 
         for ( size_t sample_i = 0; sample_i < opus_frame::NUM_SAMPLES; sample_i++ ) {
           ch1[sample_i] += gain1into1 * other_ch1[sample_i] + gain2into1 * other_ch2[sample_i];
@@ -89,37 +86,103 @@ void Client::mix_and_encode( const Set<Client>& clients, const uint64_t cursor_s
   }
 
   /* encode audio */
-  while ( encoder.min_encode_cursor() + opus_frame::NUM_SAMPLES <= client_mix_cursor() ) {
-    encoder.encode_one_frame( mixed_audio.ch1(), mixed_audio.ch2() );
-    connection.push_frame( encoder );
+  while ( encoder_.min_encode_cursor() + opus_frame::NUM_SAMPLES <= client_mix_cursor() ) {
+    encoder_.encode_one_frame( mixed_audio_.ch1(), mixed_audio_.ch2() );
+    connection_.push_frame( encoder_ );
   }
 
   /* pop used mixed audio */
-  mixed_audio.pop_before( encoder.min_encode_cursor() );
+  mixed_audio_.pop_before( encoder_.min_encode_cursor() );
 }
 
 void Client::pop_decoded_audio( const uint64_t cursor_sample )
 {
   if ( outbound_frame_offset_.has_value() ) {
-    decoded_audio.pop_before( server_mix_cursor() );
+    decoded_audio_.pop_before( server_mix_cursor() );
   } else {
-    decoded_audio.pop_before( ( cursor_sample / opus_frame::NUM_SAMPLES ) * opus_frame::NUM_SAMPLES );
+    decoded_audio_.pop_before( ( cursor_sample / opus_frame::NUM_SAMPLES ) * opus_frame::NUM_SAMPLES );
   }
 }
 
 void Client::send_packet( UDPSocket& socket )
 {
-  if ( connection.has_destination() ) {
-    connection.send_packet( socket );
+  if ( connection_.has_destination() ) {
+    connection_.send_packet( socket );
   }
 }
 
 void Client::summary( ostream& out ) const
 {
-  if ( connection.has_destination() ) {
-    out << " (" << connection.destination().to_string() << ") ";
+  if ( connection_.has_destination() ) {
+    out << " (" << connection_.destination().to_string() << ") ";
   }
-  clock.summary( out );
-  cursor.summary( out );
-  connection.summary( out );
+  clock_.summary( out );
+  cursor_.summary( out );
+  connection_.summary( out );
+}
+
+void KnownClient::summary( ostream& out ) const
+{
+  out << name_ << ":";
+  out << " requests=" << stats_.key_requests;
+  out << " responses=" << stats_.key_responses;
+  out << " new_sessions=" << stats_.new_sessions;
+  if ( current_session_.has_value() ) {
+    current_session_->summary( out );
+  }
+}
+
+bool KnownClient::try_keyrequest( const Address& src, const Ciphertext& ciphertext, UDPSocket& socket )
+{
+  Plaintext plaintext;
+  if ( long_lived_crypto_.decrypt( ciphertext, { &KeyMessage::keyreq_id, 1 }, plaintext )
+       and ( plaintext.size() == 0 ) ) {
+    stats_.key_requests++;
+    if ( steady_clock::now() < next_reply_allowed_ ) {
+      return true;
+    }
+
+    /* reply with keys to next session */
+    Plaintext outgoing_keys;
+    {
+      Serializer s { outgoing_keys };
+      s.object( KeyMessage { id_, next_keys_ } );
+      outgoing_keys.resize( s.bytes_written() );
+    }
+    Ciphertext outgoing_ciphertext;
+    long_lived_crypto_.encrypt( { &KeyMessage::keyreq_server_id, 1 }, outgoing_keys, outgoing_ciphertext );
+    socket.sendto( src, outgoing_ciphertext );
+    next_reply_allowed_ = steady_clock::now() + milliseconds( 250 );
+
+    stats_.key_responses++;
+    return true;
+  }
+  return false;
+}
+
+KnownClient::KnownClient( const uint8_t node_id, const LongLivedKey& key )
+  : id_( node_id )
+  , name_( key.name() )
+  , long_lived_crypto_( key.key_pair().downlink, key.key_pair().uplink, true )
+  , next_reply_allowed_( steady_clock::now() )
+  , next_session_( CryptoSession { next_keys_.downlink, next_keys_.uplink } )
+{}
+
+void KnownClient::receive_packet( const Address& src, const Ciphertext& ciphertext, const uint64_t clock_sample )
+{
+  if ( current_session_.has_value() and current_session_->receive_packet( src, ciphertext, clock_sample ) ) {
+    return;
+  }
+
+  Plaintext throwaway_plaintext;
+  if ( next_session_.value().decrypt( ciphertext, { &id_, 1 }, throwaway_plaintext ) ) {
+    /* new session established */
+    current_session_.emplace( id_, move( next_session_.value() ) );
+    next_keys_ = KeyPair {};
+    next_session_.emplace( next_keys_.downlink, next_keys_.uplink );
+    stats_.new_sessions++;
+
+    /* actually use packet */
+    current_session_->receive_packet( src, ciphertext, clock_sample );
+  }
 }

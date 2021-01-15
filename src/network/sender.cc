@@ -83,9 +83,11 @@ void NetworkSender::push_frame( OpusEncoderProcess& encoder )
     throw runtime_error( "NetworkSender internal error" );
   }
 
+  /*
   if ( encoder.frame_index() != next_frame_index_ ) {
     throw runtime_error( "encoder/sender index mismatch" );
   }
+  */
 
   if ( next_frame_index_ < frames_.range_begin() ) {
     throw runtime_error( "NetworkSender internal error: next_frame_index_ < frames_.range_begin()" );
@@ -295,6 +297,8 @@ void NetworkSender::receive_receiver_section( const Packet::ReceiverSection& rec
   }
 
   greatest_sack_ = greatest_new_sack;
+
+  stats_.last_good_ack_ts = now;
 }
 
 uint32_t NetworkSender::departure_adjudicated_until_seqno() const

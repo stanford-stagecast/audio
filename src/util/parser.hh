@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <cstring>
+#include <iostream>
 #include <string>
 
 #include "exception.hh"
@@ -27,6 +28,15 @@ public:
   std::string_view input() const { return input_; }
   bool error() const { return error_; }
   void set_error() { error_ = true; }
+  void clear_error() { error_ = false; }
+
+  ~Parser()
+  {
+    if ( error_ ) {
+      std::cerr << "Error: Parser destroyed without clearing error.\n";
+      abort();
+    }
+  }
 
   template<typename T>
   void integer( T& out )
