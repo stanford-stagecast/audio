@@ -10,7 +10,7 @@ LongLivedKey::LongLivedKey( const string_view name )
 
 uint32_t LongLivedKey::serialized_length() const
 {
-  return 2 * sizeof( Base64Key::PrintableKey::printable_key ) + name_.serialized_length();
+  return 2 * sizeof( Base64Key::PrintableKey::printable_key ) + 1 + name_.serialized_length();
 }
 
 void LongLivedKey::serialize( Serializer& s ) const

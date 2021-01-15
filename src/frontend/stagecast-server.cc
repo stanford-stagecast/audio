@@ -14,7 +14,7 @@
 using namespace std;
 using namespace std::chrono;
 
-void program_body()
+void program_body( const vector<string>& keyfiles )
 {
   ios::sync_with_stdio( false );
 
@@ -22,6 +22,15 @@ void program_body()
 
   /* Network server registeres itself in EventLoop */
   auto server = make_shared<NetworkMultiServer>( *loop );
+
+  LongLivedKey k { {} };
+  for ( const auto& filename : keyfiles ) {
+    ReadOnlyFile file { FileDescriptor {
+      CheckSystemCall( "open \"" + filename + "\" )", open( filename.c_str(), O_RDONLY ) ) } };
+    Parser p { file };
+    k.parse( p );
+    server->add_key( k );
+  }
 
   /* Print out statistics to terminal */
   StatsPrinterTask stats_printer { loop, seconds( 5 ) };
@@ -32,10 +41,23 @@ void program_body()
   }
 }
 
-int main()
+int main( int argc, char* argv[] )
 {
   try {
-    program_body();
+    if ( argc <= 0 ) {
+      abort();
+    }
+
+    if ( argc <= 1 ) {
+      cerr << "Usage: " << argv[0] << " keyfile...\n";
+      return EXIT_FAILURE;
+    }
+
+    vector<string> keys;
+    for ( int i = 1; i < argc; i++ ) {
+      keys.push_back( argv[i] );
+    }
+    program_body( keys );
   } catch ( const exception& e ) {
     cerr << "Exception: " << e.what() << "\n";
     global_timer().summary( cerr );

@@ -1,44 +1,11 @@
-#include <iostream>
 #include <sys/mman.h>
 #include <unistd.h>
 
 #include "exception.hh"
+#include "file_descriptor.hh"
 #include "ring_buffer.hh"
 
 using namespace std;
-
-MMap_Region::MMap_Region( char* const addr,
-                          const size_t length,
-                          const int prot,
-                          const int flags,
-                          const int fd,
-                          const off_t offset )
-  : addr_( static_cast<char*>( mmap( addr, length, prot, flags, fd, offset ) ) )
-  , length_( length )
-{
-  if ( addr_ == MAP_FAILED ) {
-    throw unix_error( "mmap" );
-  }
-}
-
-MMap_Region::~MMap_Region()
-{
-  if ( addr_ ) {
-    try {
-      CheckSystemCall( "munmap", munmap( addr_, length_ ) );
-    } catch ( const exception& e ) {
-      cerr << "Exception destructing MMap_Region: " << e.what() << endl;
-    }
-  }
-}
-
-MMap_Region::MMap_Region( MMap_Region&& other ) noexcept
-  : addr_( other.addr_ )
-  , length_( other.length_ )
-{
-  other.addr_ = nullptr;
-  other.length_ = 0;
-}
 
 RingStorage::RingStorage( const size_t capacity )
   : fd_( [&] {

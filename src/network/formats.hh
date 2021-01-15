@@ -84,6 +84,7 @@ struct NetArray
   }
 
   span_view<T> as_span_view() const { return span_view<T> { elements.data(), length }; }
+  operator span_view<T>() const { return as_span_view(); }
 
   const T* begin() const { return as_span_view().begin(); }
   const T* end() const { return as_span_view().end(); }
@@ -97,12 +98,49 @@ struct NetArray
     elements[length] = element;
     length++;
   }
+};
 
-  NetArray() {}
-  NetArray( const span_view<T> src )
+template<uint8_t capacity>
+class NetString
+{
+  std::string storage_;
+
+public:
+  uint32_t serialized_length() const
   {
-    for ( const auto& elem : src ) {
-      push_back( elem );
+    if ( storage_.size() > capacity ) {
+      throw std::runtime_error( "invalid NetString" );
+    }
+
+    return 1 + storage_.size();
+  }
+
+  void serialize( Serializer& s ) const
+  {
+    s.integer( uint8_t( storage_.size() ) );
+    s.string( storage_ );
+  }
+
+  void parse( Parser& p )
+  {
+    uint8_t length {};
+    p.integer( length );
+    if ( length > capacity ) {
+      p.set_error();
+      return;
+    }
+    storage_.resize( length );
+    p.string( string_span::from_view( storage_ ) );
+  }
+
+  const std::string& str() const { return storage_; }
+  operator const std::string &() const { return str(); }
+
+  NetString( const std::string_view s )
+    : storage_( s )
+  {
+    if ( storage_.size() > capacity ) {
+      throw std::runtime_error( "invalid NetString" );
     }
   }
 };

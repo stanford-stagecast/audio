@@ -3,6 +3,7 @@
 #include <ostream>
 
 #include "client.hh"
+#include "keys.hh"
 #include "set.hh"
 #include "summarize.hh"
 
@@ -15,6 +16,7 @@ class NetworkMultiServer : public Summarizable
   uint64_t server_clock() const;
 
   void add_client();
+  std::vector<LongLivedKey> keys_ {};
   Set<Client> clients_ {};
 
   struct Stats
@@ -26,4 +28,5 @@ class NetworkMultiServer : public Summarizable
 
 public:
   NetworkMultiServer( EventLoop& loop );
+  void add_key( const LongLivedKey& key );
 };

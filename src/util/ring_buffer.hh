@@ -3,34 +3,8 @@
 #include <vector>
 
 #include "file_descriptor.hh"
+#include "mmap.hh"
 #include "spans.hh"
-
-class MMap_Region
-{
-  char* addr_;
-  size_t length_;
-
-public:
-  MMap_Region( char* const addr,
-               const size_t length,
-               const int prot,
-               const int flags,
-               const int fd,
-               const off_t offset = 0 );
-
-  ~MMap_Region();
-
-  /* Disallow copying */
-  MMap_Region( const MMap_Region& other ) = delete;
-  MMap_Region& operator=( const MMap_Region& other ) = delete;
-
-  /* Allow move-construction */
-  MMap_Region( MMap_Region&& other ) noexcept;
-  MMap_Region& operator=( MMap_Region&& other ) = delete;
-
-  char* addr() const { return addr_; }
-  size_t length() const { return length_; }
-};
 
 class RingStorage
 {

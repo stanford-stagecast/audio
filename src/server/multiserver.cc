@@ -20,6 +20,12 @@ void NetworkMultiServer::add_client()
   clients_.insert( index, Client( index + 1, socket_.local_address().port() ) );
 }
 
+void NetworkMultiServer::add_key( const LongLivedKey& key )
+{
+  keys_.push_back( key );
+  cerr << "Added key for: " << key.name() << "\n";
+}
+
 NetworkMultiServer::NetworkMultiServer( EventLoop& loop )
   : socket_()
   , global_ns_timestamp_at_creation_( Timer::timestamp_ns() )
