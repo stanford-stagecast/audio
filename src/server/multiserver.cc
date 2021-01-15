@@ -11,6 +11,15 @@ uint64_t NetworkMultiServer::server_clock() const
   return ( Timer::timestamp_ns() - global_ns_timestamp_at_creation_ ) * 48 / 1000000;
 }
 
+void NetworkMultiServer::add_client()
+{
+  const size_t index = clients_.get_index();
+  if ( index >= numeric_limits<uint8_t>::max() ) {
+    throw runtime_error( "too many clients" );
+  }
+  clients_.insert( index, Client( index + 1, socket_.local_address().port() ) );
+}
+
 NetworkMultiServer::NetworkMultiServer( EventLoop& loop )
   : socket_()
   , global_ns_timestamp_at_creation_( Timer::timestamp_ns() )
@@ -20,8 +29,10 @@ NetworkMultiServer::NetworkMultiServer( EventLoop& loop )
   socket_.bind( { "0", 0 } );
 
   /* XXX create some clients */
-  clients_.emplace_back( 1, socket_.local_address().port() );
-  clients_.emplace_back( 2, socket_.local_address().port() );
+  add_client();
+  add_client();
+  add_client();
+  add_client();
 
   loop.add_rule( "network receive", socket_, Direction::In, [&] {
     Address src { nullptr, 0 };
@@ -29,9 +40,11 @@ NetworkMultiServer::NetworkMultiServer( EventLoop& loop )
     socket_.recv( src, ciphertext.data );
     if ( ciphertext.size() > 20 ) {
       const uint8_t node_id = ciphertext.data.back();
-      if ( node_id > 0 and node_id <= MAX_CLIENTS ) {
+      if ( node_id > 0 and clients_.has_value( node_id - 1 ) ) {
         clients_.at( node_id - 1 ).receive_packet( src, ciphertext, server_clock() );
       }
+    } else {
+      stats_.bad_packets++;
     }
   } );
 
@@ -67,8 +80,9 @@ NetworkMultiServer::NetworkMultiServer( EventLoop& loop )
 
 void NetworkMultiServer::summary( ostream& out ) const
 {
-  for ( unsigned int i = 0; i < clients_.size(); i++ ) {
-    out << "#" << i + 1 << ": ";
-    clients_.at( i ).summary( out );
+  out << "bad packets: " << stats_.bad_packets << "\n";
+  for ( const auto& client : clients_ ) {
+    out << "#" << int( client.peer_id() ) << ": ";
+    client.summary( out );
   }
 }

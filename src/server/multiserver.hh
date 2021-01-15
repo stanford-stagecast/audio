@@ -1,9 +1,9 @@
 #pragma once
 
 #include <ostream>
-#include <vector>
 
 #include "client.hh"
+#include "set.hh"
 #include "summarize.hh"
 
 class NetworkMultiServer : public Summarizable
@@ -14,7 +14,13 @@ class NetworkMultiServer : public Summarizable
 
   uint64_t server_clock() const;
 
-  std::vector<Client> clients_ {};
+  void add_client();
+  Set<Client> clients_ {};
+
+  struct Stats
+  {
+    unsigned int bad_packets;
+  } stats_ {};
 
   void summary( std::ostream& out ) const override;
 

@@ -22,7 +22,7 @@ Client::Client( const uint8_t node_id,
                 const Base64Key& receive_key )
   : connection( 0, node_id, send_key, receive_key )
   , clock( 0 )
-  , cursor( 600, true )
+  , cursor( 720, false )
   , encoder( 128000, 48000 )
 {
   cerr << "Client " << int( node_id ) << " " << server_port << " " << receive_key.printable_key().as_string_view()
@@ -54,7 +54,7 @@ void Client::decode_audio( const uint64_t clock_sample, const uint64_t cursor_sa
                               connection.next_frame_needed() - connection.frames().range_begin() ) );
 }
 
-void Client::mix_and_encode( const vector<Client>& clients, const uint64_t cursor_sample )
+void Client::mix_and_encode( const Set<Client>& clients, const uint64_t cursor_sample )
 {
   if ( not outbound_frame_offset_.has_value() ) {
     return;
@@ -65,21 +65,23 @@ void Client::mix_and_encode( const vector<Client>& clients, const uint64_t curso
     span<float> ch2 = mixed_audio.ch2().region( client_mix_cursor(), opus_frame::NUM_SAMPLES );
 
     // XXX need to scale gains with newly arriving clients
-    for ( uint8_t channel_i = 0; channel_i < 2 * clients.size(); channel_i += 2 ) {
-      const Client& other_client = clients.at( channel_i / 2 );
-      const span_view<float> other_ch1
-        = other_client.decoded_audio.ch1().region( server_mix_cursor(), opus_frame::NUM_SAMPLES );
-      const span_view<float> other_ch2
-        = other_client.decoded_audio.ch2().region( server_mix_cursor(), opus_frame::NUM_SAMPLES );
+    for ( uint8_t channel_i = 0; channel_i < 2 * MAX_CLIENTS; channel_i += 2 ) {
+      if ( clients.has_value( channel_i / 2 ) ) {
+        const Client& other_client = clients.at( channel_i / 2 );
+        const span_view<float> other_ch1
+          = other_client.decoded_audio.ch1().region( server_mix_cursor(), opus_frame::NUM_SAMPLES );
+        const span_view<float> other_ch2
+          = other_client.decoded_audio.ch2().region( server_mix_cursor(), opus_frame::NUM_SAMPLES );
 
-      const float gain1into1 = gains[channel_i].first;
-      const float gain1into2 = gains[channel_i].second;
-      const float gain2into1 = gains[channel_i + 1].first;
-      const float gain2into2 = gains[channel_i + 1].second;
+        const float gain1into1 = gains[channel_i].first;
+        const float gain1into2 = gains[channel_i].second;
+        const float gain2into1 = gains[channel_i + 1].first;
+        const float gain2into2 = gains[channel_i + 1].second;
 
-      for ( size_t sample_i = 0; sample_i < opus_frame::NUM_SAMPLES; sample_i++ ) {
-        ch1[sample_i] += gain1into1 * other_ch1[sample_i] + gain2into1 * other_ch2[sample_i];
-        ch2[sample_i] += gain1into2 * other_ch1[sample_i] + gain2into2 * other_ch2[sample_i];
+        for ( size_t sample_i = 0; sample_i < opus_frame::NUM_SAMPLES; sample_i++ ) {
+          ch1[sample_i] += gain1into1 * other_ch1[sample_i] + gain2into1 * other_ch2[sample_i];
+          ch2[sample_i] += gain1into2 * other_ch1[sample_i] + gain2into2 * other_ch2[sample_i];
+        }
       }
     }
 

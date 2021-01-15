@@ -5,6 +5,7 @@
 #include "clock.hh"
 #include "connection.hh"
 #include "cursor.hh"
+#include "set.hh"
 
 static constexpr uint8_t MAX_CLIENTS = 8;
 
@@ -37,9 +38,12 @@ public:
 
   void receive_packet( const Address& source, const Ciphertext& ciphertext, const uint64_t clock_sample );
   void decode_audio( const uint64_t clock_sample, const uint64_t cursor_sample );
-  void mix_and_encode( const std::vector<Client>& clients, const uint64_t cursor_sample );
+  void mix_and_encode( const Set<Client>& clients, const uint64_t cursor_sample );
   void send_packet( UDPSocket& socket );
   void pop_decoded_audio( const uint64_t cursor_sample );
 
   void summary( std::ostream& out ) const;
+
+  uint8_t node_id() const { return connection.node_id(); }
+  uint8_t peer_id() const { return connection.peer_id(); }
 };
