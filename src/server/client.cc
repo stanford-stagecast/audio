@@ -16,8 +16,8 @@ uint64_t Client::server_mix_cursor() const
 Client::Client( const uint8_t node_id, CryptoSession&& crypto )
   : connection_( 0, node_id, move( crypto ) )
   , clock_( 0 )
-  , cursor_( 720, false )
-  , encoder_( 128000, 48000 )
+  , cursor_( 900, false )
+  , encoder_( 64000, 48000 )
 {
   /* XXX set default gains */
   for ( uint8_t channel_i = 0; channel_i < 2 * MAX_CLIENTS; channel_i++ ) {
