@@ -65,10 +65,12 @@ void Client::mix_and_encode( const vector<KnownClient>& clients, const uint64_t 
           channel_i += 2 ) {
       if ( clients.at( channel_i / 2 ) ) {
         const Client& other_client = clients.at( channel_i / 2 ).client();
+        /*
         if ( other_client.decoded_audio_.range_begin() > server_mix_cursor()
              or other_client.decoded_audio_.range_end() < server_mix_cursor() + opus_frame::NUM_SAMPLES ) {
           continue;
         }
+        */
         const span_view<float> other_ch1
           = other_client.decoded_audio_.ch1().region( server_mix_cursor(), opus_frame::NUM_SAMPLES );
         const span_view<float> other_ch2
@@ -182,6 +184,8 @@ void KnownClient::receive_packet( const Address& src, const Ciphertext& cipherte
   if ( next_session_.value().decrypt( ciphertext, { &id_, 1 }, throwaway_plaintext ) ) {
     /* new session established */
     current_session_.emplace( id_, move( next_session_.value() ) );
+    current_session_->pop_decoded_audio( clock_sample );
+
     next_keys_ = KeyPair {};
     next_session_.emplace( next_keys_.downlink, next_keys_.uplink );
     stats_.new_sessions++;
