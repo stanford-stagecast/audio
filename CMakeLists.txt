@@ -8,6 +8,8 @@ include ( etc/clang_format.cmake )
 
 find_package ( PkgConfig )
 
+option(BUILD_EMBEDDED_CLIENT "Build stagecast-client-embedded with static libopus" OFF)
+
 pkg_check_modules ( ALSA REQUIRED alsa )
 include_directories ( ${ALSA_INCLUDE_DIRS} )
 add_compile_options ( ${ALSA_CFLAGS_OTHER} )
