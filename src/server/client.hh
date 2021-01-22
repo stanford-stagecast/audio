@@ -8,7 +8,7 @@
 #include "cursor.hh"
 #include "keys.hh"
 
-static constexpr uint8_t MAX_CLIENTS = 8;
+static constexpr uint8_t MAX_CLIENTS = 12;
 
 class KnownClient;
 
