@@ -2,15 +2,16 @@
 #include <iostream>
 
 #include "alsa_devices.hh"
-#include "audio_device_claim.hh"
-#include "eventloop.hh"
-
 #include "audio_task.hh"
 #include "encoder_task.hh"
+#include "endpoints.hh"
+#include "eventloop.hh"
 #include "keys.hh"
 #include "stats_printer.hh"
 
-#include "endpoints.hh"
+#ifndef NDBUS
+#include "audio_device_claim.hh"
+#endif /* NDBUS */
 
 using namespace std;
 
@@ -29,7 +30,11 @@ void program_body( const string& host, const string& service, const string& key_
 
   /* Audio task gets first priority in EventLoop */
   const auto [name, interface_name] = ALSADevices::find_device( "UAC-2, USB Audio" );
+
+#ifndef NDBUS
   const auto device_claim = AudioDeviceClaim::try_claim( name );
+#endif /* NDBUS */
+
   auto uac2 = make_shared<AudioDeviceTask>( interface_name, *loop );
 
   /* Opus encoder task registers itself in EventLoop */
