@@ -30,7 +30,7 @@ void program_body( const vector<string>& keyfiles )
   }
 
   /* Print out statistics to terminal */
-  StatsPrinterTask stats_printer { loop, seconds( 5 ) };
+  StatsPrinterTask stats_printer { loop };
   stats_printer.add( server );
 
   /* Start audio device and event loop */

@@ -29,8 +29,7 @@ class StatsPrinterTask
   std::ostringstream ss_ {};
 
 public:
-  StatsPrinterTask( std::shared_ptr<EventLoop> loop,
-                    const std::chrono::nanoseconds initial_delay = std::chrono::seconds( 0 ) );
+  StatsPrinterTask( std::shared_ptr<EventLoop> loop );
 
   unsigned int wait_time_ms() const;
 

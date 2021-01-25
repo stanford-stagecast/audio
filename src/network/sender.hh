@@ -20,7 +20,7 @@ class NetworkSender
   EndlessBuffer<AudioFrameStatus> frame_status_ { 8192 };
   uint32_t next_frame_index_ {};
 
-  constexpr static uint8_t reorder_window = 8; /* 8 packets, about 20 ms */
+  constexpr static uint8_t reorder_window = 2; /* 2 packets, about 5 ms */
   std::optional<uint32_t> greatest_sack_ {};
   uint32_t departure_adjudicated_until_seqno() const;
 

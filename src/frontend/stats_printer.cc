@@ -5,11 +5,11 @@
 using namespace std;
 using namespace std::chrono;
 
-StatsPrinterTask::StatsPrinterTask( std::shared_ptr<EventLoop> loop, const nanoseconds initial_delay )
+StatsPrinterTask::StatsPrinterTask( std::shared_ptr<EventLoop> loop )
   : loop_( loop )
   , standard_output_( CheckSystemCall( "dup STDERR_FILENO", dup( STDERR_FILENO ) ) )
-  , next_stats_print( steady_clock::now() + initial_delay )
-  , next_stats_reset( steady_clock::now() + initial_delay )
+  , next_stats_print( steady_clock::now() )
+  , next_stats_reset( steady_clock::now() )
 {
   loop_->add_rule(
     "generate+print statistics",
