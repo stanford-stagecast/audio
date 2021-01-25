@@ -65,12 +65,10 @@ void Client::mix_and_encode( const vector<KnownClient>& clients, const uint64_t 
           channel_i += 2 ) {
       if ( clients.at( channel_i / 2 ) ) {
         const Client& other_client = clients.at( channel_i / 2 ).client();
-        /*
         if ( other_client.decoded_audio_.range_begin() > server_mix_cursor()
              or other_client.decoded_audio_.range_end() < server_mix_cursor() + opus_frame::NUM_SAMPLES ) {
           continue;
         }
-        */
         const span_view<float> other_ch1
           = other_client.decoded_audio_.ch1().region( server_mix_cursor(), opus_frame::NUM_SAMPLES );
         const span_view<float> other_ch2
