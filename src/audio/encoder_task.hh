@@ -32,7 +32,7 @@ protected:
   Channel enc1_, enc2_;
 
 public:
-  OpusEncoderProcess( const int bit_rate, const int sample_rate );
+  OpusEncoderProcess( const int bit_rate1, const int bit_rate2, const int sample_rate );
 
   bool has_frame() const { return enc1_.output().has_value() and enc2_.output().has_value(); }
   void pop_frame()
@@ -64,7 +64,8 @@ class EncoderTask : public OpusEncoderProcess
   void pop_from_source();
 
 public:
-  EncoderTask( const int bit_rate,
+  EncoderTask( const int bit_rate1,
+               const int bit_rate2,
                const int sample_rate,
                const std::shared_ptr<AudioSource> source,
                EventLoop& loop );

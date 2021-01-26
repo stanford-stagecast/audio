@@ -5,11 +5,12 @@ using namespace std;
 template class EncoderTask<AudioDeviceTask>;
 
 template<class AudioSource>
-EncoderTask<AudioSource>::EncoderTask( const int bit_rate,
+EncoderTask<AudioSource>::EncoderTask( const int bit_rate1,
+                                       const int bit_rate2,
                                        const int sample_rate,
                                        const shared_ptr<AudioSource> source,
                                        EventLoop& loop )
-  : OpusEncoderProcess( bit_rate, sample_rate )
+  : OpusEncoderProcess( bit_rate1, bit_rate2, sample_rate )
   , source_( source )
 {
   loop.add_rule(
@@ -38,9 +39,9 @@ void EncoderTask<AudioSource>::pop_from_source()
   }
 }
 
-OpusEncoderProcess::OpusEncoderProcess( const int bit_rate, const int sample_rate )
-  : enc1_( bit_rate, sample_rate )
-  , enc2_( bit_rate, sample_rate )
+OpusEncoderProcess::OpusEncoderProcess( const int bit_rate1, const int bit_rate2, const int sample_rate )
+  : enc1_( bit_rate1, sample_rate )
+  , enc2_( bit_rate2, sample_rate )
 {}
 
 OpusEncoderProcess::Channel::Channel( const int bit_rate, const int sample_rate )
