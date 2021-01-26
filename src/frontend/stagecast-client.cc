@@ -38,7 +38,7 @@ void program_body( const string& host, const string& service, const string& key_
   auto uac2 = make_shared<AudioDeviceTask>( interface_name, *loop );
 
   /* Opus encoder task registers itself in EventLoop */
-  auto encoder = make_shared<ClientEncoderTask>( 64000, 600, 48000, uac2, *loop );
+  auto encoder = make_shared<ClientEncoderTask>( 96000, 96000, 48000, uac2, *loop );
 
   /* Network client registers itself in EventLoop */
   const Address stagecast_server { host, service };

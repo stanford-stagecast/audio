@@ -16,6 +16,9 @@ class NetworkMultiServer : public Summarizable
 
   void receive_keyrequest( const Address& src, const Ciphertext& ciphertext );
 
+  uint8_t num_clients_;
+
+  AudioBoard board_;
   std::vector<KnownClient> clients_ {};
 
   struct Stats
@@ -26,6 +29,6 @@ class NetworkMultiServer : public Summarizable
   void summary( std::ostream& out ) const override;
 
 public:
-  NetworkMultiServer( EventLoop& loop );
+  NetworkMultiServer( const uint8_t num_clients, EventLoop& loop );
   void add_key( const LongLivedKey& key );
 };

@@ -21,7 +21,7 @@ void program_body( const vector<string>& keyfiles )
   auto loop = make_shared<EventLoop>();
 
   /* Network server registeres itself in EventLoop */
-  auto server = make_shared<NetworkMultiServer>( *loop );
+  auto server = make_shared<NetworkMultiServer>( keyfiles.size(), *loop );
 
   for ( const auto& filename : keyfiles ) {
     ReadOnlyFile file { filename };

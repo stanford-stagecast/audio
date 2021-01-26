@@ -2,22 +2,37 @@
 
 #include <chrono>
 #include <ostream>
+#include <vector>
 
 #include "clock.hh"
 #include "connection.hh"
 #include "cursor.hh"
 #include "keys.hh"
 
-static constexpr uint8_t MAX_CLIENTS = 12;
-
 class KnownClient;
+
+class AudioBoard
+{
+  std::vector<std::string> channel_names_;
+  std::vector<AudioBuffer> decoded_audio_;
+
+public:
+  AudioBoard( const uint8_t num_channels );
+
+  void set_name( const uint8_t ch_num, const std::string_view name ) { channel_names_.at( ch_num ) = name; }
+
+  const AudioChannel& channel( const uint8_t ch_num ) const;
+  AudioBuffer& buffer( const uint8_t ch1_num, const uint8_t ch2_num );
+  void pop_samples_until( const uint64_t sample );
+
+  uint8_t num_channels() const { return channel_names_.size(); }
+};
 
 class Client
 {
   NetworkConnection connection_;
   Clock clock_;
   Cursor cursor_;
-  AudioBuffer decoded_audio_ { 8192 };
   AudioBuffer mixed_audio_ { 8192 };
 
   uint64_t mix_cursor_ {};
@@ -26,19 +41,19 @@ class Client
   uint64_t server_mix_cursor() const;
   uint64_t client_mix_cursor() const;
 
-  OpusEncoderProcess encoder_ { 64000, 600, 48000 };
+  OpusEncoderProcess encoder_ { 96000, 96000, 48000 };
 
-  using mix_gain = std::pair<float, float>;
-  std::array<mix_gain, 2 * MAX_CLIENTS> gains_ {};
+  uint8_t ch1_num_, ch2_num_;
 
 public:
-  Client( const uint8_t node_id, CryptoSession&& crypto );
+  Client( const uint8_t node_id, const uint8_t ch1, const uint8_t ch2, CryptoSession&& crypto );
+
+  using mix_gain = std::pair<float, float>;
 
   bool receive_packet( const Address& source, const Ciphertext& ciphertext, const uint64_t clock_sample );
-  void decode_audio( const uint64_t clock_sample, const uint64_t cursor_sample );
-  void mix_and_encode( const std::vector<KnownClient>& clients, const uint64_t cursor_sample );
+  void decode_audio( const uint64_t clock_sample, const uint64_t cursor_sample, AudioBoard& board );
+  void mix_and_encode( const std::vector<mix_gain>& gains, const AudioBoard& board, const uint64_t cursor_sample );
   void send_packet( UDPSocket& socket );
-  void pop_decoded_audio( const uint64_t cursor_sample );
 
   void summary( std::ostream& out ) const;
 
@@ -66,8 +81,16 @@ class KnownClient
     unsigned int key_requests, key_responses, new_sessions;
   } stats_ {};
 
+  std::vector<Client::mix_gain> gains_ {};
+
+  uint8_t ch1_num_, ch2_num_;
+
 public:
-  KnownClient( const uint8_t node_id, const LongLivedKey& key );
+  KnownClient( const uint8_t node_id,
+               const uint8_t num_channels,
+               const uint8_t ch1_num,
+               const uint8_t ch2_num,
+               const LongLivedKey& key );
   bool try_keyrequest( const Address& src, const Ciphertext& ciphertext, UDPSocket& socket );
   void receive_packet( const Address& src, const Ciphertext& ciphertext, const uint64_t clock_sample );
 
@@ -79,4 +102,6 @@ public:
   void clear_current_session() { current_session_.reset(); }
 
   void summary( std::ostream& out ) const;
+
+  const std::vector<Client::mix_gain>& gains() const { return gains_; }
 };

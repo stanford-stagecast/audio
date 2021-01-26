@@ -25,14 +25,22 @@ void NetworkMultiServer::receive_keyrequest( const Address& src, const Ciphertex
 void NetworkMultiServer::add_key( const LongLivedKey& key )
 {
   const uint8_t next_id = clients_.size() + 1;
-  clients_.emplace_back( next_id, key );
-  cerr << "Added key #" << int( next_id ) << " for: " << key.name() << "\n";
+  const uint8_t ch1 = 2 * clients_.size();
+  const uint8_t ch2 = ch1 + 1;
+  clients_.emplace_back( next_id, num_clients_ * 2, ch1, ch2, key );
+  cerr << "Added key #" << int( next_id ) << " for: " << key.name() << " on channels " << int( ch1 ) << ":"
+       << int( ch2 ) << "\n";
+
+  board_.set_name( ch1, string( key.name() ) + "-CH1" );
+  board_.set_name( ch2, string( key.name() ) + "-CH2" );
 }
 
-NetworkMultiServer::NetworkMultiServer( EventLoop& loop )
+NetworkMultiServer::NetworkMultiServer( const uint8_t num_clients, EventLoop& loop )
   : socket_()
   , global_ns_timestamp_at_creation_( Timer::timestamp_ns() )
   , next_cursor_sample_( server_clock() + opus_frame::NUM_SAMPLES )
+  , num_clients_( num_clients )
+  , board_( 2 * num_clients )
 {
   socket_.set_blocking( false );
   socket_.bind( { "0", 9101 } );
@@ -64,7 +72,7 @@ NetworkMultiServer::NetworkMultiServer( EventLoop& loop )
       /* decode all audio */
       for ( auto& client : clients_ ) {
         if ( client ) {
-          client.client().decode_audio( clock_sample, next_cursor_sample_ );
+          client.client().decode_audio( clock_sample, next_cursor_sample_, board_ );
           if ( client.client().connection().sender_stats().last_good_ack_ts + CLIENT_TIMEOUT_NS < ts_now ) {
             client.clear_current_session();
           }
@@ -74,7 +82,7 @@ NetworkMultiServer::NetworkMultiServer( EventLoop& loop )
       /* mix all audio */
       for ( auto& client : clients_ ) {
         if ( client ) {
-          client.client().mix_and_encode( clients_, next_cursor_sample_ );
+          client.client().mix_and_encode( client.gains(), board_, next_cursor_sample_ );
         }
       }
 
@@ -82,8 +90,11 @@ NetworkMultiServer::NetworkMultiServer( EventLoop& loop )
       for ( auto& client : clients_ ) {
         if ( client ) {
           client.client().send_packet( socket_ );
-          client.client().pop_decoded_audio( next_cursor_sample_ );
         }
+      }
+
+      if ( next_cursor_sample_ > 240 ) {
+        board_.pop_samples_until( next_cursor_sample_ - 240 );
       }
 
       next_cursor_sample_ += opus_frame::NUM_SAMPLES;

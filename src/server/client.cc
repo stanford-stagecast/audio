@@ -13,19 +13,13 @@ uint64_t Client::server_mix_cursor() const
   return mix_cursor_ + outbound_frame_offset_.value() * opus_frame::NUM_SAMPLES;
 }
 
-Client::Client( const uint8_t node_id, CryptoSession&& crypto )
+Client::Client( const uint8_t node_id, const uint8_t ch1_num, const uint8_t ch2_num, CryptoSession&& crypto )
   : connection_( 0, node_id, move( crypto ) )
   , clock_( 0 )
   , cursor_( 900, false )
-{
-  /* XXX set default gains */
-  for ( uint8_t channel_i = 0; channel_i < 2 * MAX_CLIENTS; channel_i++ ) {
-    gains_.at( channel_i ) = { 2.0, 2.0 };
-    if ( channel_i / 2 == node_id - 1 ) {
-      gains_.at( channel_i ) = { 0.0, 0.0 };
-    }
-  }
-}
+  , ch1_num_( ch1_num )
+  , ch2_num_( ch2_num )
+{}
 
 bool Client::receive_packet( const Address& source, const Ciphertext& ciphertext, const uint64_t clock_sample )
 {
@@ -39,49 +33,45 @@ bool Client::receive_packet( const Address& source, const Ciphertext& ciphertext
   return false;
 }
 
-void Client::decode_audio( const uint64_t clock_sample, const uint64_t cursor_sample )
+void Client::decode_audio( const uint64_t clock_sample, const uint64_t cursor_sample, AudioBoard& board )
 {
   clock_.time_passes( clock_sample );
 
-  cursor_.sample( connection_.frames(), cursor_sample, clock_.value(), clock_.jitter(), decoded_audio_ );
+  AudioBuffer& output = board.buffer( ch1_num_, ch2_num_ );
+
+  cursor_.sample( connection_.frames(), cursor_sample, clock_.value(), clock_.jitter(), output );
 
   connection_.pop_frames( min( cursor_.ok_to_pop( connection_.frames() ),
                                connection_.next_frame_needed() - connection_.frames().range_begin() ) );
 }
 
-void Client::mix_and_encode( const vector<KnownClient>& clients, const uint64_t cursor_sample )
+void Client::mix_and_encode( const vector<mix_gain>& gains, const AudioBoard& board, const uint64_t cursor_sample )
 {
   if ( not outbound_frame_offset_.has_value() ) {
     return;
   }
 
   while ( server_mix_cursor() + opus_frame::NUM_SAMPLES <= cursor_sample ) {
-    span<float> ch1 = mixed_audio_.ch1().region( client_mix_cursor(), opus_frame::NUM_SAMPLES );
-    span<float> ch2 = mixed_audio_.ch2().region( client_mix_cursor(), opus_frame::NUM_SAMPLES );
+    span<float> ch1_target = mixed_audio_.ch1().region( client_mix_cursor(), opus_frame::NUM_SAMPLES );
+    span<float> ch2_target = mixed_audio_.ch2().region( client_mix_cursor(), opus_frame::NUM_SAMPLES );
 
-    // XXX need to scale gains with newly arriving clients
-    for ( uint8_t channel_i = 0; channel_i < min( size_t( 2 * MAX_CLIENTS ), clients.size() * 2 );
-          channel_i += 2 ) {
-      if ( clients.at( channel_i / 2 ) ) {
-        const Client& other_client = clients.at( channel_i / 2 ).client();
-        if ( other_client.decoded_audio_.range_begin() > server_mix_cursor()
-             or other_client.decoded_audio_.range_end() < server_mix_cursor() + opus_frame::NUM_SAMPLES ) {
-          continue;
-        }
-        const span_view<float> other_ch1
-          = other_client.decoded_audio_.ch1().region( server_mix_cursor(), opus_frame::NUM_SAMPLES );
-        const span_view<float> other_ch2
-          = other_client.decoded_audio_.ch2().region( server_mix_cursor(), opus_frame::NUM_SAMPLES );
+    for ( uint8_t channel_i = 0; channel_i < board.num_channels(); channel_i++ ) {
+      if ( channel_i == ch1_num_ or channel_i == ch2_num_ ) {
+        continue;
+      }
 
-        const float gain1into1 = gains_[channel_i].first;
-        const float gain1into2 = gains_[channel_i].second;
-        const float gain2into1 = gains_[channel_i + 1].first;
-        const float gain2into2 = gains_[channel_i + 1].second;
+      const span_view<float> other_channel
+        = board.channel( channel_i ).region( server_mix_cursor(), opus_frame::NUM_SAMPLES );
 
-        for ( size_t sample_i = 0; sample_i < opus_frame::NUM_SAMPLES; sample_i++ ) {
-          ch1[sample_i] += gain1into1 * other_ch1[sample_i] + gain2into1 * other_ch2[sample_i];
-          ch2[sample_i] += gain1into2 * other_ch1[sample_i] + gain2into2 * other_ch2[sample_i];
-        }
+      const float gain_into_1 = gains.at( channel_i ).first;
+      const float gain_into_2 = gains.at( channel_i ).second;
+      for ( uint8_t sample_i = 0; sample_i < opus_frame::NUM_SAMPLES; sample_i++ ) {
+        const float value = other_channel[sample_i];
+        const float orig_1 = ch1_target[sample_i];
+        const float orig_2 = ch2_target[sample_i];
+
+        ch1_target[sample_i] = orig_1 + gain_into_1 * value;
+        ch2_target[sample_i] = orig_2 + gain_into_2 * value;
       }
     }
 
@@ -96,15 +86,6 @@ void Client::mix_and_encode( const vector<KnownClient>& clients, const uint64_t 
 
   /* pop used mixed audio */
   mixed_audio_.pop_before( encoder_.min_encode_cursor() );
-}
-
-void Client::pop_decoded_audio( const uint64_t cursor_sample )
-{
-  if ( outbound_frame_offset_.has_value() ) {
-    decoded_audio_.pop_before( server_mix_cursor() );
-  } else {
-    decoded_audio_.pop_before( ( cursor_sample / opus_frame::NUM_SAMPLES ) * opus_frame::NUM_SAMPLES );
-  }
 }
 
 void Client::send_packet( UDPSocket& socket )
@@ -163,13 +144,24 @@ bool KnownClient::try_keyrequest( const Address& src, const Ciphertext& cipherte
   return false;
 }
 
-KnownClient::KnownClient( const uint8_t node_id, const LongLivedKey& key )
+KnownClient::KnownClient( const uint8_t node_id,
+                          const uint8_t num_channels,
+                          const uint8_t ch1_num,
+                          const uint8_t ch2_num,
+                          const LongLivedKey& key )
   : id_( node_id )
   , name_( key.name() )
   , long_lived_crypto_( key.key_pair().downlink, key.key_pair().uplink, true )
   , next_reply_allowed_( steady_clock::now() )
   , next_session_( CryptoSession { next_keys_.downlink, next_keys_.uplink } )
-{}
+  , ch1_num_( ch1_num )
+  , ch2_num_( ch2_num )
+{
+  /* set default gains */
+  for ( uint8_t channel_i = 0; channel_i < num_channels; channel_i++ ) {
+    gains_.push_back( { 2.0, 2.0 } );
+  }
+}
 
 void KnownClient::receive_packet( const Address& src, const Ciphertext& ciphertext, const uint64_t clock_sample )
 {
@@ -180,8 +172,7 @@ void KnownClient::receive_packet( const Address& src, const Ciphertext& cipherte
   Plaintext throwaway_plaintext;
   if ( next_session_.value().decrypt( ciphertext, { &id_, 1 }, throwaway_plaintext ) ) {
     /* new session established */
-    current_session_.emplace( id_, move( next_session_.value() ) );
-    current_session_->pop_decoded_audio( clock_sample );
+    current_session_.emplace( id_, ch1_num_, ch2_num_, move( next_session_.value() ) );
 
     next_keys_ = KeyPair {};
     next_session_.emplace( next_keys_.downlink, next_keys_.uplink );
@@ -189,5 +180,45 @@ void KnownClient::receive_packet( const Address& src, const Ciphertext& cipherte
 
     /* actually use packet */
     current_session_->receive_packet( src, ciphertext, clock_sample );
+  }
+}
+
+AudioBoard::AudioBoard( const uint8_t num_channels )
+  : channel_names_()
+  , decoded_audio_()
+{
+  if ( num_channels % 2 ) {
+    throw runtime_error( "odd number of channels" );
+  }
+
+  for ( uint8_t i = 0; i < num_channels; i++ ) {
+    channel_names_.push_back( "Unknown " + to_string( i ) );
+    decoded_audio_.emplace_back( 8192 );
+  }
+}
+
+const AudioChannel& AudioBoard::channel( const uint8_t ch_num ) const
+{
+  const uint8_t buf_num = ch_num / 2;
+  const bool is_ch2 = ch_num % 2;
+  const auto& buf = decoded_audio_.at( buf_num );
+  return is_ch2 ? buf.ch2() : buf.ch1();
+}
+
+AudioBuffer& AudioBoard::buffer( const uint8_t ch1_num, const uint8_t ch2_num )
+{
+  const uint8_t buf_num = ch1_num / 2;
+  if ( ch1_num == buf_num * 2 and ch2_num == ch1_num + 1 ) {
+    return decoded_audio_.at( buf_num );
+  } else {
+    throw runtime_error( "invalid combination of channel numbers: " + to_string( ch1_num ) + ":"
+                         + to_string( ch2_num ) );
+  }
+}
+
+void AudioBoard::pop_samples_until( const uint64_t sample )
+{
+  for ( auto& buf : decoded_audio_ ) {
+    buf.pop_before( sample );
   }
 }
