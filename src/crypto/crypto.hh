@@ -26,8 +26,8 @@ public:
   uint64_t value() const;
 };
 
-using Plaintext = StackBuffer<16, 1456>;
-using Ciphertext = StackBuffer<16, 1456 + 16 + 8 + 8>; /* + tag + nonce + AD */
+using Plaintext = StackBuffer<16, uint16_t, 1456>;
+using Ciphertext = StackBuffer<16, uint16_t, 1456 + 16 + 8 + 8>; /* + tag + nonce + AD */
 
 class CryptoSession
 {

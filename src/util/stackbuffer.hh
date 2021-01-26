@@ -5,10 +5,10 @@
 
 #include "spans.hh"
 
-template<uint8_t alignment, uint16_t max_capacity>
+template<uint8_t alignment, typename size_type, size_type max_capacity>
 class StackBuffer
 {
-  uint16_t length_ = 0;
+  size_type length_ = 0;
 
   alignas( alignment ) std::array<char, max_capacity> buffer_;
 
@@ -21,10 +21,10 @@ public:
   std::string_view as_string_view() const { return { data_ptr(), length_ }; }
   operator std::string_view() const { return as_string_view(); }
 
-  size_t capacity() const { return max_capacity; }
-  size_t length() const { return length_; }
+  size_type capacity() const { return max_capacity; }
+  size_type length() const { return length_; }
 
-  void resize( const size_t new_length )
+  void resize( const size_type new_length )
   {
     length_ = new_length;
     validate();
