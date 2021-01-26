@@ -3,6 +3,7 @@
 
 #include "alsa_devices.hh"
 #include "audio_task.hh"
+#include "controller.hh"
 #include "encoder_task.hh"
 #include "endpoints.hh"
 #include "eventloop.hh"
@@ -43,6 +44,9 @@ void program_body( const string& host, const string& service, const string& key_
   /* Network client registers itself in EventLoop */
   const Address stagecast_server { host, service };
   auto network_client = make_shared<NetworkClient>( stagecast_server, key, encoder, uac2, *loop );
+
+  /* Controller registers itself in EventLoop */
+  ClientController controller { network_client, *loop };
 
   /* Print out statistics to terminal */
   StatsPrinterTask stats_printer { loop };

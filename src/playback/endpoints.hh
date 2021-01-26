@@ -56,4 +56,6 @@ public:
                  EventLoop& loop );
 
   void summary( std::ostream& out ) const override;
+
+  void set_cursor_lag( const uint16_t num_samples );
 };

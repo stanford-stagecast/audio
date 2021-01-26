@@ -161,3 +161,10 @@ void NetworkClient::summary( ostream& out ) const
     session_->summary( out );
   }
 }
+
+void NetworkClient::set_cursor_lag( const uint16_t num_samples )
+{
+  if ( session_.has_value() ) {
+    session_->cursor.set_target_lag( num_samples );
+  }
+}
