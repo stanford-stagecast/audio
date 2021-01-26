@@ -9,7 +9,7 @@
 class LongLivedKey
 {
   KeyPair key_pair_;
-  NetString<32> name_;
+  NetString name_;
 
 public:
   LongLivedKey( const std::string_view name );
@@ -19,6 +19,6 @@ public:
   void serialize( Serializer& s ) const;
   void parse( Parser& p );
 
-  const std::string& name() const { return name_; }
+  const std::string_view name() const { return name_; }
   const KeyPair& key_pair() const { return key_pair_; }
 };

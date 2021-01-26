@@ -101,48 +101,13 @@ struct NetArray
   }
 };
 
-template<uint8_t capacity>
-class NetString
+class NetString : public StackBuffer<0, uint8_t, 255>
 {
-  std::string storage_;
-
 public:
-  uint32_t serialized_length() const
-  {
-    if ( storage_.size() > capacity ) {
-      throw std::runtime_error( "invalid NetString" );
-    }
-
-    return 1 + storage_.size();
-  }
-
-  void serialize( Serializer& s ) const
-  {
-    s.integer( uint8_t( storage_.size() ) );
-    s.string( storage_ );
-  }
-
-  void parse( Parser& p )
-  {
-    uint8_t length {};
-    p.integer( length );
-    if ( length > capacity ) {
-      p.set_error();
-      return;
-    }
-    storage_.resize( length );
-    p.string( string_span::from_view( storage_ ) );
-  }
-
-  const std::string& str() const { return storage_; }
-  operator const std::string &() const { return str(); }
-
   NetString( const std::string_view s )
-    : storage_( s )
   {
-    if ( storage_.size() > capacity ) {
-      throw std::runtime_error( "invalid NetString" );
-    }
+    resize( s.length() );
+    mutable_buffer().copy( s );
   }
 };
 
