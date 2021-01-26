@@ -139,7 +139,7 @@ bool KnownClient::try_keyrequest( const Address& src, const Ciphertext& cipherte
 {
   Plaintext plaintext;
   if ( long_lived_crypto_.decrypt( ciphertext, { &KeyMessage::keyreq_id, 1 }, plaintext )
-       and ( plaintext.size() == 0 ) ) {
+       and ( plaintext.length() == 0 ) ) {
     stats_.key_requests++;
     if ( steady_clock::now() < next_reply_allowed_ ) {
       return true;
@@ -148,7 +148,7 @@ bool KnownClient::try_keyrequest( const Address& src, const Ciphertext& cipherte
     /* reply with keys to next session */
     Plaintext outgoing_keys;
     {
-      Serializer s { outgoing_keys };
+      Serializer s { outgoing_keys.mutable_buffer() };
       s.object( KeyMessage { id_, next_keys_ } );
       outgoing_keys.resize( s.bytes_written() );
     }

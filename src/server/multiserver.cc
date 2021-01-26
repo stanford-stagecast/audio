@@ -14,7 +14,6 @@ uint64_t NetworkMultiServer::server_clock() const
 void NetworkMultiServer::receive_keyrequest( const Address& src, const Ciphertext& ciphertext )
 {
   /* decrypt */
-  Plaintext plaintext;
   for ( auto& client : clients_ ) {
     if ( client.try_keyrequest( src, ciphertext, socket_ ) ) {
       return;
@@ -41,9 +40,9 @@ NetworkMultiServer::NetworkMultiServer( EventLoop& loop )
   loop.add_rule( "network receive", socket_, Direction::In, [&] {
     Address src { nullptr, 0 };
     Ciphertext ciphertext;
-    socket_.recv( src, ciphertext.data );
-    if ( ciphertext.size() > 24 ) {
-      const uint8_t node_id = ciphertext.data.back();
+    ciphertext.resize( socket_.recv( src, ciphertext.mutable_buffer() ) );
+    if ( ciphertext.length() > 24 ) {
+      const uint8_t node_id = ciphertext.as_string_view().back();
       if ( node_id == uint8_t( KeyMessage::keyreq_id ) ) {
         receive_keyrequest( src, ciphertext );
       } else if ( node_id > 0 and node_id <= clients_.size() ) {

@@ -43,15 +43,6 @@ CryptoSession::CryptoSession( const Base64Key& encrypt_key,
   set_random_nonce();
 }
 
-template<int max_len>
-void TextBuffer<max_len>::validate() const
-{
-  if ( data.length() > max_len ) {
-    throw runtime_error( "TextBuffer length is invalid: " + to_string( data.length() ) + " > "
-                         + to_string( max_len ) );
-  }
-}
-
 Nonce::Nonce( const uint64_t value )
   : bytes_()
 {
@@ -98,31 +89,31 @@ void CryptoSession::encrypt( const string_view associated_data, const Plaintext&
 
   Nonce nonce { nonce_val_ };
 
-  const int ciphertext_len = plaintext.size() + TAG_LEN;
+  const int ciphertext_len = plaintext.length() + TAG_LEN;
 
   ciphertext.resize( ciphertext_len + Nonce::SERIALIZED_LEN + associated_data.size() );
 
-  memcpy( ciphertext.buffer.data() + ciphertext_len, nonce.lower64().data(), Nonce::SERIALIZED_LEN );
-  memcpy( ciphertext.buffer.data() + ciphertext_len + Nonce::SERIALIZED_LEN,
+  memcpy( ciphertext.mutable_data_ptr() + ciphertext_len, nonce.lower64().data(), Nonce::SERIALIZED_LEN );
+  memcpy( ciphertext.mutable_data_ptr() + ciphertext_len + Nonce::SERIALIZED_LEN,
           associated_data.data(),
           associated_data.size() );
 
   if ( ciphertext_len
-       != ae_encrypt( encrypt_context_.get(),   /* ctx */
-                      nonce.data().data(),      /* nonce */
-                      plaintext.buffer.data(),  /* pt */
-                      plaintext.size(),         /* pt_len */
-                      associated_data.data(),   /* ad */
-                      associated_data.size(),   /* ad_len */
-                      ciphertext.buffer.data(), /* ct */
-                      nullptr,                  /* tag */
-                      AE_FINALIZE ) ) {         /* final */
+       != ae_encrypt( encrypt_context_.get(),        /* ctx */
+                      nonce.data().data(),           /* nonce */
+                      plaintext.data_ptr(),          /* pt */
+                      plaintext.length(),            /* pt_len */
+                      associated_data.data(),        /* ad */
+                      associated_data.size(),        /* ad_len */
+                      ciphertext.mutable_data_ptr(), /* ct */
+                      nullptr,                       /* tag */
+                      AE_FINALIZE ) ) {              /* final */
     throw runtime_error( "ae_encrypt() returned error" );
   }
 
   /* track use of key per RFC 7253 */
-  blocks_encrypted_ += plaintext.size() >> 4;
-  if ( plaintext.size() & 0xF ) {
+  blocks_encrypted_ += plaintext.length() >> 4;
+  if ( plaintext.length() & 0xF ) {
     /* partial block */
     blocks_encrypted_++;
   }
@@ -138,11 +129,11 @@ bool CryptoSession::decrypt( const Ciphertext& ciphertext,
 {
   ciphertext.validate();
 
-  if ( ciphertext.size() < TAG_LEN + Nonce::SERIALIZED_LEN + expected_associated_data.size() ) {
+  if ( ciphertext.length() < TAG_LEN + Nonce::SERIALIZED_LEN + expected_associated_data.size() ) {
     return false;
   }
 
-  const int body_len = ciphertext.size() - Nonce::SERIALIZED_LEN - expected_associated_data.size();
+  const int body_len = ciphertext.length() - Nonce::SERIALIZED_LEN - expected_associated_data.size();
 
   const int pt_len = body_len - TAG_LEN;
   plaintext.resize( pt_len );
@@ -152,11 +143,11 @@ bool CryptoSession::decrypt( const Ciphertext& ciphertext,
   if ( pt_len
        != ae_decrypt( decrypt_context_.get(),          /* ctx */
                       nonce.data().data(),             /* nonce */
-                      ciphertext.buffer.data(),        /* ct */
+                      ciphertext.data_ptr(),           /* ct */
                       body_len,                        /* ct_len */
                       expected_associated_data.data(), /* ad */
                       expected_associated_data.size(), /* ad_len */
-                      plaintext.buffer.data(),         /* pt */
+                      plaintext.mutable_data_ptr(),    /* pt */
                       nullptr,                         /* tag */
                       AE_FINALIZE ) ) {                /* final */
     return false;

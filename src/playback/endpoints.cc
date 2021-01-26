@@ -93,9 +93,9 @@ NetworkClient::NetworkClient( const Address& server,
   loop.add_rule( "network receive", socket_, Direction::In, [&] {
     Address src { nullptr, 0 };
     Ciphertext ciphertext;
-    socket_.recv( src, ciphertext.data );
-    if ( ciphertext.size() > 24 ) {
-      const uint8_t node_id = ciphertext.data.back();
+    ciphertext.resize( socket_.recv( src, ciphertext.mutable_buffer() ) );
+    if ( ciphertext.length() > 24 ) {
+      const uint8_t node_id = ciphertext.as_string_view().back();
       switch ( node_id ) {
         case uint8_t( KeyMessage::keyreq_server_id ):
           if ( not session_.has_value() ) {

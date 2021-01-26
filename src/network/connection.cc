@@ -36,7 +36,7 @@ void NetworkConnection::send_packet( UDPSocket& socket )
 
   /* serialize */
   Plaintext plaintext;
-  Serializer s { plaintext };
+  Serializer s { plaintext.mutable_buffer() };
   pack.serialize( s );
   plaintext.resize( s.bytes_written() );
 

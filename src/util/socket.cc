@@ -101,28 +101,25 @@ void Socket::shutdown( const int how )
 }
 
 //! \note If `mtu` is too small to hold the received datagram, this method throws a std::runtime_error
-void UDPSocket::recv( Address& source_address, string_span& payload, const size_t mtu )
+size_t UDPSocket::recv( Address& source_address, string_span payload )
 {
   // receive source address and payload
   Address::Raw datagram_source_address;
-  if ( payload.size() < mtu ) {
-    throw std::runtime_error( "UDPSocket::recv: payload storage smaller than MTU" );
-  }
-
   socklen_t fromlen = sizeof( datagram_source_address );
 
   const ssize_t recv_len = CheckSystemCall(
-    "recvfrom", ::recvfrom( fd_num(), payload.mutable_data(), mtu, MSG_TRUNC, datagram_source_address, &fromlen ) );
+    "recvfrom",
+    ::recvfrom( fd_num(), payload.mutable_data(), payload.size(), MSG_TRUNC, datagram_source_address, &fromlen ) );
 
   register_read();
   source_address = { datagram_source_address, fromlen };
 
-  if ( recv_len > ssize_t( mtu ) ) {
-    //    throw runtime_error( "recvfrom (oversized datagram)" );
-    payload = payload.substr( 0, 0 );
-  } else {
-    payload = payload.substr( 0, recv_len );
+  if ( recv_len > ssize_t( payload.size() ) ) {
+    throw runtime_error( "recvfrom (oversized datagram)" );
+    return 0;
   }
+
+  return recv_len;
 }
 
 void UDPSocket::sendto( const Address& destination, const string_view payload )
