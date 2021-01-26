@@ -14,32 +14,6 @@ int opus_check( const int retval )
   return retval;
 }
 
-void opus_frame::resize( const uint8_t new_length )
-{
-  if ( new_length > MAX_LENGTH ) {
-    throw std::out_of_range( "opus_frame::resize: " + std::to_string( new_length ) + " > "
-                             + std::to_string( MAX_LENGTH ) );
-  }
-
-  length_ = new_length;
-}
-
-void opus_frame::parse( Parser& p )
-{
-  p.integer( length_ );
-  if ( length_ > MAX_LENGTH ) {
-    p.set_error();
-    return;
-  }
-  p.string( as_string_span() );
-}
-
-void opus_frame::serialize( Serializer& s ) const
-{
-  s.integer( length_ );
-  s.string( as_string_span() );
-}
-
 void OpusEncoder::encoder_deleter::operator()( OpusEncoder* x ) const
 {
   opus_encoder_destroy( x );
@@ -78,8 +52,11 @@ OpusEncoder::OpusEncoder( const int bit_rate, const int sample_rate )
 
 void OpusEncoder::encode( const span_view<float> samples, opus_frame& encoded_output )
 {
-  encoded_output.resize( opus_check( opus_encode_float(
-    encoder_.get(), samples.data(), samples.size(), encoded_output.data(), opus_frame::MAX_LENGTH ) ) );
+  encoded_output.resize( opus_check( opus_encode_float( encoder_.get(),
+                                                        samples.data(),
+                                                        samples.size(),
+                                                        encoded_output.mutable_unsigned_data_ptr(),
+                                                        encoded_output.capacity() ) ) );
 }
 
 void OpusDecoder::decoder_deleter::operator()( OpusDecoder* x ) const
@@ -96,8 +73,12 @@ OpusDecoder::OpusDecoder( const int sample_rate )
 
 void OpusDecoder::decode( const opus_frame& encoded_input, span<float> samples )
 {
-  const size_t samples_written = opus_check( opus_decode_float(
-    decoder_.get(), encoded_input.data(), encoded_input.length(), samples.mutable_data(), samples.size(), 0 ) );
+  const size_t samples_written = opus_check( opus_decode_float( decoder_.get(),
+                                                                encoded_input.unsigned_data_ptr(),
+                                                                encoded_input.length(),
+                                                                samples.mutable_data(),
+                                                                samples.size(),
+                                                                0 ) );
 
   if ( samples_written != opus_frame::NUM_SAMPLES ) {
     throw runtime_error( "invalid count from opus_decode_float: " + to_string( samples_written ) );
