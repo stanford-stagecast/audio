@@ -41,7 +41,7 @@ class Client
   uint64_t server_mix_cursor() const;
   uint64_t client_mix_cursor() const;
 
-  OpusEncoderProcess encoder_ { 96000, 96000, 48000 };
+  OpusEncoderProcess encoder_ { 96000, 600, 48000 };
 
   uint8_t ch1_num_, ch2_num_;
 

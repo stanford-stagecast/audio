@@ -411,7 +411,7 @@ void AudioInterface::copy_all_available_samples_to( AudioInterface& other,
 
       write_buf.sample( true, i )
         = float_to_sample( ch1_sample * config_.ch1_loopback_gain[1] + ch2_sample * config_.ch2_loopback_gain[1]
-                           + playback_sample.second );
+                           + playback_sample.first ); /* XXX */
 
       cursor_++;
     }

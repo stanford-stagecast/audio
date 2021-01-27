@@ -10,7 +10,7 @@ NetworkClient::NetworkSession::NetworkSession( const uint8_t node_id,
                                                const size_t audio_cursor )
   : connection( node_id, 0, CryptoSession( session_key.uplink, session_key.downlink ), destination )
   , peer_clock( audio_cursor )
-  , cursor( 360, false )
+  , cursor( 960, false )
 {}
 
 void NetworkClient::NetworkSession::transmit_frame( OpusEncoderProcess& source, UDPSocket& socket )
