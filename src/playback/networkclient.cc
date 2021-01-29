@@ -28,6 +28,7 @@ void NetworkClient::NetworkSession::decode( const size_t decode_cursor, AudioBuf
   cursor.sample( connection.frames(),
                  decode_cursor,
                  connection.unreceived_beyond_this_frame_index() * opus_frame::NUM_SAMPLES,
+                 connection.next_frame_needed() * opus_frame::NUM_SAMPLES,
                  output );
 
   /* pop used Opus frames from server */

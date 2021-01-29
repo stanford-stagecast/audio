@@ -1,4 +1,5 @@
 #include "sender.hh"
+#include "ewma.hh"
 
 using namespace std;
 
@@ -255,8 +256,7 @@ void NetworkSender::receive_receiver_section( const Packet::ReceiverSection& rec
       if ( time_diff <= 0 ) {
         stats_.invalid_timestamp++;
       } else {
-        stats_.smoothed_rtt
-          = stats_.SRTT_ALPHA * float( time_diff ) + ( 1 - stats_.SRTT_ALPHA ) * stats_.smoothed_rtt;
+        ewma_update( stats_.smoothed_rtt, float( time_diff ), stats_.SRTT_ALPHA );
       }
 
       for ( const uint32_t frame_index : pack.record.frames ) {

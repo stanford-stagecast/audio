@@ -1,65 +1,54 @@
 #include "cursor.hh"
+#include "ewma.hh"
+
+#include <iostream>
 
 using namespace std;
 
+void Cursor::miss()
+{
+  ewma_update( stats_.quality, 0.0, 0.01 );
+}
+
+void Cursor::hit()
+{
+  ewma_update( stats_.quality, 1.0, 0.01 );
+}
+
 void Cursor::sample( const PartialFrameStore& frames,
                      const size_t global_sample_index,
-                     const std::optional<size_t> local_clock_sample_index,
+                     const size_t frontier_sample_index,
+                     const size_t safe_sample_index,
                      AudioBuffer& output )
 {
   /* initialize cursor if necessary */
-  if ( local_clock_sample_index.has_value() ) {
-    if ( ( not cursor_location_.has_value() ) and ( local_clock_sample_index.value() >= target_lag_samples_ ) ) {
-      cursor_location_ = local_clock_sample_index.value() - target_lag_samples_;
-      slew_ = Slew::NO;
-      stats_.resets++;
-    }
-  } else {
-    cursor_location_.reset();
+  if ( not cursor_location_.has_value() ) {
+    cursor_location_ = frontier_sample_index - target_lag_samples_;
+    num_samples_output_ = global_sample_index;
+    stats_.resets++;
   }
 
   /* adjust cursor if necessary */
-  if ( cursor_location_.has_value() ) {
-    const int64_t cursor_skew = local_clock_sample_index.value() - target_lag_samples_ - cursor_location_.value();
-    if ( cursor_skew > 300 or cursor_skew < -300 ) {
-      /* reset cursor */
-      cursor_location_ = local_clock_sample_index.value() - target_lag_samples_;
-      slew_ = Slew::NO;
-      stats_.resets++;
-    } else if ( cursor_skew > 180 ) {
-      slew_ = Slew::CONSUME_FASTER;
-    } else if ( cursor_skew < -180 ) {
-      slew_ = Slew::CONSUME_SLOWER;
-    } else if ( cursor_skew <= 48 and cursor_skew >= -48 ) {
-      slew_ = Slew::NO;
-    }
-    stats_.last_skew = cursor_skew;
+  if ( cursor_location_.value() > int64_t( frontier_sample_index ) ) {
+    /* underflow, reset */
+    cursor_location_ = frontier_sample_index - target_lag_samples_;
+    stats_.resets++;
   }
+
+  ewma_update( stats_.mean_margin_to_frontier, int64_t( frontier_sample_index ) - cursor_location_.value(), 0.001 );
+  ewma_update( stats_.mean_margin_to_safe_index, int64_t( safe_sample_index ) - cursor_location_.value(), 0.001 );
 
   /* do we owe any samples to the output? */
   while ( global_sample_index > num_samples_output_ ) {
     /* we owe some samples to the output -- how many? */
 
-    /* do we even know where to get them from? */
-    if ( not cursor_location_.has_value() ) {
+    /* not enough buffer accumulated yet */
+    if ( cursor_location_.value() < 0 ) {
       miss();
       decoder_.decode_missing( num_samples_output_, output );
       num_samples_output_ += opus_frame::NUM_SAMPLES;
+      cursor_location_.value() += opus_frame::NUM_SAMPLES;
       continue;
-    }
-
-    uint8_t samples_to_output = opus_frame::NUM_SAMPLES;
-    switch ( slew_ ) {
-      case Slew::NO:
-        break;
-      case Slew::CONSUME_FASTER:
-        samples_to_output--;
-        stats_.samples_skipped++;
-        break;
-      case Slew::CONSUME_SLOWER:
-        samples_to_output++;
-        stats_.samples_inserted++;
-        break;
     }
 
     /* okay, we know where to get them from. Do we have an Opus frame ready to decode? */
@@ -67,7 +56,7 @@ void Cursor::sample( const PartialFrameStore& frames,
     if ( not frames.has_value( cursor_location_.value() / opus_frame::NUM_SAMPLES ) ) {
       miss();
       decoder_.decode_missing( num_samples_output_, output );
-      num_samples_output_ += samples_to_output;
+      num_samples_output_ += opus_frame::NUM_SAMPLES;
       cursor_location_.value() += opus_frame::NUM_SAMPLES;
       continue;
     }
@@ -76,7 +65,7 @@ void Cursor::sample( const PartialFrameStore& frames,
     hit();
     decoder_.decode(
       frames.at( frame_no ).value().ch1, frames.at( frame_no ).value().ch2, num_samples_output_, output );
-    num_samples_output_ += samples_to_output;
+    num_samples_output_ += opus_frame::NUM_SAMPLES;
     cursor_location_.value() += opus_frame::NUM_SAMPLES;
   }
 }
@@ -85,12 +74,10 @@ void Cursor::summary( ostream& out ) const
 {
   out << "Cursor: ";
   out << " target lag=" << target_lag_samples_;
-  out << " quality=" << fixed << setprecision( 5 ) << quality_;
-  out << " inserted=" << stats_.samples_inserted;
-  out << " skipped=" << stats_.samples_skipped;
+  out << " actual lag=" << stats_.mean_margin_to_frontier;
+  out << " safety margin=" << stats_.mean_margin_to_safe_index;
+  out << " quality=" << fixed << setprecision( 5 ) << stats_.quality;
   out << " resets=" << stats_.resets;
-  out << " slew=" << int( slew_ );
-  out << " last_skew=" << int( stats_.last_skew );
   out << " ignored/success/missing=" << decoder_.stats().ignored_decodes << "/"
       << decoder_.stats().successful_decodes << "/" << decoder_.stats().missing_decodes;
   out << "\n";

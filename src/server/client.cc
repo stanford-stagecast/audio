@@ -38,6 +38,7 @@ void Client::decode_audio( const uint64_t cursor_sample, AudioBoard& board )
   cursor_.sample( connection_.frames(),
                   cursor_sample,
                   connection_.unreceived_beyond_this_frame_index() * opus_frame::NUM_SAMPLES,
+                  connection_.next_frame_needed() * opus_frame::NUM_SAMPLES,
                   output );
 
   connection_.pop_frames( min( cursor_.ok_to_pop( connection_.frames() ),
