@@ -228,3 +228,32 @@ void Client::set_cursor_lag( const uint16_t num_samples )
   cursor_.set_target_lag( num_samples );
   cursor_.reset();
 }
+
+void AudioWriter::mix_and_write( const AudioBoard& board, const uint64_t cursor_sample )
+{
+  while ( mix_cursor_ + opus_frame::NUM_SAMPLES <= cursor_sample ) {
+    span<float> ch1_target = mixed_audio_.ch1().region( mix_cursor_, opus_frame::NUM_SAMPLES );
+    span<float> ch2_target = mixed_audio_.ch2().region( mix_cursor_, opus_frame::NUM_SAMPLES );
+
+    for ( uint8_t channel_i = 0; channel_i < board.num_channels(); channel_i++ ) {
+      const span_view<float> other_channel
+        = board.channel( channel_i ).region( mix_cursor_, opus_frame::NUM_SAMPLES );
+
+      const float gain_into_1 = 2.0;
+      const float gain_into_2 = 2.0;
+      for ( uint8_t sample_i = 0; sample_i < opus_frame::NUM_SAMPLES; sample_i++ ) {
+        const float value = other_channel[sample_i];
+        const float orig_1 = ch1_target[sample_i];
+        const float orig_2 = ch2_target[sample_i];
+
+        ch1_target[sample_i] = orig_1 + gain_into_1 * value;
+        ch2_target[sample_i] = orig_2 + gain_into_2 * value;
+      }
+    }
+
+    mix_cursor_ += opus_frame::NUM_SAMPLES;
+  }
+
+  wav_writer_.write( mixed_audio_, cursor_sample );
+  mixed_audio_.pop_before( cursor_sample );
+}

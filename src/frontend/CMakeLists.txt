@@ -19,9 +19,6 @@ target_link_libraries ("stagecast-client" ${DBus_LIBRARIES})
 target_link_libraries ("stagecast-client" ${Opus_LDFLAGS_OTHER})
 target_link_libraries ("stagecast-client" ${Opus_LIBRARIES})
 
-target_link_libraries ("stagecast-client" ${Sndfile_LDFLAGS_OTHER})
-target_link_libraries ("stagecast-client" ${Sndfile_LIBRARIES})
-
 if(BUILD_EMBEDDED_CLIENT)
 add_executable (stagecast-client-embedded "stagecast-client-embedded.cc")
 target_link_libraries ("stagecast-client-embedded" stats)
@@ -39,9 +36,6 @@ target_link_libraries ("stagecast-client-embedded" ${Opus_LDFLAGS_OTHER})
 target_link_libraries ("stagecast-client-embedded" "-Wl,--static")
 target_link_libraries ("stagecast-client-embedded" ${Opus_LIBRARIES})
 target_link_libraries ("stagecast-client-embedded" "-Wl,-Bdynamic")
-
-target_link_libraries ("stagecast-client-embedded" ${Sndfile_LDFLAGS_OTHER})
-target_link_libraries ("stagecast-client-embedded" ${Sndfile_LIBRARIES})
 endif(BUILD_EMBEDDED_CLIENT)
 
 add_executable (stagecast-server "stagecast-server.cc")
@@ -58,6 +52,9 @@ target_link_libraries ("stagecast-server" ${ALSA_LIBRARIES})
 
 target_link_libraries ("stagecast-server" ${Opus_LDFLAGS_OTHER})
 target_link_libraries ("stagecast-server" ${Opus_LIBRARIES})
+
+target_link_libraries ("stagecast-server" ${Sndfile_LDFLAGS_OTHER})
+target_link_libraries ("stagecast-server" ${Sndfile_LIBRARIES})
 
 add_executable (make-key "make-key.cc")
 target_link_libraries ("make-key" network)

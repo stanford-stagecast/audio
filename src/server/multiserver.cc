@@ -85,6 +85,8 @@ NetworkMultiServer::NetworkMultiServer( const uint8_t num_clients, EventLoop& lo
         }
       }
 
+      program_audio_.mix_and_write( board_, next_cursor_sample_ );
+
       /* send audio to clients */
       for ( auto& client : clients_ ) {
         if ( client ) {

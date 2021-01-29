@@ -3,7 +3,7 @@
 using namespace std;
 
 WavWriter::WavWriter( const string& path, const int sample_rate )
-  : handle_( path, SFM_WRITE, SF_FORMAT_WAV | SF_FORMAT_FLOAT, 2, sample_rate )
+  : handle_( path, SFM_WRITE, SF_FORMAT_WAV | SF_FORMAT_PCM_16, 1, sample_rate )
 {
   if ( handle_.error() ) {
     throw runtime_error( path + ": " + handle_.strError() );
@@ -26,8 +26,13 @@ void WavWriter::write( const AudioBuffer& buffer, const size_t range_end )
       sample_storage[i] = buffer.safe_get( next_frame_to_copy + i );
     }
 
-    if ( num_to_copy != handle_.writef( &sample_storage.at( 0 ).first, num_to_copy ) ) {
-      throw runtime_error( "writef: short write" );
+    array<int16_t, 4096> int_sample_storage;
+    for ( unsigned int i = 0; i < 4096; i++ ) {
+      int_sample_storage[i] = sample_storage[i].first * 32767.0;
+    }
+
+    if ( num_to_copy != handle_.write( &int_sample_storage.at( 0 ), num_to_copy ) ) {
+      throw runtime_error( "write: short write" );
     }
 
     next_frame_to_copy += num_to_copy;

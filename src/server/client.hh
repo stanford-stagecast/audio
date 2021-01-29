@@ -7,6 +7,7 @@
 #include "connection.hh"
 #include "cursor.hh"
 #include "keys.hh"
+#include "wavwriter.hh"
 
 class KnownClient;
 
@@ -26,6 +27,18 @@ public:
 
   uint8_t num_channels() const { return channel_names_.size(); }
   const std::string& channel_name( const uint8_t num ) const { return channel_names_.at( num ); }
+};
+
+class AudioWriter
+{
+  AudioBuffer mixed_audio_ { 8192 };
+
+  uint64_t mix_cursor_ {};
+
+  WavWriter wav_writer_ { "/tmp/stagecast.wav", 48000 };
+
+public:
+  void mix_and_write( const AudioBoard& board, const uint64_t cursor_sample );
 };
 
 class Client

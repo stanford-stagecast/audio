@@ -28,6 +28,8 @@ class NetworkMultiServer : public Summarizable
 
   void summary( std::ostream& out ) const override;
 
+  AudioWriter program_audio_ {};
+
 public:
   NetworkMultiServer( const uint8_t num_clients, EventLoop& loop );
   void add_key( const LongLivedKey& key );
