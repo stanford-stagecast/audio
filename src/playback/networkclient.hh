@@ -18,7 +18,7 @@ class NetworkClient : public Summarizable
 
     void transmit_frame( OpusEncoderProcess& source, UDPSocket& socket );
     void network_receive( const Ciphertext& ciphertext );
-    void decode( const size_t decode_cursor, AudioBuffer& output );
+    void decode( const size_t decode_cursor, OpusDecoderProcess& decoder, AudioBuffer& output );
     void summary( std::ostream& out ) const;
   };
 
@@ -29,6 +29,7 @@ class NetworkClient : public Summarizable
   CryptoSession long_lived_crypto_;
 
   std::optional<NetworkSession> session_ {};
+  OpusDecoderProcess decoder_ {};
 
   std::shared_ptr<OpusEncoderProcess> source_;
 

@@ -13,8 +13,6 @@ class Cursor
     float mean_margin_to_frontier, mean_margin_to_safe_index, quality;
   } stats_ {};
 
-  OpusDecoderProcess decoder_ {};
-
   size_t num_samples_output_ {};
   std::optional<int64_t> cursor_location_ {};
 
@@ -32,6 +30,7 @@ public:
                const size_t global_sample_index,
                const size_t frontier_sample_index,
                const size_t safe_sample_index,
+               OpusDecoderProcess& decoder,
                AudioBuffer& output );
 
   void summary( std::ostream& out ) const;

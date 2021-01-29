@@ -22,13 +22,16 @@ void NetworkClient::NetworkSession::network_receive( const Ciphertext& ciphertex
   connection.receive_packet( ciphertext );
 }
 
-void NetworkClient::NetworkSession::decode( const size_t decode_cursor, AudioBuffer& output )
+void NetworkClient::NetworkSession::decode( const size_t decode_cursor,
+                                            OpusDecoderProcess& decoder,
+                                            AudioBuffer& output )
 {
   /* decode server's Opus frames to playback buffer */
   cursor.sample( connection.frames(),
                  decode_cursor,
                  connection.unreceived_beyond_this_frame_index() * opus_frame::NUM_SAMPLES,
                  connection.next_frame_needed() * opus_frame::NUM_SAMPLES,
+                 decoder,
                  output );
 
   /* pop used Opus frames from server */
@@ -115,7 +118,7 @@ NetworkClient::NetworkClient( const Address& server,
   loop.add_rule(
     "decode",
     [&] {
-      session_->decode( decode_cursor_, dest_->playback() );
+      session_->decode( decode_cursor_, decoder_, dest_->playback() );
       decode_cursor_ += opus_frame::NUM_SAMPLES;
 
       if ( session_->connection.sender_stats().last_good_ack_ts + 4'000'000'000 < Timer::timestamp_ns() ) {

@@ -19,6 +19,7 @@ void Cursor::sample( const PartialFrameStore& frames,
                      const size_t global_sample_index,
                      const size_t frontier_sample_index,
                      const size_t safe_sample_index,
+                     OpusDecoderProcess& decoder,
                      AudioBuffer& output )
 {
   /* initialize cursor if necessary */
@@ -45,7 +46,7 @@ void Cursor::sample( const PartialFrameStore& frames,
     /* not enough buffer accumulated yet */
     if ( cursor_location_.value() < 0 ) {
       miss();
-      decoder_.decode_missing( num_samples_output_, output );
+      decoder.decode_missing( num_samples_output_, output );
       num_samples_output_ += opus_frame::NUM_SAMPLES;
       cursor_location_.value() += opus_frame::NUM_SAMPLES;
       continue;
@@ -55,7 +56,7 @@ void Cursor::sample( const PartialFrameStore& frames,
     const uint32_t frame_no = cursor_location_.value() / opus_frame::NUM_SAMPLES;
     if ( not frames.has_value( cursor_location_.value() / opus_frame::NUM_SAMPLES ) ) {
       miss();
-      decoder_.decode_missing( num_samples_output_, output );
+      decoder.decode_missing( num_samples_output_, output );
       num_samples_output_ += opus_frame::NUM_SAMPLES;
       cursor_location_.value() += opus_frame::NUM_SAMPLES;
       continue;
@@ -63,7 +64,7 @@ void Cursor::sample( const PartialFrameStore& frames,
 
     /* decode a frame! */
     hit();
-    decoder_.decode(
+    decoder.decode(
       frames.at( frame_no ).value().ch1, frames.at( frame_no ).value().ch2, num_samples_output_, output );
     num_samples_output_ += opus_frame::NUM_SAMPLES;
     cursor_location_.value() += opus_frame::NUM_SAMPLES;
@@ -78,8 +79,6 @@ void Cursor::summary( ostream& out ) const
   out << " safety margin=" << stats_.mean_margin_to_safe_index;
   out << " quality=" << fixed << setprecision( 5 ) << stats_.quality;
   out << " resets=" << stats_.resets;
-  out << " ignored/success/missing=" << decoder_.stats().ignored_decodes << "/"
-      << decoder_.stats().successful_decodes << "/" << decoder_.stats().missing_decodes;
   out << "\n";
 }
 

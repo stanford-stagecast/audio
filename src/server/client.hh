@@ -31,6 +31,7 @@ class Client
 {
   NetworkConnection connection_;
   Cursor cursor_;
+  OpusDecoderProcess decoder_ {};
   AudioBuffer mixed_audio_ { 8192 };
 
   uint64_t mix_cursor_ {};
