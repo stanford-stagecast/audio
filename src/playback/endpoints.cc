@@ -10,7 +10,7 @@ NetworkClient::NetworkSession::NetworkSession( const uint8_t node_id,
                                                const size_t audio_cursor )
   : connection( node_id, 0, CryptoSession( session_key.uplink, session_key.downlink ), destination )
   , peer_clock( audio_cursor )
-  , cursor( 960, false )
+  , cursor( 960 )
 {}
 
 void NetworkClient::NetworkSession::transmit_frame( OpusEncoderProcess& source, UDPSocket& socket )
@@ -32,7 +32,7 @@ void NetworkClient::NetworkSession::decode( const size_t audio_cursor,
   peer_clock.time_passes( audio_cursor );
 
   /* decode server's Opus frames to playback buffer */
-  cursor.sample( connection.frames(), decode_cursor, peer_clock.value(), peer_clock.jitter(), output );
+  cursor.sample( connection.frames(), decode_cursor, peer_clock.value(), output );
 
   /* pop used Opus frames from server */
   connection.pop_frames( min( cursor.ok_to_pop( connection.frames() ),

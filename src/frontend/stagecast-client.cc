@@ -1,6 +1,8 @@
 #include <cstdlib>
 #include <iostream>
 
+#include <sched.h>
+
 #include "alsa_devices.hh"
 #include "audio_task.hh"
 #include "controller.hh"
@@ -19,6 +21,15 @@ using namespace std;
 void program_body( const string& host, const string& service, const string& key_filename )
 {
   ios::sync_with_stdio( false );
+
+  /* real-time priority */
+  try {
+    sched_param param;
+    param.sched_priority = CheckSystemCall( "sched_get_priority_max", SCHED_FIFO );
+    CheckSystemCall( "sched_setscheduler", sched_setscheduler( 0, SCHED_FIFO | SCHED_RESET_ON_FORK, &param ) );
+  } catch ( const exception& e ) {
+    cerr << e.what() << "\n";
+  }
 
   /* read key */
   ReadOnlyFile keyfile { key_filename };

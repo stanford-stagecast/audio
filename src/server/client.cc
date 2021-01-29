@@ -16,7 +16,7 @@ uint64_t Client::server_mix_cursor() const
 Client::Client( const uint8_t node_id, const uint8_t ch1_num, const uint8_t ch2_num, CryptoSession&& crypto )
   : connection_( 0, node_id, move( crypto ) )
   , clock_( 0 )
-  , cursor_( 960, false )
+  , cursor_( 960 )
   , ch1_num_( ch1_num )
   , ch2_num_( ch2_num )
 {}
@@ -39,7 +39,7 @@ void Client::decode_audio( const uint64_t clock_sample, const uint64_t cursor_sa
 
   AudioBuffer& output = board.buffer( ch1_num_, ch2_num_ );
 
-  cursor_.sample( connection_.frames(), cursor_sample, clock_.value(), clock_.jitter(), output );
+  cursor_.sample( connection_.frames(), cursor_sample, clock_.value(), output );
 
   connection_.pop_frames( min( cursor_.ok_to_pop( connection_.frames() ),
                                connection_.next_frame_needed() - connection_.frames().range_begin() ) );

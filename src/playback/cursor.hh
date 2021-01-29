@@ -6,7 +6,6 @@
 class Cursor
 {
   uint32_t target_lag_samples_;
-  bool minimize_lag_;
 
   struct Statistics
   {
@@ -34,15 +33,13 @@ class Cursor
   } slew_ { Slew::NO };
 
 public:
-  Cursor( const uint32_t target_lag_samples, const bool minimize_lag )
+  Cursor( const uint32_t target_lag_samples )
     : target_lag_samples_( target_lag_samples )
-    , minimize_lag_( minimize_lag )
   {}
 
   void sample( const PartialFrameStore& frames,
                const size_t global_sample_index,
                const std::optional<size_t> local_clock_sample_index,
-               const float jitter_samples,
                AudioBuffer& output );
 
   void summary( std::ostream& out ) const;
