@@ -19,19 +19,21 @@ void send( const Message& message )
   buf.resize( s.bytes_written() );
 
   UDPSocket socket;
-  socket.sendto( { "127.0.0.1", client_control_port() }, buf );
+  socket.sendto( { "127.0.0.1", server_control_port() }, buf );
 }
 
-void program_body( const string& control, const string& value )
+void program_body( const string& control, const string& name, const string& value )
 {
   ios::sync_with_stdio( false );
 
   if ( control == "cursor" ) {
     set_cursor_lag instruction;
+    instruction.name = NetString( name );
     instruction.num_samples = stoi( value );
     send( instruction );
   } else if ( control == "gain" ) {
     set_gain instruction;
+    instruction.name = NetString( name );
     instruction.gain = stof( value );
     send( instruction );
   } else {
@@ -46,12 +48,12 @@ int main( int argc, char* argv[] )
       abort();
     }
 
-    if ( argc != 3 ) {
-      cerr << "Usage: " << argv[0] << " cursor|gain value\n";
+    if ( argc != 4 ) {
+      cerr << "Usage: " << argv[0] << " cursor|gain name value\n";
       return EXIT_FAILURE;
     }
 
-    program_body( argv[1], argv[2] );
+    program_body( argv[1], argv[2], argv[3] );
   } catch ( const exception& e ) {
     cerr << "Exception: " << e.what() << "\n";
     return EXIT_FAILURE;

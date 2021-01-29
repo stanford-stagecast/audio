@@ -25,6 +25,7 @@ public:
   void pop_samples_until( const uint64_t sample );
 
   uint8_t num_channels() const { return channel_names_.size(); }
+  const std::string& channel_name( const uint8_t num ) const { return channel_names_.at( num ); }
 };
 
 class Client
@@ -60,6 +61,8 @@ public:
   uint8_t peer_id() const { return connection().peer_id(); }
 
   const NetworkConnection& connection() const { return connection_; }
+
+  void set_cursor_lag( const uint16_t num_samples );
 };
 
 class KnownClient
@@ -96,6 +99,7 @@ public:
   operator bool() const { return current_session_.has_value(); }
   Client& client() { return current_session_.value(); }
   const Client& client() const { return current_session_.value(); }
+  const std::string& name() const { return name_; }
   uint8_t id() const { return id_; }
 
   void clear_current_session() { current_session_.reset(); }

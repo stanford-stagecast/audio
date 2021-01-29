@@ -222,3 +222,9 @@ void AudioBoard::pop_samples_until( const uint64_t sample )
     buf.pop_before( sample );
   }
 }
+
+void Client::set_cursor_lag( const uint16_t num_samples )
+{
+  cursor_.set_target_lag( num_samples );
+  cursor_.reset();
+}

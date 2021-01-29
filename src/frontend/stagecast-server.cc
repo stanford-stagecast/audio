@@ -6,6 +6,7 @@
 #include "alsa_devices.hh"
 #include "audio_device_claim.hh"
 #include "audio_task.hh"
+#include "controller.hh"
 #include "encoder_task.hh"
 #include "eventloop.hh"
 #include "multiserver.hh"
@@ -28,6 +29,9 @@ void program_body( const vector<string>& keyfiles )
     Parser p { file };
     server->add_key( LongLivedKey { p } );
   }
+
+  /* Controller registers itself in EventLoop */
+  ServerController controller { server, *loop };
 
   /* Print out statistics to terminal */
   StatsPrinterTask stats_printer { loop };

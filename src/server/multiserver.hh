@@ -31,4 +31,7 @@ class NetworkMultiServer : public Summarizable
 public:
   NetworkMultiServer( const uint8_t num_clients, EventLoop& loop );
   void add_key( const LongLivedKey& key );
+
+  void set_cursor_lag( const std::string_view name, const uint16_t num_samples );
+  void set_gain( const std::string_view name, const float gain );
 };

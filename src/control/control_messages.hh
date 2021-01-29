@@ -1,10 +1,16 @@
 #pragma once
 
+#include "formats.hh"
 #include "parser.hh"
 
-static constexpr uint16_t control_port()
+static constexpr uint16_t client_control_port()
 {
   return 3007;
+}
+
+static constexpr uint16_t server_control_port()
+{
+  return 3008;
 }
 
 template<uint8_t control_id>
@@ -15,18 +21,36 @@ struct control_message
 
 struct set_cursor_lag : public control_message<0>
 {
-  uint16_t num_samples;
+  NetString name {};
+  uint16_t num_samples {};
 
-  constexpr uint32_t serialized_length() const { return sizeof( num_samples ); }
-  void serialize( Serializer& s ) const { s.integer( num_samples ); }
-  void parse( Parser& p ) { p.integer( num_samples ); }
+  uint32_t serialized_length() const { return name.serialized_length() + sizeof( num_samples ); }
+  void serialize( Serializer& s ) const
+  {
+    s.object( name );
+    s.integer( num_samples );
+  }
+  void parse( Parser& p )
+  {
+    p.object( name );
+    p.integer( num_samples );
+  }
 };
 
-struct set_loopback_gain : public control_message<1>
+struct set_gain : public control_message<1>
 {
-  float gain;
+  NetString name {};
+  float gain {};
 
-  constexpr uint32_t serialized_length() const { return sizeof( gain ); }
-  void serialize( Serializer& s ) const { s.floating( gain ); }
-  void parse( Parser& p ) { p.floating( gain ); }
+  uint32_t serialized_length() const { return name.serialized_length() + sizeof( gain ); }
+  void serialize( Serializer& s ) const
+  {
+    s.object( name );
+    s.floating( gain );
+  }
+  void parse( Parser& p )
+  {
+    p.object( name );
+    p.floating( gain );
+  }
 };

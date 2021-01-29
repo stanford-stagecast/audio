@@ -111,3 +111,17 @@ void NetworkMultiServer::summary( ostream& out ) const
     }
   }
 }
+
+void NetworkMultiServer::set_cursor_lag( const string_view name, const uint16_t num_samples )
+{
+  for ( auto& client : clients_ ) {
+    if ( client and client.name() == name ) {
+      client.client().set_cursor_lag( num_samples );
+    }
+  }
+}
+
+void NetworkMultiServer::set_gain( const string_view, const float )
+{
+  /* XXX ignore for now */
+}

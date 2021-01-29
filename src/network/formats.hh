@@ -104,6 +104,7 @@ struct NetArray
 class NetString : public StackBuffer<0, uint8_t, 255>
 {
 public:
+  NetString() {}
   NetString( const std::string_view s )
   {
     resize( s.length() );

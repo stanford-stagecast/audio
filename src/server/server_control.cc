@@ -1,17 +1,14 @@
-#include "controller.hh"
 #include "control_messages.hh"
+#include "controller.hh"
 
 using namespace std;
 
-ClientController::ClientController( shared_ptr<NetworkClient> client,
-                                    shared_ptr<AudioDeviceTask> audio_device,
-                                    EventLoop& loop )
+ServerController::ServerController( shared_ptr<NetworkMultiServer> server, EventLoop& loop )
   : socket_()
-  , client_( client )
-  , audio_device_( audio_device )
+  , server_( server )
 {
   socket_.set_blocking( false );
-  socket_.bind( { "127.0.0.1", client_control_port() } );
+  socket_.bind( { "127.0.0.1", server_control_port() } );
 
   loop.add_rule( "control", socket_, Direction::In, [&] {
     Address src { nullptr, 0 };
@@ -32,7 +29,7 @@ ClientController::ClientController( shared_ptr<NetworkClient> client,
         if ( parser.error() ) {
           return;
         }
-        client_->set_cursor_lag( my_cursor_lag.num_samples );
+        server_->set_cursor_lag( my_cursor_lag.name, my_cursor_lag.num_samples );
       } break;
 
       case set_gain::id: {
@@ -41,7 +38,7 @@ ClientController::ClientController( shared_ptr<NetworkClient> client,
         if ( parser.error() ) {
           return;
         }
-        audio_device_->set_loopback_gain( my_gain.gain );
+        server_->set_gain( my_gain.name, my_gain.gain );
       } break;
     }
   } );

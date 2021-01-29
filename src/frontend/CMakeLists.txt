@@ -66,3 +66,6 @@ target_link_libraries ("make-key" util)
 
 add_executable (client-control "client-control.cc")
 target_link_libraries ("client-control" util)
+
+add_executable (server-control "server-control.cc")
+target_link_libraries ("server-control" util)
