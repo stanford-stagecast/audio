@@ -7,9 +7,9 @@
 #include "audio_task.hh"
 #include "controller.hh"
 #include "encoder_task.hh"
-#include "endpoints.hh"
 #include "eventloop.hh"
 #include "keys.hh"
+#include "networkclient.hh"
 #include "stats_printer.hh"
 
 #ifndef NDBUS

@@ -67,12 +67,11 @@ NetworkMultiServer::NetworkMultiServer( const uint8_t num_clients, EventLoop& lo
     "mix+encode+send",
     [&] {
       const uint64_t ts_now = Timer::timestamp_ns();
-      const auto clock_sample = server_clock();
 
       /* decode all audio */
       for ( auto& client : clients_ ) {
         if ( client ) {
-          client.client().decode_audio( clock_sample, next_cursor_sample_, board_ );
+          client.client().decode_audio( next_cursor_sample_, board_ );
           if ( client.client().connection().sender_stats().last_good_ack_ts + CLIENT_TIMEOUT_NS < ts_now ) {
             client.clear_current_session();
           }

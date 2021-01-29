@@ -1,4 +1,4 @@
-#include "endpoints.hh"
+#include "networkclient.hh"
 #include "timestamp.hh"
 
 using namespace std;
@@ -6,10 +6,8 @@ using namespace std::chrono;
 
 NetworkClient::NetworkSession::NetworkSession( const uint8_t node_id,
                                                const KeyPair& session_key,
-                                               const Address& destination,
-                                               const size_t audio_cursor )
+                                               const Address& destination )
   : connection( node_id, 0, CryptoSession( session_key.uplink, session_key.downlink ), destination )
-  , peer_clock( audio_cursor )
   , cursor( 960 )
 {}
 
@@ -19,20 +17,18 @@ void NetworkClient::NetworkSession::transmit_frame( OpusEncoderProcess& source, 
   connection.send_packet( socket );
 }
 
-void NetworkClient::NetworkSession::network_receive( const Ciphertext& ciphertext, const size_t audio_cursor )
+void NetworkClient::NetworkSession::network_receive( const Ciphertext& ciphertext )
 {
   connection.receive_packet( ciphertext );
-  peer_clock.new_sample( audio_cursor, connection.unreceived_beyond_this_frame_index() * opus_frame::NUM_SAMPLES );
 }
 
-void NetworkClient::NetworkSession::decode( const size_t audio_cursor,
-                                            const size_t decode_cursor,
-                                            AudioBuffer& output )
+void NetworkClient::NetworkSession::decode( const size_t decode_cursor, AudioBuffer& output )
 {
-  peer_clock.time_passes( audio_cursor );
-
   /* decode server's Opus frames to playback buffer */
-  cursor.sample( connection.frames(), decode_cursor, peer_clock.value(), output );
+  cursor.sample( connection.frames(),
+                 decode_cursor,
+                 connection.unreceived_beyond_this_frame_index() * opus_frame::NUM_SAMPLES,
+                 output );
 
   /* pop used Opus frames from server */
   connection.pop_frames( min( cursor.ok_to_pop( connection.frames() ),
@@ -41,7 +37,6 @@ void NetworkClient::NetworkSession::decode( const size_t audio_cursor,
 
 void NetworkClient::NetworkSession::summary( std::ostream& out ) const
 {
-  peer_clock.summary( out );
   cursor.summary( out );
   connection.summary( out );
 }
@@ -59,7 +54,7 @@ void NetworkClient::process_keyreply( const Ciphertext& ciphertext )
       p.clear_error();
       return;
     }
-    session_.emplace( keys.id, keys.key_pair, server_, dest_->cursor() );
+    session_.emplace( keys.id, keys.key_pair, server_ );
     stats_.new_sessions++;
   } else {
     stats_.bad_packets++;
@@ -104,7 +99,7 @@ NetworkClient::NetworkClient( const Address& server,
           break;
         case 0:
           if ( session_.has_value() ) {
-            session_->network_receive( ciphertext, dest_->cursor() );
+            session_->network_receive( ciphertext );
           }
           break;
         default:
@@ -119,7 +114,7 @@ NetworkClient::NetworkClient( const Address& server,
   loop.add_rule(
     "decode",
     [&] {
-      session_->decode( dest_->cursor(), decode_cursor_, dest_->playback() );
+      session_->decode( decode_cursor_, dest_->playback() );
       decode_cursor_ += opus_frame::NUM_SAMPLES;
 
       if ( session_->connection.sender_stats().last_good_ack_ts + 4'000'000'000 < Timer::timestamp_ns() ) {

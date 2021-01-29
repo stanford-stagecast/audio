@@ -2,7 +2,6 @@
 
 #include <chrono>
 
-#include "clock.hh"
 #include "connection.hh"
 #include "cursor.hh"
 #include "encoder_task.hh"
@@ -13,17 +12,13 @@ class NetworkClient : public Summarizable
   struct NetworkSession
   {
     NetworkConnection connection;
-    Clock peer_clock;
     Cursor cursor;
 
-    NetworkSession( const uint8_t node_id,
-                    const KeyPair& session_key,
-                    const Address& destination,
-                    const size_t audio_cursor );
+    NetworkSession( const uint8_t node_id, const KeyPair& session_key, const Address& destination );
 
     void transmit_frame( OpusEncoderProcess& source, UDPSocket& socket );
-    void network_receive( const Ciphertext& ciphertext, const size_t audio_cursor );
-    void decode( const size_t audio_cursor, const size_t decode_cursor, AudioBuffer& output );
+    void network_receive( const Ciphertext& ciphertext );
+    void decode( const size_t decode_cursor, AudioBuffer& output );
     void summary( std::ostream& out ) const;
   };
 

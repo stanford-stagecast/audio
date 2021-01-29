@@ -15,7 +15,6 @@ uint64_t Client::server_mix_cursor() const
 
 Client::Client( const uint8_t node_id, const uint8_t ch1_num, const uint8_t ch2_num, CryptoSession&& crypto )
   : connection_( 0, node_id, move( crypto ) )
-  , clock_( 0 )
   , cursor_( 960 )
   , ch1_num_( ch1_num )
   , ch2_num_( ch2_num )
@@ -24,7 +23,6 @@ Client::Client( const uint8_t node_id, const uint8_t ch1_num, const uint8_t ch2_
 bool Client::receive_packet( const Address& source, const Ciphertext& ciphertext, const uint64_t clock_sample )
 {
   if ( connection_.receive_packet( ciphertext, source ) ) {
-    clock_.new_sample( clock_sample, connection_.unreceived_beyond_this_frame_index() * opus_frame::NUM_SAMPLES );
     if ( ( not outbound_frame_offset_.has_value() ) and connection_.has_destination() ) {
       outbound_frame_offset_ = clock_sample / opus_frame::NUM_SAMPLES;
     }
@@ -33,13 +31,14 @@ bool Client::receive_packet( const Address& source, const Ciphertext& ciphertext
   return false;
 }
 
-void Client::decode_audio( const uint64_t clock_sample, const uint64_t cursor_sample, AudioBoard& board )
+void Client::decode_audio( const uint64_t cursor_sample, AudioBoard& board )
 {
-  clock_.time_passes( clock_sample );
-
   AudioBuffer& output = board.buffer( ch1_num_, ch2_num_ );
 
-  cursor_.sample( connection_.frames(), cursor_sample, clock_.value(), output );
+  cursor_.sample( connection_.frames(),
+                  cursor_sample,
+                  connection_.unreceived_beyond_this_frame_index() * opus_frame::NUM_SAMPLES,
+                  output );
 
   connection_.pop_frames( min( cursor_.ok_to_pop( connection_.frames() ),
                                connection_.next_frame_needed() - connection_.frames().range_begin() ) );
@@ -100,7 +99,6 @@ void Client::summary( ostream& out ) const
   if ( connection_.has_destination() ) {
     out << " (" << connection_.destination().to_string() << ") ";
   }
-  clock_.summary( out );
   cursor_.summary( out );
   connection_.summary( out );
 }

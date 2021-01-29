@@ -1,7 +1,7 @@
 #pragma once
 
-#include "endpoints.hh"
 #include "eventloop.hh"
+#include "networkclient.hh"
 #include "socket.hh"
 
 struct set_cursor_lag
