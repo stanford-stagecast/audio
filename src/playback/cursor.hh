@@ -38,4 +38,6 @@ public:
   size_t ok_to_pop( const PartialFrameStore& frames ) const;
 
   void set_target_lag( const unsigned int num_samples ) { target_lag_samples_ = num_samples; }
+
+  void reset() { cursor_location_.reset(); }
 };

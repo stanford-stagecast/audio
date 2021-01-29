@@ -50,6 +50,12 @@ public:
     input_.remove_prefix( sizeof( T ) );
   }
 
+  template<typename T>
+  void floating( T& out )
+  {
+    return integer( out );
+  }
+
   void string( string_span out )
   {
     check_size( out.size() );
@@ -95,6 +101,12 @@ public:
     check_size( sizeof( T ) );
     memcpy( output_.mutable_data(), &val, sizeof( T ) );
     output_.remove_prefix( sizeof( T ) );
+  }
+
+  template<typename T>
+  void floating( const T& val )
+  {
+    return integer( val );
   }
 
   void string( const std::string_view str )

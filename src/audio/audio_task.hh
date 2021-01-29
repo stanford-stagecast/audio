@@ -29,4 +29,6 @@ public:
   const AudioBuffer& playback() const { return playback_; }
 
   size_t cursor() const { return device().cursor(); }
+
+  void set_loopback_gain( const float gain );
 };

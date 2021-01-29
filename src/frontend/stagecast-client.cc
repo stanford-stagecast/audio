@@ -57,7 +57,7 @@ void program_body( const string& host, const string& service, const string& key_
   auto network_client = make_shared<NetworkClient>( stagecast_server, key, encoder, uac2, *loop );
 
   /* Controller registers itself in EventLoop */
-  ClientController controller { network_client, *loop };
+  ClientController controller { network_client, uac2, *loop };
 
   /* Print out statistics to terminal */
   StatsPrinterTask stats_printer { loop };

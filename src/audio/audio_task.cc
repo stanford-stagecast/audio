@@ -86,6 +86,14 @@ void AudioDeviceTask::summary( ostream& out ) const
   if ( device_.statistics().empty_wakeups ) {
     out << " empty=" << device_.statistics().empty_wakeups << "/" << device_.statistics().total_wakeups << "!";
   }
+  out << " loopback gains=" << device_.config().ch1_loopback_gain[0] << ":" << device_.config().ch1_loopback_gain[1]
+      << ":" << device_.config().ch2_loopback_gain[0] << ":" << device_.config().ch2_loopback_gain[1];
+}
 
-  out << "\n";
+void AudioDeviceTask::set_loopback_gain( const float gain )
+{
+  auto config = device_.config();
+  config.ch1_loopback_gain = { gain, gain };
+  config.ch2_loopback_gain = { gain, gain };
+  device_.set_config( config );
 }
