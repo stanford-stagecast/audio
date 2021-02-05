@@ -7,7 +7,7 @@
 #include "connection.hh"
 #include "cursor.hh"
 #include "keys.hh"
-#include "wavwriter.hh"
+#include "webmwriter.hh"
 
 class KnownClient;
 
@@ -35,7 +35,8 @@ class AudioWriter
 
   uint64_t mix_cursor_ {};
 
-  WavWriter wav_writer_ { "/tmp/stagecast.wav", 48000 };
+  OpusEncoderProcess encoder_ { 96000, 600, 48000 };
+  WebMWriter webm_writer_ { "/tmp/stagecast.webm", 96000, 48000, 1 };
 
 public:
   void mix_and_write( const AudioBoard& board, const uint64_t cursor_sample );

@@ -251,9 +251,11 @@ void AudioWriter::mix_and_write( const AudioBoard& board, const uint64_t cursor_
       }
     }
 
+    encoder_.encode_one_frame( mixed_audio_.ch1(), mixed_audio_.ch2() );
+    auto frame_mutable = encoder_.front_ch1();
+    webm_writer_.write( frame_mutable, mix_cursor_ );
+    encoder_.pop_frame();
     mix_cursor_ += opus_frame::NUM_SAMPLES;
+    mixed_audio_.pop_before( mix_cursor_ );
   }
-
-  wav_writer_.write( mixed_audio_, cursor_sample );
-  mixed_audio_.pop_before( cursor_sample );
 }

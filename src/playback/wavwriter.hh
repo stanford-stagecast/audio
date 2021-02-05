@@ -1,7 +1,6 @@
 #pragma once
 
 #include "audio_buffer.hh"
-#include "file_descriptor.hh"
 
 #include <sndfile.hh>
 #include <string>

@@ -56,6 +56,12 @@ target_link_libraries ("stagecast-server" ${Opus_LIBRARIES})
 target_link_libraries ("stagecast-server" ${Sndfile_LDFLAGS_OTHER})
 target_link_libraries ("stagecast-server" ${Sndfile_LIBRARIES})
 
+target_link_libraries ("stagecast-server" ${AVFormat_LDFLAGS_OTHER})
+target_link_libraries ("stagecast-server" ${AVFormat_LIBRARIES})
+
+target_link_libraries ("stagecast-server" ${AVUtil_LDFLAGS_OTHER})
+target_link_libraries ("stagecast-server" ${AVUtil_LIBRARIES})
+
 add_executable (make-key "make-key.cc")
 target_link_libraries ("make-key" network)
 target_link_libraries ("make-key" crypto)
