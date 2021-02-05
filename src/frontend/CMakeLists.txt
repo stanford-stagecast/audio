@@ -72,3 +72,7 @@ target_link_libraries ("client-control" util)
 
 add_executable (server-control "server-control.cc")
 target_link_libraries ("server-control" util)
+
+add_executable (audio-server "audio-server.cc")
+target_link_libraries ("audio-server" stats)
+target_link_libraries ("audio-server" util)

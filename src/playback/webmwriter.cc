@@ -39,17 +39,8 @@ int write_helper( void* rb_opaque, uint8_t* buf, int buf_size )
   return buf_size;
 }
 
-WebMWriter::WebMWriter( const string& output_filename,
-                        const int bit_rate,
-                        const uint32_t sample_rate,
-                        const uint8_t num_channels )
+WebMWriter::WebMWriter( const int bit_rate, const uint32_t sample_rate, const uint8_t num_channels )
   : audio_stream_()
-  , init_( CheckSystemCall(
-      "open( \"" + output_filename + ".init" + "\" )",
-      open( ( output_filename + ".init" ).c_str(), O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR ) ) )
-  , stream_( CheckSystemCall(
-      "open( \"" + output_filename + ".stream" + "\" )",
-      open( ( output_filename + ".stream" ).c_str(), O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR ) ) )
   , header_written_( false )
   , sample_rate_( sample_rate )
 {
@@ -115,11 +106,17 @@ WebMWriter::WebMWriter( const string& output_filename,
     throw runtime_error( "audio stream time base mismatch" );
   }
 
-  write_to_fd( init_ );
+  static constexpr char filename[] = "/tmp/stagecast-audio.init";
+  FileDescriptor init_ { CheckSystemCall( filename,
+                                          open( filename, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR ) ) };
+
+  avio_flush( context_->pb );
+  buf_.pop_to_fd( init_ );
+  init_.close();
+
   if ( buf_.readable_region().size() ) {
     throw runtime_error( "did not write entire init segment" );
   }
-  init_.close();
 }
 
 WebMWriter::~WebMWriter()
@@ -133,7 +130,7 @@ WebMWriter::~WebMWriter()
   }
 }
 
-void WebMWriter::write( opus_frame& frame, const unsigned int starting_sample_number )
+void WebMWriter::write( opus_frame& frame, const uint64_t starting_sample_number )
 {
   AVPacket packet {};
   packet.buf = nullptr;
@@ -147,11 +144,7 @@ void WebMWriter::write( opus_frame& frame, const unsigned int starting_sample_nu
   packet.pos = -1;
 
   av_check( av_write_frame( context_.get(), &packet ) );
-  write_to_fd( stream_ );
-}
-
-void WebMWriter::write_to_fd( FileDescriptor& target )
-{
   avio_flush( context_->pb );
-  buf_.pop_to_fd( target );
+  stream_socket_.sendto( stream_destination_, buf_.readable_region() );
+  buf_.pop( buf_.readable_region().size() );
 }
