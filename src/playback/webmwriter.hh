@@ -4,7 +4,9 @@
 #include <string>
 
 #include "exception.hh"
+#include "file_descriptor.hh"
 #include "opus.hh"
+#include "ring_buffer.hh"
 
 extern "C"
 {
@@ -13,13 +15,24 @@ extern "C"
 
 class WebMWriter
 {
-  struct av_deleter
+  struct avformat_deleter
   {
     void operator()( AVFormatContext* x ) const { avformat_free_context( x ); }
   };
-  std::unique_ptr<AVFormatContext, av_deleter> context_ {};
+  std::unique_ptr<AVFormatContext, avformat_deleter> context_ {};
+
+  struct av_deleter
+  {
+    void operator()( uint8_t* x ) const { av_free( x ); }
+  };
+  std::unique_ptr<uint8_t, av_deleter> buffer_ {};
 
   AVStream* audio_stream_;
+
+  static constexpr unsigned int BUF_SIZE = 65536;
+
+  FileDescriptor init_, stream_;
+  RingBuffer buf_ { BUF_SIZE };
 
   constexpr static unsigned int WEBM_TIMEBASE = 1000;
 
@@ -27,6 +40,8 @@ class WebMWriter
   unsigned int sample_rate_;
 
   static int av_check( const int retval );
+
+  void write_to_fd( FileDescriptor& target );
 
 public:
   WebMWriter( const std::string& output_filename,

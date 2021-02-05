@@ -1,6 +1,10 @@
-#include "webmwriter.hh"
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #include <iostream>
+
+#include "webmwriter.hh"
 
 using namespace std;
 
@@ -21,26 +25,46 @@ int WebMWriter::av_check( const int retval )
   return retval;
 }
 
+int write_helper( void* rb_opaque, uint8_t* buf, int buf_size )
+{
+  if ( buf_size <= 0 ) {
+    throw runtime_error( "buf_size <= 0" );
+  }
+  const size_t u_buf_size = buf_size;
+  RingBuffer* rb = reinterpret_cast<RingBuffer*>( notnull( "rb_opaque", rb_opaque ) );
+  if ( rb->writable_region().length() < u_buf_size ) {
+    throw runtime_error( "write_helper had no room to write" );
+  }
+  rb->push_from_const_str( { reinterpret_cast<const char*>( notnull( "buf", buf ) ), u_buf_size } );
+  return buf_size;
+}
+
 WebMWriter::WebMWriter( const string& output_filename,
                         const int bit_rate,
                         const uint32_t sample_rate,
                         const uint8_t num_channels )
   : audio_stream_()
+  , init_( CheckSystemCall(
+      "open( \"" + output_filename + ".init" + "\" )",
+      open( ( output_filename + ".init" ).c_str(), O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR ) ) )
+  , stream_( CheckSystemCall(
+      "open( \"" + output_filename + ".stream" + "\" )",
+      open( ( output_filename + ".stream" ).c_str(), O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR ) ) )
   , header_written_( false )
   , sample_rate_( sample_rate )
 {
-  if ( output_filename.substr( output_filename.size() - 5 ) != ".webm" ) {
-    throw runtime_error( "output filename must be a .webm" );
-  }
-
   {
     AVFormatContext* tmp_context;
-    av_check( avformat_alloc_output_context2( &tmp_context, nullptr, nullptr, output_filename.c_str() ) );
+    av_check( avformat_alloc_output_context2( &tmp_context, nullptr, "webm", nullptr ) );
+    notnull( "avformat_alloc_output_context2", tmp_context );
     context_.reset( tmp_context );
   }
 
-  /* open output file */
-  av_check( avio_open( &context_->pb, output_filename.c_str(), AVIO_FLAG_WRITE ) );
+  /* open internal buffer */
+  buffer_.reset( static_cast<uint8_t*>( notnull( "av_malloc", av_malloc( BUF_SIZE ) ) ) );
+  context_->pb
+    = notnull( "avio_alloc_context",
+               avio_alloc_context( buffer_.get(), BUF_SIZE, true, &buf_, nullptr, write_helper, nullptr ) );
 
   /* allocate audio stream */
   audio_stream_ = notnull( "avformat_new_stream", avformat_new_stream( context_.get(), nullptr ) );
@@ -90,6 +114,12 @@ WebMWriter::WebMWriter( const string& output_filename,
   if ( audio_stream_->time_base.num != 1 or audio_stream_->time_base.den != WEBM_TIMEBASE ) {
     throw runtime_error( "audio stream time base mismatch" );
   }
+
+  write_to_fd( init_ );
+  if ( buf_.readable_region().size() ) {
+    throw runtime_error( "did not write entire init segment" );
+  }
+  init_.close();
 }
 
 WebMWriter::~WebMWriter()
@@ -97,10 +127,6 @@ WebMWriter::~WebMWriter()
   try {
     if ( header_written_ ) {
       av_check( av_write_trailer( context_.get() ) );
-    }
-
-    if ( context_->pb ) {
-      av_check( avio_close( context_->pb ) );
     }
   } catch ( const exception& e ) {
     cerr << "Exception in WebMWriter destructor: " << e.what() << "\n";
@@ -121,4 +147,11 @@ void WebMWriter::write( opus_frame& frame, const unsigned int starting_sample_nu
   packet.pos = -1;
 
   av_check( av_write_frame( context_.get(), &packet ) );
+  write_to_fd( stream_ );
+}
+
+void WebMWriter::write_to_fd( FileDescriptor& target )
+{
+  avio_flush( context_->pb );
+  buf_.pop_to_fd( target );
 }
