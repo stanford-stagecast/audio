@@ -16,6 +16,6 @@ jobs:
       steps:
       - uses: actions/checkout@v1
       - name: configure
-        run:  sudo apt install libasound2-dev libdbus-1-dev libopus-dev libsndfile1-dev libavformat-dev && sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 99 && sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-9 99 && mkdir build && cd build && cmake ..
+        run:  sudo apt install libasound2-dev libdbus-1-dev libopus-dev libsndfile1-dev libavformat-dev libssl-dev && sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 99 && sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-9 99 && mkdir build && cd build && cmake ..
       - name: build
         run: cd build && make

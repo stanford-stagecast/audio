@@ -26,13 +26,13 @@ pkg_check_modules ( Sndfile REQUIRED sndfile )
 include_directories ( ${Sndfile_INCLUDE_DIRS} )
 add_compile_options ( ${Sndfile_CFLAGS_OTHER} )
 
-pkg_check_modules ( AVFormat REQUIRED libavformat )
+pkg_check_modules ( AVFormat REQUIRED libavformat libavutil)
 include_directories ( ${AVFormat_INCLUDE_DIRS} )
 add_compile_options ( ${AVFormat_CFLAGS_OTHER} )
 
-pkg_check_modules ( AVUtil REQUIRED libavutil )
-include_directories ( ${AVUtil_INCLUDE_DIRS} )
-add_compile_options ( ${AVUtil_CFLAGS_OTHER} )
+pkg_check_modules ( SSL REQUIRED libssl libcrypto)
+include_directories ( ${SSL_INCLUDE_DIRS} )
+add_compile_options ( ${SSL_CFLAGS_OTHER} )
 
 include_directories ("${PROJECT_SOURCE_DIR}/src/util")
 include_directories ("${PROJECT_SOURCE_DIR}/src/crypto")
