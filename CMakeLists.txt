@@ -12,27 +12,27 @@ option(BUILD_EMBEDDED_CLIENT "Build stagecast-client-embedded with static libopu
 
 pkg_check_modules ( ALSA REQUIRED alsa )
 include_directories ( ${ALSA_INCLUDE_DIRS} )
-add_compile_options ( ${ALSA_CFLAGS_OTHER} )
+add_compile_options ( ${ALSA_CFLAGS} )
 
 pkg_check_modules ( DBus REQUIRED dbus-1 )
 include_directories ( ${DBus_INCLUDE_DIRS} )
-add_compile_options ( ${DBus_CFLAGS_OTHER} )
+add_compile_options ( ${DBus_CFLAGS} )
 
 pkg_check_modules ( Opus REQUIRED opus )
 include_directories ( ${Opus_INCLUDE_DIRS} )
-add_compile_options ( ${Opus_CFLAGS_OTHER} )
+add_compile_options ( ${Opus_CFLAGS} )
 
 pkg_check_modules ( Sndfile REQUIRED sndfile )
 include_directories ( ${Sndfile_INCLUDE_DIRS} )
-add_compile_options ( ${Sndfile_CFLAGS_OTHER} )
+add_compile_options ( ${Sndfile_CFLAGS} )
 
-pkg_check_modules ( AVFormat REQUIRED libavformat libavutil)
+pkg_check_modules ( AVFormat REQUIRED libavformat libavutil )
 include_directories ( ${AVFormat_INCLUDE_DIRS} )
-add_compile_options ( ${AVFormat_CFLAGS_OTHER} )
+add_compile_options ( ${AVFormat_CFLAGS} )
 
-pkg_check_modules ( SSL REQUIRED libssl libcrypto)
+pkg_check_modules ( SSL REQUIRED libssl libcrypto )
 include_directories ( ${SSL_INCLUDE_DIRS} )
-add_compile_options ( ${SSL_CFLAGS_OTHER} )
+add_compile_options ( ${SSL_CFLAGS} )
 
 include_directories ("${PROJECT_SOURCE_DIR}/src/util")
 include_directories ("${PROJECT_SOURCE_DIR}/src/crypto")

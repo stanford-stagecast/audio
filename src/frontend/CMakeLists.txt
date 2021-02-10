@@ -10,13 +10,13 @@ target_link_libraries ("stagecast-client" audio)
 target_link_libraries ("stagecast-client" crypto)
 target_link_libraries ("stagecast-client" util)
 
-target_link_libraries ("stagecast-client" ${ALSA_LDFLAGS_OTHER})
+target_link_libraries ("stagecast-client" ${ALSA_LDFLAGS})
 target_link_libraries ("stagecast-client" ${ALSA_LIBRARIES})
 
-target_link_libraries ("stagecast-client" ${DBus_LDFLAGS_OTHER})
+target_link_libraries ("stagecast-client" ${DBus_LDFLAGS})
 target_link_libraries ("stagecast-client" ${DBus_LIBRARIES})
 
-target_link_libraries ("stagecast-client" ${Opus_LDFLAGS_OTHER})
+target_link_libraries ("stagecast-client" ${Opus_LDFLAGS})
 target_link_libraries ("stagecast-client" ${Opus_LIBRARIES})
 
 if(BUILD_EMBEDDED_CLIENT)
@@ -29,10 +29,10 @@ target_link_libraries ("stagecast-client-embedded" audio)
 target_link_libraries ("stagecast-client-embedded" crypto)
 target_link_libraries ("stagecast-client-embedded" util)
 
-target_link_libraries ("stagecast-client-embedded" ${ALSA_LDFLAGS_OTHER})
+target_link_libraries ("stagecast-client-embedded" ${ALSA_LDFLAGS})
 target_link_libraries ("stagecast-client-embedded" ${ALSA_LIBRARIES})
 
-target_link_libraries ("stagecast-client-embedded" ${Opus_LDFLAGS_OTHER})
+target_link_libraries ("stagecast-client-embedded" ${Opus_LDFLAGS})
 target_link_libraries ("stagecast-client-embedded" "-Wl,--static")
 target_link_libraries ("stagecast-client-embedded" ${Opus_LIBRARIES})
 target_link_libraries ("stagecast-client-embedded" "-Wl,-Bdynamic")
@@ -47,16 +47,16 @@ target_link_libraries ("stagecast-server" audio)
 target_link_libraries ("stagecast-server" crypto)
 target_link_libraries ("stagecast-server" util)
 
-target_link_libraries ("stagecast-server" ${ALSA_LDFLAGS_OTHER})
+target_link_libraries ("stagecast-server" ${ALSA_LDFLAGS})
 target_link_libraries ("stagecast-server" ${ALSA_LIBRARIES})
 
-target_link_libraries ("stagecast-server" ${Opus_LDFLAGS_OTHER})
+target_link_libraries ("stagecast-server" ${Opus_LDFLAGS})
 target_link_libraries ("stagecast-server" ${Opus_LIBRARIES})
 
-target_link_libraries ("stagecast-server" ${Sndfile_LDFLAGS_OTHER})
+target_link_libraries ("stagecast-server" ${Sndfile_LDFLAGS})
 target_link_libraries ("stagecast-server" ${Sndfile_LIBRARIES})
 
-target_link_libraries ("stagecast-server" ${AVFormat_LDFLAGS_OTHER})
+target_link_libraries ("stagecast-server" ${AVFormat_LDFLAGS})
 target_link_libraries ("stagecast-server" ${AVFormat_LIBRARIES})
 
 add_executable (make-key "make-key.cc")
@@ -72,4 +72,8 @@ target_link_libraries ("server-control" util)
 
 add_executable (audio-server "audio-server.cc")
 target_link_libraries ("audio-server" stats)
+target_link_libraries ("audio-server" http)
 target_link_libraries ("audio-server" util)
+
+target_link_libraries ("audio-server" ${SSL_LDFLAGS})
+target_link_libraries ("audio-server" ${SSL_LIBRARIES})
