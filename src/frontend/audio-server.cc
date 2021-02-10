@@ -24,7 +24,8 @@ void program_body()
   stream_receiver.bind( { "127.0.0.1", 9014 } );
   StackBuffer<0, uint16_t, 65535> most_recent_audio_frame;
 
-  string header = "HTTP/1.1 200 OK\r\nContent-type: audio/webm; codecs=\"opus\"\r\nAccess-Control-Allow-Origin: *\r\n\r\n";
+  string header
+    = "HTTP/1.1 200 OK\r\nContent-type: audio/webm; codecs=\"opus\"\r\nAccess-Control-Allow-Origin: *\r\n\r\n";
 
   /* start listening for HTTP connections */
   TCPSocket web_listen_socket;
