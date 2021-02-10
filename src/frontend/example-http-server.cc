@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "eventloop.hh"
+#include "http_server.hh"
 #include "secure_socket.hh"
 
 using namespace std;
@@ -13,6 +14,9 @@ using namespace std::chrono;
 class ClientConnection
 {
   SSLSession ssl_session_;
+  HTTPServer http_ {};
+  HTTPRequest request_ {};
+
   vector<EventLoop::RuleHandle> rules_;
 
   bool good_ = true;
@@ -52,7 +56,7 @@ public:
     , rules_()
     , cull_needed_( cull_needed )
   {
-    rules_.reserve( 2 );
+    rules_.reserve( 4 );
     rules_.push_back( loop.add_rule(
       "SSL read",
       ssl_session_.socket(),
@@ -66,6 +70,7 @@ public:
       },
       [this] { return good() and ssl_session_.want_read(); },
       [this] { cull( "socket closed" ); } ) );
+
     rules_.push_back( loop.add_rule(
       "SSL write",
       ssl_session_.socket(),
@@ -79,6 +84,31 @@ public:
       },
       [this] { return good() and ssl_session_.want_write(); },
       [this] { cull( "socket closed" ); } ) );
+
+    rules_.push_back( loop.add_rule(
+      "HTTP write",
+      [&] { http_.write( ssl_session_.outbound_plaintext() ); },
+      [&] {
+        return ( not ssl_session_.outbound_plaintext().writable_region().empty() )
+               and ( not http_.responses_empty() );
+      } ) );
+
+    rules_.push_back( loop.add_rule(
+      "HTTP read",
+      [&] {
+        if ( http_.read( ssl_session_.inbound_plaintext(), request_ ) ) {
+          cerr << "Request received: " << request_.method << " " << request_.request_target << " "
+               << request_.http_version << "\n";
+          HTTPResponse response;
+          response.http_version = "HTTP/1.1";
+          response.status_code = "200";
+          response.reason_phrase = "OK";
+          response.body = "Hello, world.";
+          response.headers.content_length.emplace( response.body.length() );
+          http_.push_response( move( response ) );
+        }
+      },
+      [&] { return not ssl_session_.inbound_plaintext().readable_region().empty(); } ) );
   }
 
   ~ClientConnection()
@@ -124,7 +154,6 @@ void program_body( const string cert_filename, const string privkey_filename )
   list<ClientConnection> clients;
   loop.add_rule( "accept TCP connection", listen_socket, Direction::In, [&] {
     clients.emplace_back( ssl_context, listen_socket, loop, cull_needed );
-    clients.back().session().outbound_plaintext().push_from_const_str( "Hello, world.\n" );
   } );
 
   /* cull old connections */

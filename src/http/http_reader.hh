@@ -255,8 +255,8 @@ class HTTPHeaderReader
 
   static bool header_equals( const std::string_view a, const std::string_view b )
   {
-    return std::equal( a.begin(), a.end(), b.begin(), b.end(), []( const char a, const char b ) {
-      return tolower( a ) == tolower( b );
+    return std::equal( a.begin(), a.end(), b.begin(), b.end(), []( const char a_ch, const char b_ch ) {
+      return tolower( a_ch ) == tolower( b_ch );
     } );
   }
 
@@ -385,6 +385,84 @@ public:
           body_reader_.emplace( std::move( target_.body ), target_.headers.content_length.value() );
         } else {
           throw std::runtime_error( "HTTPResponseReader: unknown body length" );
+        }
+      }
+
+      if ( not body_finished_ ) {
+        input.remove_prefix( body_reader_.value().read( input ) );
+        if ( body_reader_.value().finished() ) {
+          body_finished_ = true;
+          target_.body = body_reader_.value().release();
+        }
+      }
+    }
+
+    return orig_input.size() - input.size();
+  }
+
+  State release_extra_state() { return header_reader_.release_extra_state(); }
+};
+
+class HTTPRequestReader
+{
+  HTTPRequest target_;
+
+  LineReader<PairReader<SpaceReader<StringReader>, PairReader<SpaceReader<StringReader>, StringReader>>>
+    request_line_reader_;
+  HTTPHeaderReader header_reader_;
+  std::optional<LengthReader> body_reader_;
+
+  bool request_line_finished_ {}, headers_finished_ {}, body_finished_ {};
+
+public:
+  using State = HTTPHeaderReader::State;
+
+  HTTPRequest release() { return std::move( target_ ); }
+
+  HTTPRequestReader( HTTPRequest&& target, State&& state )
+    : target_( std::move( target ) )
+    , request_line_reader_(
+        { std::move( target_.method ), { std::move( target_.request_target ), std::move( target.http_version ) } } )
+    , header_reader_( std::move( state ) )
+    , body_reader_()
+  {}
+
+  bool finished() const { return body_finished_; }
+
+  size_t read( const std::string_view orig_input )
+  {
+    std::string_view input = orig_input;
+
+    while ( ( not finished() ) and ( not input.empty() ) ) {
+      if ( not request_line_finished_ ) {
+        input.remove_prefix( request_line_reader_.read( input ) );
+        if ( request_line_reader_.finished() ) {
+          request_line_finished_ = true;
+          std::forward_as_tuple( target_.method, std::tie( target_.request_target, target_.http_version ) )
+            = request_line_reader_.release();
+        } else {
+          continue;
+        }
+      }
+
+      if ( not headers_finished_ ) {
+        input.remove_prefix( header_reader_.read( input ) );
+        if ( header_reader_.finished() ) {
+          headers_finished_ = true;
+          target_.headers = header_reader_.release();
+        } else {
+          continue;
+        }
+      }
+
+      if ( not body_reader_.has_value() ) {
+        /* do we know the length of the body? */
+        if ( target_.method == "GET" or target_.method == "HEAD" ) {
+          body_reader_.emplace( std::move( target_.body ), 0 );
+        } else if ( target_.headers.content_length.has_value() ) {
+          body_reader_.emplace( std::move( target_.body ), target_.headers.content_length.value() );
+        } else {
+          throw std::runtime_error( "HTTPRequestReader: unknown body length" );
         }
       }
 
