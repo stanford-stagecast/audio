@@ -20,21 +20,25 @@ void OpenSSL::check_errors( const std::string_view context, const bool must_have
   if ( next_error == 0 ) {
     throw ssl_error( context, first_error );
   } else {
+    unsigned int error_count = 2;
+
     string errors = ERR_error_string( first_error, nullptr );
     errors.append( ", " );
     errors.append( ERR_error_string( next_error, nullptr ) );
 
     while ( unsigned long another_error = ERR_get_error() ) {
+      error_count++;
+
       errors.append( ", " );
       errors.append( ERR_error_string( another_error, nullptr ) );
     }
 
-    throw runtime_error( "multiple SSL errors: " + errors );
+    throw runtime_error( string( context ) + ": " + to_string( error_count ) + " SSL errors: " + errors );
   }
 }
 
-SSLContext::SSLContext()
-  : ctx_( SSL_CTX_new( TLS_client_method() ) )
+SSLContext::SSLContext( const SSL_METHOD* const method )
+  : ctx_( SSL_CTX_new( method ) )
 {
   if ( not ctx_ ) {
     OpenSSL::throw_error( "SSL_CTX_new" );
@@ -43,14 +47,36 @@ SSLContext::SSLContext()
   SSL_CTX_set_mode( ctx_.get(), SSL_MODE_AUTO_RETRY );
   SSL_CTX_set_mode( ctx_.get(), SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER );
   SSL_CTX_set_mode( ctx_.get(), SSL_MODE_ENABLE_PARTIAL_WRITE );
-  SSL_CTX_set_verify( ctx_.get(), SSL_VERIFY_PEER, nullptr );
-  SSL_CTX_set1_cert_store( ctx_.get(), certificate_store_ );
 }
 
-void SSLContext::trust_certificate( const string_view cert_pem )
+SSLClientContext::SSLClientContext()
+  : SSLContext( TLS_client_method() )
+{
+  SSL_CTX_set_verify( raw_context(), SSL_VERIFY_PEER, nullptr );
+  SSL_CTX_set1_cert_store( raw_context(), certificate_store_ );
+}
+
+void SSLClientContext::trust_certificate( const string_view cert_pem )
 {
   Certificate cert { cert_pem };
   certificate_store_.add_certificate( cert );
+}
+
+SSLServerContext::SSLServerContext( const string& certificate_filename, const string& private_key_filename )
+  : SSLContext( TLS_server_method() )
+{
+  if ( not SSL_CTX_use_certificate_chain_file( raw_context(), certificate_filename.c_str() ) ) {
+    OpenSSL::throw_error( "SSL_CTX_use_certificate_chain_file( \"" + certificate_filename + "\" )" );
+  }
+
+  if ( not SSL_CTX_use_PrivateKey_file( raw_context(), private_key_filename.c_str(), SSL_FILETYPE_PEM ) ) {
+    OpenSSL::throw_error( "SSL_CTX_use_PrivateKey_file( \"" + private_key_filename + "\" )" );
+  }
+
+  /* confirm consistency of private key with loaded certificate */
+  if ( not SSL_CTX_check_private_key( raw_context() ) ) {
+    OpenSSL::throw_error( "SSL_CTX_check_private_key" );
+  }
 }
 
 SSL_handle SSLContext::make_SSL_handle()
@@ -212,7 +238,11 @@ SSLSession::SSLSession( SSL_handle&& ssl, TCPSocket&& sock, const string& hostna
     OpenSSL::throw_error( "SSL_set1_host" );
   }
 
-  SSL_set_connect_state( ssl_.get() );
+  if ( SSL_is_server( ssl_.get() ) ) {
+    SSL_set_accept_state( ssl_.get() );
+  } else {
+    SSL_set_connect_state( ssl_.get() );
+  }
 
   OpenSSL::check( "SSLSession constructor" );
 }

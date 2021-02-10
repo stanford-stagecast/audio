@@ -83,14 +83,27 @@ class SSLContext
   typedef std::unique_ptr<SSL_CTX, CTX_deleter> CTX_handle;
   CTX_handle ctx_;
 
+protected:
+  SSLContext( const SSL_METHOD* const method );
+  SSL_CTX* raw_context() { return ctx_.get(); }
+
+public:
+  SSL_handle make_SSL_handle();
+};
+
+class SSLClientContext : public SSLContext
+{
   CertificateStore certificate_store_ {};
 
 public:
-  SSLContext();
-
+  SSLClientContext();
   void trust_certificate( const std::string_view cert_pem );
+};
 
-  SSL_handle make_SSL_handle();
+class SSLServerContext : public SSLContext
+{
+public:
+  SSLServerContext( const std::string& certificate_filename, const std::string& private_key_filename );
 };
 
 struct BIO_deleter

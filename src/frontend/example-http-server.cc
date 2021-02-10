@@ -16,11 +16,31 @@ class ClientConnection
   vector<EventLoop::RuleHandle> rules_;
 
   bool good_ = true;
+  string error_text_ {};
 
-  string error_text {};
+  shared_ptr<bool> cull_needed_;
+
+  void cull( const string_view s )
+  {
+    *cull_needed_ = true;
+    good_ = false;
+
+    if ( not error_text_.empty() ) {
+      error_text_ += " + "sv;
+    }
+    error_text_ += s;
+
+    for ( auto& rule : rules_ ) {
+      rule.cancel();
+    }
+    rules_.clear();
+  }
 
 public:
-  ClientConnection( SSLContext& context, TCPSocket& listening_socket, EventLoop& loop )
+  ClientConnection( SSLContext& context,
+                    TCPSocket& listening_socket,
+                    EventLoop& loop,
+                    shared_ptr<bool> cull_needed )
     : ssl_session_(
       context.make_SSL_handle(),
       [&] {
@@ -30,6 +50,7 @@ public:
       }(),
       "stagecast-backstage.keithw.org" )
     , rules_()
+    , cull_needed_( cull_needed )
   {
     rules_.reserve( 2 );
     rules_.push_back( loop.add_rule(
@@ -40,12 +61,11 @@ public:
         try {
           ssl_session_.do_read();
         } catch ( const exception& e ) {
-          good_ = false;
-          error_text = e.what();
+          cull( e.what() );
         }
       },
-      [this] { return good_ and ssl_session_.want_read(); },
-      [this] { good_ = false; } ) );
+      [this] { return good() and ssl_session_.want_read(); },
+      [this] { cull( "socket closed" ); } ) );
     rules_.push_back( loop.add_rule(
       "SSL write",
       ssl_session_.socket(),
@@ -54,31 +74,32 @@ public:
         try {
           ssl_session_.do_write();
         } catch ( const exception& e ) {
-          good_ = false;
-          error_text = e.what();
+          cull( e.what() );
         }
       },
-      [this] { return good_ and ssl_session_.want_write(); },
-      [this] { good_ = false; } ) );
+      [this] { return good() and ssl_session_.want_write(); },
+      [this] { cull( "socket closed" ); } ) );
   }
 
   ~ClientConnection()
   {
-    for ( auto& rule : rules_ ) {
-      rule.cancel();
-    }
-    if ( not error_text.empty() ) {
-      cerr << "Client error: " << error_text << "\n";
+    if ( not error_text_.empty() ) {
+      cerr << "Client error: " << error_text_ << "\n";
     }
   }
 
+  SSLSession& session() { return ssl_session_; }
+
   bool good() const { return good_; }
 
-  ClientConnection( ClientConnection&& other ) noexcept = default;
-  ClientConnection& operator=( ClientConnection&& other ) noexcept = default;
+  ClientConnection( const ClientConnection& other ) noexcept = delete;
+  ClientConnection& operator=( const ClientConnection& other ) noexcept = delete;
+
+  ClientConnection( ClientConnection&& other ) noexcept = delete;
+  ClientConnection& operator=( ClientConnection&& other ) noexcept = delete;
 };
 
-void program_body()
+void program_body( const string cert_filename, const string privkey_filename )
 {
   ios::sync_with_stdio( false );
 
@@ -86,7 +107,7 @@ void program_body()
     throw unix_error( "signal" );
   }
 
-  SSLContext ssl_context;
+  SSLServerContext ssl_context { cert_filename, privkey_filename };
 
   TCPSocket listen_socket;
   listen_socket.set_reuseaddr();
@@ -97,39 +118,40 @@ void program_body()
   /* set up event loop */
   EventLoop loop;
 
+  auto cull_needed = make_shared<bool>( false );
+
   /* accept new clients */
-  vector<ClientConnection> clients;
+  list<ClientConnection> clients;
   loop.add_rule( "accept TCP connection", listen_socket, Direction::In, [&] {
-    clients.emplace_back( ssl_context, listen_socket, loop );
+    clients.emplace_back( ssl_context, listen_socket, loop, cull_needed );
+    clients.back().session().outbound_plaintext().push_from_const_str( "Hello, world.\n" );
   } );
 
   /* cull old connections */
-  auto next_cull = steady_clock::now() + seconds( 1 );
   loop.add_rule(
     "cull connections",
     [&] {
-      cerr << "cull... ";
-      auto it = clients.begin();
-      while ( it != clients.end() ) {
-        if ( it->good() ) {
-          ++it;
-        } else {
-          it = clients.erase( it );
-        }
-      }
-      next_cull = steady_clock::now() + seconds( 1 );
-      cerr << "done.\n";
+      clients.remove_if( []( const ClientConnection& x ) { return not x.good(); } );
+      *cull_needed = false;
     },
-    [&] { return steady_clock::now() > next_cull; } );
+    [&cull_needed] { return *cull_needed; } );
 
   while ( loop.wait_next_event( 250 ) != EventLoop::Result::Exit ) {
   }
 }
 
-int main()
+int main( int argc, char* argv[] )
 {
   try {
-    program_body();
+    if ( argc <= 0 ) {
+      abort();
+    }
+    if ( argc != 3 ) {
+      cerr << "Usage: " << argv[0] << " certificate private_key\n";
+      return EXIT_FAILURE;
+    }
+
+    program_body( argv[1], argv[2] );
   } catch ( const exception& e ) {
     cerr << "Exception: " << e.what() << "\n";
     return EXIT_FAILURE;

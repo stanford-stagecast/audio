@@ -29,8 +29,6 @@ void program_body()
     = "HTTP/1.1 200 OK\r\nContent-type: audio/webm; codecs=\"opus\"\r\nAccess-Control-Allow-Origin: *\r\n\r\n";
 
   /* start listening for HTTP connections */
-  SSLContext ssl_context;
-
   TCPSocket web_listen_socket;
   web_listen_socket.set_reuseaddr();
   web_listen_socket.set_blocking( false );

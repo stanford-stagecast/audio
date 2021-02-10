@@ -8,6 +8,14 @@
 
 using namespace std;
 
+EventLoop::EventLoop()
+  : _rule_categories()
+{
+  _rule_categories.reserve( 64 );
+  // prevent _rule_categories from being reallocated in middle of wait_next_event
+  // (if a rule adds a new category)
+}
+
 unsigned int EventLoop::FDRule::service_count() const
 {
   return direction == Direction::In ? fd.read_count() : fd.write_count();
@@ -15,6 +23,10 @@ unsigned int EventLoop::FDRule::service_count() const
 
 size_t EventLoop::add_category( const string& name )
 {
+  if ( _rule_categories.size() >= _rule_categories.capacity() ) {
+    throw runtime_error( "maximum categories reached" );
+  }
+
   _rule_categories.push_back( { name, {} } );
   return _rule_categories.size() - 1;
 }
@@ -125,7 +137,9 @@ EventLoop::Result EventLoop::wait_next_event( const int timeout_ms )
     auto& this_rule = **it;
 
     if ( this_rule.cancel_requested ) {
-      this_rule.cancel();
+      //      this_rule.cancel();
+      //      if rule is cancelled externally, no need to call the cancellation callback
+      //      this makes it easier to cancel rules and delete captured objects right away
       it = _fd_rules.erase( it );
       continue;
     }
