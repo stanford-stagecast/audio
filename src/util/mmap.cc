@@ -43,6 +43,17 @@ MMap_Region::MMap_Region( MMap_Region&& other ) noexcept
   other.length_ = 0;
 }
 
+MMap_Region& MMap_Region::operator=( MMap_Region&& other ) noexcept
+{
+  addr_ = other.addr_;
+  length_ = other.length_;
+
+  other.addr_ = nullptr;
+  other.length_ = 0;
+
+  return *this;
+}
+
 ReadOnlyFile::ReadOnlyFile( FileDescriptor&& fd )
   : MMap_Region( nullptr, fd.size(), PROT_READ, MAP_SHARED, fd.fd_num() )
   , fd_( move( fd ) )

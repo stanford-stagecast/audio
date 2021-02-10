@@ -77,3 +77,11 @@ target_link_libraries ("audio-server" util)
 
 target_link_libraries ("audio-server" ${SSL_LDFLAGS})
 target_link_libraries ("audio-server" ${SSL_LIBRARIES})
+
+add_executable (example-http-server "example-http-server.cc")
+target_link_libraries ("example-http-server" stats)
+target_link_libraries ("example-http-server" http)
+target_link_libraries ("example-http-server" util)
+
+target_link_libraries ("example-http-server" ${SSL_LDFLAGS})
+target_link_libraries ("example-http-server" ${SSL_LIBRARIES})
