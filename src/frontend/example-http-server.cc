@@ -7,6 +7,7 @@
 #include "eventloop.hh"
 #include "http_server.hh"
 #include "secure_socket.hh"
+#include "ws_frame.hh"
 
 using namespace std;
 using namespace std::chrono;
@@ -136,6 +137,8 @@ void program_body( const string cert_filename, const string privkey_filename )
   if ( SIG_ERR == signal( SIGPIPE, SIG_IGN ) ) {
     throw unix_error( "signal" );
   }
+
+  WebSocketFrame f;
 
   SSLServerContext ssl_context { cert_filename, privkey_filename };
 
