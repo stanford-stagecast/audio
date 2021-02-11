@@ -1,5 +1,7 @@
 #include "ws_frame.hh"
 
+#include <array>
+
 using namespace std;
 
 void WebSocketFrame::parse( Parser& p )
@@ -57,6 +59,15 @@ void WebSocketFrame::parse( Parser& p )
 
   payload.resize( payload_length );
   p.string( string_span::from_view( payload ) );
+
+  /* remove masking */
+  if ( masking_key.has_value() ) {
+    array<uint8_t, 4> mk;
+    memcpy( mk.data(), &masking_key.value(), sizeof( masking_key.value() ) );
+    for ( size_t i = 0; i < payload.length(); i++ ) {
+      payload[i] ^= mk[i % 4];
+    }
+  }
 }
 
 void WebSocketFrame::serialize( Serializer& s ) const
@@ -83,8 +94,16 @@ void WebSocketFrame::serialize( Serializer& s ) const
     s.integer( masking_key.value() );
   }
 
-  /* payload data */
-  s.string( payload );
+  /* serialize payload data (possibly masked) */
+  if ( masking_key.has_value() ) {
+    array<uint8_t, 4> mk;
+    memcpy( mk.data(), &masking_key.value(), sizeof( masking_key.value() ) );
+    for ( size_t i = 0; i < payload.length(); i++ ) {
+      s.integer( uint8_t( payload[i] ^ mk[i % 4] ) );
+    }
+  } else {
+    s.string( payload );
+  }
 }
 
 uint32_t WebSocketFrame::serialized_length() const
