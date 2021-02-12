@@ -1,6 +1,7 @@
 #include "ws_frame.hh"
 
 #include <array>
+#include <limits>
 
 using namespace std;
 
