@@ -62,6 +62,7 @@ void rt_verify( RNG& s, const unsigned int length )
       const string_view iview = byte_by_byte ? input.substr( 0, 1 ) : input.substr( 0, 4000 );
       input.remove_prefix( r.read( iview ) );
       if ( r.error() ) {
+        r.clear_error();
         throw runtime_error( "reader error" );
       }
     }

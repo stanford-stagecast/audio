@@ -57,6 +57,10 @@ void WebSocketFrameReader::process_bytes12()
   }
 
   target_.opcode = WebSocketFrame::opcode_t( b1 & 0b0000'1111 );
+  if ( target_.opcode > WebSocketFrame::opcode_t::Pong ) {
+    error_ = true;
+    return;
+  }
 
   /* second octet: mask bit and payload_length sigil */
   const uint8_t b2 = bytes12_.value()[1];
@@ -177,4 +181,12 @@ uint32_t WebSocketFrame::serialized_length() const
   ret += payload.size();
 
   return ret;
+}
+
+void WebSocketFrame::clear()
+{
+  fin = {};
+  opcode = {};
+  masking_key.reset();
+  payload.clear();
 }

@@ -34,6 +34,8 @@ struct WebSocketFrame
   }
 
   bool operator!=( const WebSocketFrame& other ) const { return not operator==( other ); }
+
+  void clear();
 };
 
 template<size_t target_length>
@@ -88,8 +90,19 @@ public:
 
   WebSocketFrameReader( WebSocketFrame&& target )
     : target_( std::move( target ) )
-  {}
+  {
+    target_.clear();
+  }
 
+  ~WebSocketFrameReader()
+  {
+    if ( error_ ) {
+      std::cerr << "Error: WebSocketFrameReader destroyed without clearing error.\n";
+      abort();
+    }
+  }
+
+  void clear_error() { error_ = false; }
   bool error() const { return error_; }
   bool finished() const { return finished_; }
 
