@@ -19,7 +19,7 @@ async function sourceOpen(e) {
     var mediaSource = this;
     var first = true;
     var sourceBuffer = mediaSource.addSourceBuffer(mime);
-    const response = await fetch('http://127.0.0.1:8080');
+    const response = await fetch('http://192.168.0.176:8080');
     const reader = response.body.getReader();
     sourceBuffer.addEventListener('abort', function(e) {
         console.log('audio source buffer abort:', e);

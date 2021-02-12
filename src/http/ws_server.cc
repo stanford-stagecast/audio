@@ -1,23 +1,44 @@
 #include "ws_server.hh"
 
+#include <crypto++/base64.h>
+#include <crypto++/hex.h>
+#include <crypto++/sha.h>
+
 using namespace std;
+using namespace CryptoPP;
 
-void WebSocketServer::send_all( const string_view serialized_frame, RingBuffer& out )
-{
-  if ( serialized_frame.size() > out.writable_region().size() ) {
-    throw runtime_error( "send_all: no room to write" );
-  }
-
-  out.push_from_const_str( serialized_frame );
-}
-
-void WebSocketServer::pop_message()
+void WebSocketEndpoint::pop_message()
 {
   message_.clear();
   message_in_progress_ = false;
 }
 
-size_t WebSocketServer::read( const string_view input )
+void WebSocketEndpoint::send_pong( RingBuffer& out )
+{
+  this_frame_.opcode = WebSocketFrame::opcode_t::Pong;
+  this_frame_.masking_key.reset();
+
+  if ( out.writable_region().size() >= this_frame_.serialized_length() ) {
+    Serializer s { out.writable_region() };
+    s.object( this_frame_ );
+    out.push( s.bytes_written() );
+  }
+}
+
+void WebSocketEndpoint::send_close( RingBuffer& out )
+{
+  this_frame_.clear();
+  this_frame_.fin = true;
+  this_frame_.opcode = WebSocketFrame::opcode_t::Close;
+
+  if ( out.writable_region().size() >= this_frame_.serialized_length() ) {
+    Serializer s { out.writable_region() };
+    s.object( this_frame_ );
+    out.push( s.bytes_written() );
+  }
+}
+
+size_t WebSocketEndpoint::read( const string_view input, RingBuffer& out )
 {
   if ( should_close_connection() ) {
     return 0;
@@ -48,7 +69,7 @@ size_t WebSocketServer::read( const string_view input )
         error_ = true;
         return ret;
       }
-      send_pong();
+      send_pong( out );
       break;
     case WebSocketFrame::opcode_t::Pong:
       if ( not this_frame_.fin ) {
@@ -62,7 +83,7 @@ size_t WebSocketServer::read( const string_view input )
         return ret;
       }
 
-      send_close();
+      send_close( out );
       closed_ = true;
       break;
     case WebSocketFrame::opcode_t::Text:
@@ -87,4 +108,76 @@ size_t WebSocketServer::read( const string_view input )
   }
 
   return ret;
+}
+
+static constexpr char WS_MAGIC_STRING[] = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+
+void WebSocketServer::do_handshake( RingBuffer& in, RingBuffer& out )
+{
+  cerr << "do_handshake called\n";
+
+  if ( handshake_complete() ) {
+    throw runtime_error( "do_handshake: handshake is complete" );
+  }
+
+  if ( not handshake_reader_.finished() ) {
+    in.pop( handshake_reader_.read( in.readable_region() ) );
+  }
+
+  if ( not handshake_reader_.finished() ) {
+    return;
+  }
+
+  const auto request = handshake_reader_.release();
+
+  if ( request.method != "GET" ) {
+    error_ = true;
+    return;
+  }
+
+  if ( request.http_version != "HTTP/1.1" ) {
+    error_ = true;
+    return;
+  }
+
+  if ( request.headers.connection != "Upgrade" ) {
+    error_ = true;
+    return;
+  }
+
+  if ( request.headers.upgrade != "websocket" ) {
+    error_ = true;
+    return;
+  }
+
+  if ( request.headers.sec_websocket_key.empty() ) {
+    error_ = true;
+    return;
+  }
+
+  if ( request.headers.origin != origin_ ) {
+    error_ = true;
+    return;
+  }
+
+  /* make reply */
+  HTTPResponse response;
+  response.http_version = "HTTP/1.1";
+  response.status_code = "101";
+  response.reason_phrase = "Switching Protocols";
+  response.headers.connection = "Upgrade";
+  response.headers.upgrade = "websocket";
+
+  CryptoPP::SHA1 sha1_function;
+  StringSource s(
+    request.headers.sec_websocket_key + WS_MAGIC_STRING,
+    true,
+    new HashFilter( sha1_function,
+                    new Base64Encoder( new StringSink( response.headers.sec_websocket_accept ), false ) ) );
+
+  handshake_writer_.emplace( move( response ) );
+  handshake_writer_->write_to( out );
+  if ( not handshake_writer_->finished() ) { /* XXX assume there is enough space */
+    error_ = true;
+  }
 }

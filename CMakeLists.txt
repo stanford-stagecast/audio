@@ -35,6 +35,10 @@ pkg_check_modules ( SSL REQUIRED libssl libcrypto )
 include_directories ( ${SSL_INCLUDE_DIRS} )
 add_compile_options ( ${SSL_CFLAGS} )
 
+pkg_check_modules ( CryptoPP REQUIRED libcrypto++ )
+include_directories ( ${CryptoPP_INCLUDE_DIRS} )
+add_compile_options ( ${CryptoPP_CFLAGS} )
+
 include_directories ("${PROJECT_SOURCE_DIR}/src/util")
 include_directories ("${PROJECT_SOURCE_DIR}/src/crypto")
 include_directories ("${PROJECT_SOURCE_DIR}/src/http")

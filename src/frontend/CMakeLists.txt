@@ -85,3 +85,14 @@ target_link_libraries ("example-http-server" util)
 
 target_link_libraries ("example-http-server" ${SSL_LDFLAGS})
 target_link_libraries ("example-http-server" ${SSL_LDFLAGS_OTHER})
+
+add_executable (example-ws-server "example-ws-server.cc")
+target_link_libraries ("example-ws-server" stats)
+target_link_libraries ("example-ws-server" http)
+target_link_libraries ("example-ws-server" util)
+
+target_link_libraries ("example-ws-server" ${SSL_LDFLAGS})
+target_link_libraries ("example-ws-server" ${SSL_LDFLAGS_OTHER})
+
+target_link_libraries ("example-ws-server" ${CryptoPP_LDFLAGS})
+target_link_libraries ("example-ws-server" ${CryptoPP_LDFLAGS_OTHER})
