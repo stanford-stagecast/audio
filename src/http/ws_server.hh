@@ -40,6 +40,8 @@ class WebSocketServer
 
   WebSocketEndpoint wse_ {};
 
+  void send_forbidden_response( RingBuffer& out );
+
 public:
   WebSocketServer( const std::string_view origin )
     : origin_( origin )

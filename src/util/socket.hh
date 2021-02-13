@@ -101,4 +101,7 @@ public:
 
   //! Accept a new incoming connection
   TCPSocket accept();
+
+  //! Set the TCP_NODELAY option to disable the Nagle algorithm
+  void set_tcp_nodelay( const bool tcp_nodelay );
 };

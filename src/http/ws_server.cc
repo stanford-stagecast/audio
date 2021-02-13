@@ -125,47 +125,58 @@ void WebSocketServer::do_handshake( RingBuffer& in, RingBuffer& out )
   }
 
   if ( not handshake_reader_.finished() ) {
+    cerr << "still not finished\n";
     return;
   }
 
   const auto request = handshake_reader_.release();
 
   if ( request.method != "GET" ) {
-    error_ = true;
+    cerr << "not get\n";
+    send_forbidden_response( out );
     return;
   }
 
   if ( request.http_version != "HTTP/1.1" ) {
-    error_ = true;
+    cerr << "not HTTP/1.1\n";
+    send_forbidden_response( out );
     return;
   }
 
-  if ( request.headers.connection != "Upgrade" ) {
-    error_ = true;
+  /*
+  if ( not request.headers.connection_upgrade ) {
+    cerr << "no connection upgrade\n";
+    send_forbidden_response( out );
     return;
   }
+  */
 
-  if ( request.headers.upgrade != "websocket" ) {
-    error_ = true;
+  if ( not HTTPHeaderReader::header_equals( request.headers.upgrade, "websocket" ) ) {
+    cerr << "no upgrade websocket: header value is {" + request.headers.upgrade + "}\n";
+    send_forbidden_response( out );
     return;
   }
 
   if ( request.headers.sec_websocket_key.empty() ) {
-    error_ = true;
+    cerr << "no key\n";
+    send_forbidden_response( out );
     return;
   }
 
   if ( request.headers.origin != origin_ ) {
-    error_ = true;
+    cerr << "bad origin\n";
+    send_forbidden_response( out );
     return;
   }
+
+  cerr << "Sending happy response\n";
 
   /* make reply */
   HTTPResponse response;
   response.http_version = "HTTP/1.1";
   response.status_code = "101";
   response.reason_phrase = "Switching Protocols";
-  response.headers.connection = "Upgrade";
+  response.headers.connection = "upgrade";
   response.headers.upgrade = "websocket";
 
   CryptoPP::SHA1 sha1_function;
@@ -180,4 +191,18 @@ void WebSocketServer::do_handshake( RingBuffer& in, RingBuffer& out )
   if ( not handshake_writer_->finished() ) { /* XXX assume there is enough space */
     error_ = true;
   }
+}
+
+void WebSocketServer::send_forbidden_response( RingBuffer& out )
+{
+  cerr << "Sending forbidden response\n";
+
+  error_ = true;
+
+  HTTPResponse response;
+  response.http_version = "HTTP/1.1";
+  response.status_code = "403";
+  response.reason_phrase = "Forbidden";
+  handshake_writer_.emplace( move( response ) );
+  handshake_writer_->write_to( out );
 }

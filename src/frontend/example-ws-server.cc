@@ -12,10 +12,23 @@
 using namespace std;
 using namespace std::chrono;
 
+struct EventCategories
+{
+  size_t close, SSL_read, SSL_write, ws_handshake, ws_receive;
+
+  EventCategories( EventLoop& loop )
+    : close( loop.add_category( "close" ) )
+    , SSL_read( loop.add_category( "SSL_read" ) )
+    , SSL_write( loop.add_category( "SSL_write" ) )
+    , ws_handshake( loop.add_category( "WebSocket handshake" ) )
+    , ws_receive( loop.add_category( "WebSocket receive" ) )
+  {}
+};
+
 class ClientConnection
 {
   SSLSession ssl_session_;
-  WebSocketServer ws_server_ { "localhost" };
+  WebSocketServer ws_server_;
 
   vector<EventLoop::RuleHandle> rules_;
 
@@ -41,18 +54,20 @@ class ClientConnection
   }
 
 public:
-  ClientConnection( SSLContext& context,
+  ClientConnection( const EventCategories& categories,
+                    SSLContext& context,
                     TCPSocket& listening_socket,
+                    const string& origin,
                     EventLoop& loop,
                     shared_ptr<bool> cull_needed )
-    : ssl_session_(
-      context.make_SSL_handle(),
-      [&] {
-        auto sock = listening_socket.accept();
-        sock.set_blocking( false );
-        return sock;
-      }(),
-      "localhost" )
+    : ssl_session_( context.make_SSL_handle(),
+                    [&] {
+                      auto sock = listening_socket.accept();
+                      sock.set_blocking( false );
+                      sock.set_tcp_nodelay( true );
+                      return sock;
+                    }() )
+    , ws_server_( origin )
     , rules_()
     , cull_needed_( cull_needed )
   {
@@ -61,12 +76,15 @@ public:
     rules_.reserve( 5 );
 
     rules_.push_back( loop.add_rule(
-      "close",
+      categories.close,
       [this] { cull( "WebSocket closure or error" ); },
-      [this] { return good() and ws_server_.should_close_connection(); } ) );
+      [this] {
+        return good() and ws_server_.should_close_connection()
+               and ssl_session_.outbound_plaintext().readable_region().empty();
+      } ) );
 
     rules_.push_back( loop.add_rule(
-      "SSL read",
+      categories.SSL_read,
       ssl_session_.socket(),
       Direction::In,
       [this] {
@@ -80,7 +98,7 @@ public:
       [this] { cull( "socket closed" ); } ) );
 
     rules_.push_back( loop.add_rule(
-      "SSL write",
+      categories.SSL_write,
       ssl_session_.socket(),
       Direction::Out,
       [this] {
@@ -94,7 +112,7 @@ public:
       [this] { cull( "socket closed" ); } ) );
 
     rules_.push_back( loop.add_rule(
-      "WebSocket handshake",
+      categories.ws_handshake,
       [this] { ws_server_.do_handshake( ssl_session_.inbound_plaintext(), ssl_session_.outbound_plaintext() ); },
       [this] {
         return good() and ( not ssl_session_.inbound_plaintext().readable_region().empty() )
@@ -102,7 +120,7 @@ public:
       } ) );
 
     rules_.push_back( loop.add_rule(
-      "WebSocket receive",
+      categories.ws_receive,
       [this] {
         ws_server_.endpoint().read( ssl_session_.inbound_plaintext().readable_region(),
                                     ssl_session_.outbound_plaintext() );
@@ -132,7 +150,7 @@ public:
   ClientConnection& operator=( ClientConnection&& other ) noexcept = delete;
 };
 
-void program_body( const string cert_filename, const string privkey_filename )
+void program_body( const string origin, const string cert_filename, const string privkey_filename )
 {
   ios::sync_with_stdio( false );
 
@@ -150,13 +168,14 @@ void program_body( const string cert_filename, const string privkey_filename )
 
   /* set up event loop */
   EventLoop loop;
+  EventCategories categories { loop };
 
   auto cull_needed = make_shared<bool>( false );
 
   /* accept new clients */
   list<ClientConnection> clients;
   loop.add_rule( "accept TCP connection", listen_socket, Direction::In, [&] {
-    clients.emplace_back( ssl_context, listen_socket, loop, cull_needed );
+    clients.emplace_back( categories, ssl_context, listen_socket, origin, loop, cull_needed );
   } );
 
   /* cull old connections */
@@ -178,12 +197,12 @@ int main( int argc, char* argv[] )
     if ( argc <= 0 ) {
       abort();
     }
-    if ( argc != 3 ) {
-      cerr << "Usage: " << argv[0] << " certificate private_key\n";
+    if ( argc != 4 ) {
+      cerr << "Usage: " << argv[0] << " origin certificate private_key\n";
       return EXIT_FAILURE;
     }
 
-    program_body( argv[1], argv[2] );
+    program_body( argv[1], argv[2], argv[3] );
   } catch ( const exception& e ) {
     cerr << "Exception: " << e.what() << "\n";
     return EXIT_FAILURE;

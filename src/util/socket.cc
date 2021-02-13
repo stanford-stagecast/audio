@@ -3,6 +3,7 @@
 #include "exception.hh"
 
 #include <cstddef>
+#include <netinet/tcp.h>
 #include <stdexcept>
 #include <unistd.h>
 
@@ -189,4 +190,9 @@ void Socket::throw_if_error() const
   if ( socket_error ) {
     throw unix_error( "socket error", socket_error );
   }
+}
+
+void TCPSocket::set_tcp_nodelay( const bool tcp_nodelay )
+{
+  setsockopt( IPPROTO_TCP, TCP_NODELAY, int( tcp_nodelay ) );
 }

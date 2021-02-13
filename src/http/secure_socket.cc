@@ -223,7 +223,7 @@ void CertificateStore::add_certificate( Certificate& cert )
   }
 }
 
-SSLSession::SSLSession( SSL_handle&& ssl, TCPSocket&& sock, const string& hostname )
+SSLSession::SSLSession( SSL_handle&& ssl, TCPSocket&& sock, const string& server_hostname )
   : ssl_( move( ssl ) )
   , socket_( move( sock ) )
 {
@@ -234,13 +234,17 @@ SSLSession::SSLSession( SSL_handle&& ssl, TCPSocket&& sock, const string& hostna
   SSL_set0_rbio( ssl_.get(), socket_ );
   SSL_set0_wbio( ssl_.get(), socket_ );
 
-  if ( not SSL_set1_host( ssl_.get(), hostname.c_str() ) ) {
-    OpenSSL::throw_error( "SSL_set1_host" );
-  }
-
   if ( SSL_is_server( ssl_.get() ) ) {
     SSL_set_accept_state( ssl_.get() );
   } else {
+    if ( server_hostname.empty() ) {
+      throw runtime_error( "server_hostname is empty" );
+    }
+
+    if ( not SSL_set1_host( ssl_.get(), server_hostname.c_str() ) ) {
+      OpenSSL::throw_error( "SSL_set1_host" );
+    }
+
     SSL_set_connect_state( ssl_.get() );
   }
 

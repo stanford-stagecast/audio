@@ -166,7 +166,7 @@ class SSLSession
   bool read_waiting_on_write_ {};
 
 public:
-  SSLSession( SSL_handle&& ssl, TCPSocket&& sock, const std::string& hostname );
+  SSLSession( SSL_handle&& ssl, TCPSocket&& sock, const std::string& server_hostname = {} );
 
   RingBuffer& outbound_plaintext() { return outbound_plaintext_; }
   RingBuffer& inbound_plaintext() { return inbound_plaintext_; }

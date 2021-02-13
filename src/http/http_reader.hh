@@ -253,6 +253,7 @@ class HTTPHeaderReader
   LineReader<PairReader<ColonReader<StringReader>, IgnoreSurroundingWhitespaceReader<StringReader>>> current_line_;
   bool finished_ {};
 
+public:
   static bool header_equals( const std::string_view a, const std::string_view b )
   {
     return std::equal( a.begin(), a.end(), b.begin(), b.end(), []( const char a_ch, const char b_ch ) {
@@ -260,7 +261,6 @@ class HTTPHeaderReader
     } );
   }
 
-public:
   HTTPHeaders release() { return std::move( target_ ); }
 
   using State = decltype( current_line_ )::Contained;
@@ -297,9 +297,15 @@ public:
         } else if ( header_equals( state.first, "Host" ) ) {
           target_.host = state.second;
         } else if ( header_equals( state.first, "Connection" ) ) {
-          if ( header_equals( state.second, "close" ) ) {
-            target_.connection_close = true;
-          }
+          target_.connection = state.second;
+        } else if ( header_equals( state.first, "Upgrade" ) ) {
+          target_.upgrade = state.second;
+        } else if ( header_equals( state.first, "Origin" ) ) {
+          target_.origin = state.second;
+        } else if ( header_equals( state.first, "Sec-WebSocket-Key" ) ) {
+          target_.sec_websocket_key = state.second;
+        } else if ( header_equals( state.first, "Sec-WebSocket-Accept" ) ) {
+          target_.sec_websocket_accept = state.second;
         }
 
         current_line_ = std::move( state );

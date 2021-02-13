@@ -63,6 +63,16 @@ HTTPWriter<MessageType>::HTTPWriter( MessageType&& message )
   : message_( move( message ) )
 {}
 
+void maybe_print( const string_view name, const string_view value, WriteAttempt& attempt )
+{
+  if ( not value.empty() ) {
+    attempt.write( name );
+    attempt.write( ": " );
+    attempt.write( value );
+    attempt.write( "\r\n" );
+  }
+}
+
 template<class MessageType>
 void HTTPWriter<MessageType>::write_to( RingBuffer& buffer )
 {
@@ -78,15 +88,12 @@ void HTTPWriter<MessageType>::write_to( RingBuffer& buffer )
     attempt.write( "\r\n" );
   }
 
-  if ( not message_.headers.host.empty() ) {
-    attempt.write( "Host: " );
-    attempt.write( message_.headers.host );
-    attempt.write( "\r\n" );
-  }
-
-  if ( message_.headers.connection_close ) {
-    attempt.write( "Connection: close\r\n" );
-  }
+  maybe_print( "Host", message_.headers.host, attempt );
+  maybe_print( "Connection", message_.headers.connection, attempt );
+  maybe_print( "Upgrade", message_.headers.upgrade, attempt );
+  maybe_print( "Origin", message_.headers.origin, attempt );
+  maybe_print( "Sec-WebSocket-Key", message_.headers.sec_websocket_key, attempt );
+  maybe_print( "Sec-WebSocket-Accept", message_.headers.sec_websocket_accept, attempt );
 
   /* end of headers */
   attempt.write( "\r\n" );
