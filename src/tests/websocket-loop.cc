@@ -21,6 +21,9 @@ WebSocketFrame random_frame( RNG& s, const unsigned int length )
   WebSocketFrame ret;
   ret.fin = s.bit();
   ret.opcode = WebSocketFrame::opcode_t( s.byte() & 0xF );
+  while ( ret.opcode > WebSocketFrame::opcode_t::Pong ) {
+    ret.opcode = WebSocketFrame::opcode_t( s.byte() & 0xF );
+  }
   ret.payload.resize( length );
   for ( unsigned int i = 0; i < length; i++ ) {
     ret.payload[i] = s.byte();
