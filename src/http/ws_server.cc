@@ -206,3 +206,12 @@ void WebSocketServer::send_forbidden_response( RingBuffer& out )
   handshake_writer_.emplace( move( response ) );
   handshake_writer_->write_to( out );
 }
+
+void WebSocketEndpoint::send_all( const string_view serialized_frame, RingBuffer& out )
+{
+  if ( out.writable_region().size() < serialized_frame.size() ) {
+    throw runtime_error( "no room to send_all" );
+  }
+
+  out.push_from_const_str( serialized_frame );
+}

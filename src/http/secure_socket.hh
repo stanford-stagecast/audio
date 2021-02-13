@@ -170,7 +170,12 @@ public:
 
   RingBuffer& outbound_plaintext() { return outbound_plaintext_; }
   RingBuffer& inbound_plaintext() { return inbound_plaintext_; }
+
+  const RingBuffer& outbound_plaintext() const { return outbound_plaintext_; }
+  const RingBuffer& inbound_plaintext() const { return inbound_plaintext_; }
+
   TCPSocket& socket() { return socket_; }
+  const TCPSocket& socket() const { return socket_; }
 
   void do_read();
   void do_write();

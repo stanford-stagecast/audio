@@ -78,6 +78,17 @@ target_link_libraries ("audio-server" util)
 target_link_libraries ("audio-server" ${SSL_LDFLAGS})
 target_link_libraries ("audio-server" ${SSL_LDFLAGS_OTHER})
 
+add_executable (ws-audio-server "ws-audio-server.cc")
+target_link_libraries ("ws-audio-server" stats)
+target_link_libraries ("ws-audio-server" http)
+target_link_libraries ("ws-audio-server" util)
+
+target_link_libraries ("ws-audio-server" ${SSL_LDFLAGS})
+target_link_libraries ("ws-audio-server" ${SSL_LDFLAGS_OTHER})
+
+target_link_libraries ("ws-audio-server" ${CryptoPP_LDFLAGS})
+target_link_libraries ("ws-audio-server" ${CryptoPP_LDFLAGS_OTHER})
+
 add_executable (example-http-server "example-http-server.cc")
 target_link_libraries ("example-http-server" stats)
 target_link_libraries ("example-http-server" http)
