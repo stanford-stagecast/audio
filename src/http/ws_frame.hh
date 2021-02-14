@@ -24,6 +24,7 @@ struct WebSocketFrame
   std::optional<std::array<uint8_t, 4>> masking_key {};
   std::string payload {};
 
+  void serialize( std::string& out ) const;
   void serialize( Serializer& s ) const;
   uint32_t serialized_length() const;
 

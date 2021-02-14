@@ -161,6 +161,16 @@ void WebSocketFrame::serialize( Serializer& s ) const
   }
 }
 
+void WebSocketFrame::serialize( string& out ) const
+{
+  out.resize( serialized_length() );
+  Serializer s { string_span::from_view( out ) };
+  serialize( s );
+  if ( s.bytes_written() != out.size() ) {
+    throw runtime_error( "WebSocketFrame serialization size mismatch" );
+  }
+}
+
 uint32_t WebSocketFrame::serialized_length() const
 {
   uint32_t ret = 2; /* first octet, mask bit, payload_length sigil */

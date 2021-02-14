@@ -122,8 +122,7 @@ public:
     rules_.push_back( loop.add_rule(
       categories.ws_receive,
       [this] {
-        ws_server_.endpoint().read( ssl_session_.inbound_plaintext().readable_region(),
-                                    ssl_session_.outbound_plaintext() );
+        ws_server_.endpoint().read( ssl_session_.inbound_plaintext(), ssl_session_.outbound_plaintext() );
         if ( ws_server_.endpoint().ready() ) {
           cerr << "got message: " << ws_server_.endpoint().message() << "\n";
           ws_server_.endpoint().pop_message();

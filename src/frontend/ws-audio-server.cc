@@ -149,8 +149,7 @@ public:
     rules_.push_back( loop.add_rule(
       categories.ws_receive,
       [this] {
-        ws_server_.endpoint().read( ssl_session_.inbound_plaintext().readable_region(),
-                                    ssl_session_.outbound_plaintext() );
+        ws_server_.endpoint().read( ssl_session_.inbound_plaintext(), ssl_session_.outbound_plaintext() );
         if ( ws_server_.endpoint().ready() ) {
           cerr << "got message: " << ws_server_.endpoint().message() << "\n";
           ws_server_.endpoint().pop_message();
@@ -158,6 +157,8 @@ public:
       },
       [this] { return good() and not ssl_session_.inbound_plaintext().readable_region().empty(); } ) );
   }
+
+  bool handshake_complete() const { return ws_server_.handshake_complete(); }
 
   ~ClientConnection()
   {
@@ -188,13 +189,19 @@ void program_body( const string origin, const string cert_filename, const string
   SSLServerContext ssl_context { cert_filename, privkey_filename };
 
   /* read init segment */
-  const ReadOnlyFile init_segment { "/tmp/stagecast-audio.init" };
+  const ReadOnlyFile init_segment_file { "/tmp/stagecast-audio.init" };
+  WebSocketFrame init_segment_frame;
+  init_segment_frame.fin = true;
+  init_segment_frame.opcode = WebSocketFrame::opcode_t::Binary;
+  init_segment_frame.payload = init_segment_file;
+  string init_segment;
+  init_segment.resize( init_segment_frame.serialized_length() );
+  init_segment_frame.serialize( init_segment );
 
   /* receive new additions to stream */
   UDPSocket stream_receiver;
   stream_receiver.set_blocking( false );
-  stream_receiver.bind( { "127.0.0.1", 9014 } );
-  StackBuffer<0, uint16_t, 65535> most_recent_audio_frame;
+  stream_receiver.bind( { "127.0.0.1", 9015 } );
 
   /* start listening for HTTP connections */
   TCPSocket web_listen_socket;
@@ -233,12 +240,20 @@ void program_body( const string origin, const string cert_filename, const string
   auto cull_needed = make_shared<bool>( false );
 
   Address src { nullptr, 0 };
+  WebSocketFrame frame_segment;
+  frame_segment.fin = true;
+  frame_segment.opcode = WebSocketFrame::opcode_t::Binary;
+
+  string frame_segment_serialized;
+
   loop->add_rule( "new audio segment", stream_receiver, Direction::In, [&] {
-    most_recent_audio_frame.resize( stream_receiver.recv( src, most_recent_audio_frame.mutable_buffer() ) );
+    frame_segment.payload.resize( 65536 );
+    frame_segment.payload.resize( stream_receiver.recv( src, string_span::from_view( frame_segment.payload ) ) );
+    frame_segment.serialize( frame_segment_serialized );
 
     for ( auto& client : clients->clients ) {
-      if ( client.can_send( most_recent_audio_frame.length() ) ) {
-        client.send_all( most_recent_audio_frame );
+      if ( client.handshake_complete() and client.can_send( frame_segment_serialized.length() ) ) {
+        client.send_all( frame_segment_serialized );
       }
     }
   } );
@@ -248,8 +263,19 @@ void program_body( const string origin, const string cert_filename, const string
       categories, ssl_context, web_listen_socket, origin, *loop, cull_needed, init_segment );
   } );
 
+  /* cull old connections */
+  loop->add_rule(
+    "cull connections",
+    [&] {
+      clients->clients.remove_if( []( const ClientConnection& x ) { return not x.good(); } );
+      *cull_needed = false;
+    },
+    [&cull_needed] { return *cull_needed; } );
+
+  /*
   StatsPrinterTask stats_printer { loop };
   stats_printer.add( clients );
+  */
 
   while ( loop->wait_next_event( 500 ) != EventLoop::Result::Exit ) {
   }

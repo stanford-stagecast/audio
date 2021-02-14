@@ -38,25 +38,25 @@ void WebSocketEndpoint::send_close( RingBuffer& out )
   }
 }
 
-size_t WebSocketEndpoint::read( const string_view input, RingBuffer& out )
+void WebSocketEndpoint::read( RingBuffer& in, RingBuffer& out )
 {
   if ( should_close_connection() ) {
-    return 0;
+    return;
   }
 
   if ( not reader_.has_value() ) {
     reader_.emplace( move( this_frame_ ) );
   }
 
-  const size_t ret = reader_->read( input );
+  in.pop( reader_->read( in.readable_region() ) );
   if ( reader_->error() ) {
     error_ = true;
     reader_->clear_error();
-    return ret;
+    return;
   }
 
   if ( not reader_->finished() ) {
-    return ret;
+    return;
   }
 
   /* finished with frame */
@@ -67,20 +67,20 @@ size_t WebSocketEndpoint::read( const string_view input, RingBuffer& out )
     case WebSocketFrame::opcode_t::Ping:
       if ( not this_frame_.fin ) {
         error_ = true;
-        return ret;
+        return;
       }
       send_pong( out );
       break;
     case WebSocketFrame::opcode_t::Pong:
       if ( not this_frame_.fin ) {
         error_ = true;
-        return ret;
+        return;
       }
       break;
     case WebSocketFrame::opcode_t::Close:
       if ( not this_frame_.fin ) {
         error_ = true;
-        return ret;
+        return;
       }
 
       send_close( out );
@@ -90,7 +90,7 @@ size_t WebSocketEndpoint::read( const string_view input, RingBuffer& out )
     case WebSocketFrame::opcode_t::Binary:
       if ( message_in_progress_ ) {
         error_ = true;
-        return ret;
+        return;
       } else {
         message_ = move( this_frame_ );
         message_in_progress_ = true;
@@ -99,15 +99,13 @@ size_t WebSocketEndpoint::read( const string_view input, RingBuffer& out )
     case WebSocketFrame::opcode_t::Continuation:
       if ( ( not message_in_progress_ ) or ( message_.fin ) ) {
         error_ = true;
-        return ret;
+        return;
       } else {
         message_.payload.append( this_frame_.payload );
         message_.fin = this_frame_.fin;
       }
       break;
   }
-
-  return ret;
 }
 
 static constexpr char WS_MAGIC_STRING[] = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
@@ -164,7 +162,7 @@ void WebSocketServer::do_handshake( RingBuffer& in, RingBuffer& out )
   }
 
   if ( request.headers.origin != origin_ ) {
-    cerr << "bad origin\n";
+    cerr << "bad origin (" + request.headers.origin + " vs. " + origin_ + "\n";
     send_forbidden_response( out );
     return;
   }
@@ -186,11 +184,22 @@ void WebSocketServer::do_handshake( RingBuffer& in, RingBuffer& out )
     new HashFilter( sha1_function,
                     new Base64Encoder( new StringSink( response.headers.sec_websocket_accept ), false ) ) );
 
-  handshake_writer_.emplace( move( response ) );
-  handshake_writer_->write_to( out );
-  if ( not handshake_writer_->finished() ) { /* XXX assume there is enough space */
+  HTTPResponse response_save = response;
+
+  HTTPResponseWriter writer { move( response ) };
+  writer.write_to( out );
+  if ( not writer.finished() ) { /* XXX assume there is enough space */
     error_ = true;
+    return;
   }
+  handshake_complete_ = true;
+
+  cerr << "Here is the happy response:\n";
+
+  HTTPResponseWriter writer2 { move( response_save ) };
+  RingBuffer debug_out { 16384 };
+  writer2.write_to( debug_out );
+  cerr << debug_out.readable_region() << "\n\n";
 }
 
 void WebSocketServer::send_forbidden_response( RingBuffer& out )
@@ -203,8 +212,9 @@ void WebSocketServer::send_forbidden_response( RingBuffer& out )
   response.http_version = "HTTP/1.1";
   response.status_code = "403";
   response.reason_phrase = "Forbidden";
-  handshake_writer_.emplace( move( response ) );
-  handshake_writer_->write_to( out );
+
+  HTTPResponseWriter writer { move( response ) };
+  writer.write_to( out );
 }
 
 void WebSocketEndpoint::send_all( const string_view serialized_frame, RingBuffer& out )

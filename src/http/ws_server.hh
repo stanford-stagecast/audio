@@ -21,7 +21,7 @@ class WebSocketEndpoint
 public:
   void send_all( const std::string_view serialized_frame, RingBuffer& out );
 
-  size_t read( const std::string_view input, RingBuffer& out );
+  void read( RingBuffer& in, RingBuffer& out );
   bool should_close_connection() const { return error_ or closed_; }
 
   void pop_message();
@@ -34,9 +34,9 @@ class WebSocketServer
   std::string origin_ {};
 
   HTTPRequestReader handshake_reader_ { {}, {} };
-  std::optional<HTTPResponseWriter> handshake_writer_ {};
 
   bool error_ {};
+  bool handshake_complete_ {};
 
   WebSocketEndpoint wse_ {};
 
@@ -47,7 +47,7 @@ public:
     : origin_( origin )
   {}
 
-  bool handshake_complete() { return handshake_writer_.has_value() and handshake_writer_->finished(); }
+  bool handshake_complete() const { return handshake_complete_; }
   WebSocketEndpoint endpoint() { return wse_; }
 
   void do_handshake( RingBuffer& in, RingBuffer& out );
