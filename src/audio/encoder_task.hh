@@ -18,7 +18,7 @@ class OpusEncoderProcess
 
     bool can_encode_frame( const size_t source_cursor ) const;
     void encode_one_frame( const AudioChannel& channel );
-    size_t cursor() const { return num_pushed_ * opus_frame::NUM_SAMPLES; }
+    size_t cursor() const { return num_pushed_ * opus_frame::NUM_SAMPLES_MINLATENCY; }
 
     std::optional<opus_frame>& output() { return output_; }
     const std::optional<opus_frame>& output() const { return output_; }
@@ -45,7 +45,7 @@ public:
     num_popped_++;
   }
 
-  void reset( const int bit_rate, const int sample_rate );
+  void reset( const int bit_rate1, const int bit_rate2, const int sample_rate );
 
   size_t min_encode_cursor() const { return std::min( enc1_.cursor(), enc2_.cursor() ); }
   size_t frame_index() const { return num_popped_; }

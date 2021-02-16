@@ -38,7 +38,7 @@ void NetworkMultiServer::add_key( const LongLivedKey& key )
 NetworkMultiServer::NetworkMultiServer( const uint8_t num_clients, EventLoop& loop )
   : socket_()
   , global_ns_timestamp_at_creation_( Timer::timestamp_ns() )
-  , next_cursor_sample_( server_clock() + opus_frame::NUM_SAMPLES )
+  , next_cursor_sample_( server_clock() + opus_frame::NUM_SAMPLES_MINLATENCY )
   , num_clients_( num_clients )
   , board_( 2 * num_clients )
 {
@@ -98,7 +98,7 @@ NetworkMultiServer::NetworkMultiServer( const uint8_t num_clients, EventLoop& lo
         board_.pop_samples_until( next_cursor_sample_ - 240 );
       }
 
-      next_cursor_sample_ += opus_frame::NUM_SAMPLES;
+      next_cursor_sample_ += opus_frame::NUM_SAMPLES_MINLATENCY;
     },
     [&] { return server_clock() >= next_cursor_sample_; } );
 }

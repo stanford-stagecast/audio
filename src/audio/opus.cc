@@ -19,13 +19,13 @@ void OpusEncoder::encoder_deleter::operator()( OpusEncoder* x ) const
   opus_encoder_destroy( x );
 }
 
-OpusEncoder::OpusEncoder( const int bit_rate, const int sample_rate )
+OpusEncoder::OpusEncoder( const int bit_rate, const int sample_rate, const int channels, const int application )
 {
   int out;
 
   /* create encoder */
-  encoder_.reset( notnull( "opus_encoder_create",
-                           opus_encoder_create( sample_rate, 1, OPUS_APPLICATION_RESTRICTED_LOWDELAY, &out ) ) );
+  encoder_.reset(
+    notnull( "opus_encoder_create", opus_encoder_create( sample_rate, channels, application, &out ) ) );
   opus_check( out );
 
   /* set bit rate */
@@ -80,7 +80,7 @@ void OpusDecoder::decode( const opus_frame& encoded_input, span<float> samples )
                                                                 samples.size(),
                                                                 0 ) );
 
-  if ( samples_written != opus_frame::NUM_SAMPLES ) {
+  if ( samples_written != opus_frame::NUM_SAMPLES_MINLATENCY ) {
     throw runtime_error( "invalid count from opus_decode_float: " + to_string( samples_written ) );
   }
 }
@@ -90,7 +90,7 @@ void OpusDecoder::decode_missing( span<float> samples )
   const size_t samples_written
     = opus_check( opus_decode_float( decoder_.get(), nullptr, 0, samples.mutable_data(), samples.size(), 0 ) );
 
-  if ( samples_written != opus_frame::NUM_SAMPLES ) {
+  if ( samples_written != opus_frame::NUM_SAMPLES_MINLATENCY ) {
     throw runtime_error( "invalid count from opus_decode_float: " + to_string( samples_written ) );
   }
 }

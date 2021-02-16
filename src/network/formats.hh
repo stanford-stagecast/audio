@@ -9,10 +9,10 @@
 
 struct AudioFrame
 {
-  uint32_t frame_index {}; // units of opus_frame::NUM_SAMPLES, about four months at 2^32 * 120 / 48 kHz
+  uint32_t frame_index {}; // units of opus_frame::NUM_SAMPLES_MINLATENCY, about four months at 2^32 * 120 / 48 kHz
   opus_frame ch1 {}, ch2 {};
 
-  size_t sample_index() const { return frame_index * opus_frame::NUM_SAMPLES; }
+  size_t sample_index() const { return frame_index * opus_frame::NUM_SAMPLES_MINLATENCY; }
 
   uint8_t serialized_length() const;
   void serialize( Serializer& s ) const;

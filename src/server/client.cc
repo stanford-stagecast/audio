@@ -10,7 +10,7 @@ uint64_t Client::client_mix_cursor() const
 
 uint64_t Client::server_mix_cursor() const
 {
-  return mix_cursor_ + outbound_frame_offset_.value() * opus_frame::NUM_SAMPLES;
+  return mix_cursor_ + outbound_frame_offset_.value() * opus_frame::NUM_SAMPLES_MINLATENCY;
 }
 
 Client::Client( const uint8_t node_id, const uint8_t ch1_num, const uint8_t ch2_num, CryptoSession&& crypto )
@@ -24,7 +24,7 @@ bool Client::receive_packet( const Address& source, const Ciphertext& ciphertext
 {
   if ( connection_.receive_packet( ciphertext, source ) ) {
     if ( ( not outbound_frame_offset_.has_value() ) and connection_.has_destination() ) {
-      outbound_frame_offset_ = clock_sample / opus_frame::NUM_SAMPLES;
+      outbound_frame_offset_ = clock_sample / opus_frame::NUM_SAMPLES_MINLATENCY;
     }
     return true;
   }
@@ -37,8 +37,8 @@ void Client::decode_audio( const uint64_t cursor_sample, AudioBoard& board )
 
   cursor_.sample( connection_.frames(),
                   cursor_sample,
-                  connection_.unreceived_beyond_this_frame_index() * opus_frame::NUM_SAMPLES,
-                  connection_.next_frame_needed() * opus_frame::NUM_SAMPLES,
+                  connection_.unreceived_beyond_this_frame_index() * opus_frame::NUM_SAMPLES_MINLATENCY,
+                  connection_.next_frame_needed() * opus_frame::NUM_SAMPLES_MINLATENCY,
                   decoder_,
                   output );
 
@@ -52,9 +52,9 @@ void Client::mix_and_encode( const vector<mix_gain>& gains, const AudioBoard& bo
     return;
   }
 
-  while ( server_mix_cursor() + opus_frame::NUM_SAMPLES <= cursor_sample ) {
-    span<float> ch1_target = mixed_audio_.ch1().region( client_mix_cursor(), opus_frame::NUM_SAMPLES );
-    span<float> ch2_target = mixed_audio_.ch2().region( client_mix_cursor(), opus_frame::NUM_SAMPLES );
+  while ( server_mix_cursor() + opus_frame::NUM_SAMPLES_MINLATENCY <= cursor_sample ) {
+    span<float> ch1_target = mixed_audio_.ch1().region( client_mix_cursor(), opus_frame::NUM_SAMPLES_MINLATENCY );
+    span<float> ch2_target = mixed_audio_.ch2().region( client_mix_cursor(), opus_frame::NUM_SAMPLES_MINLATENCY );
 
     for ( uint8_t channel_i = 0; channel_i < board.num_channels(); channel_i++ ) {
       if ( channel_i == ch1_num_ or channel_i == ch2_num_ ) {
@@ -62,11 +62,11 @@ void Client::mix_and_encode( const vector<mix_gain>& gains, const AudioBoard& bo
       }
 
       const span_view<float> other_channel
-        = board.channel( channel_i ).region( server_mix_cursor(), opus_frame::NUM_SAMPLES );
+        = board.channel( channel_i ).region( server_mix_cursor(), opus_frame::NUM_SAMPLES_MINLATENCY );
 
       const float gain_into_1 = gains.at( channel_i ).first;
       const float gain_into_2 = gains.at( channel_i ).second;
-      for ( uint8_t sample_i = 0; sample_i < opus_frame::NUM_SAMPLES; sample_i++ ) {
+      for ( uint8_t sample_i = 0; sample_i < opus_frame::NUM_SAMPLES_MINLATENCY; sample_i++ ) {
         const float value = other_channel[sample_i];
         const float orig_1 = ch1_target[sample_i];
         const float orig_2 = ch2_target[sample_i];
@@ -76,11 +76,11 @@ void Client::mix_and_encode( const vector<mix_gain>& gains, const AudioBoard& bo
       }
     }
 
-    mix_cursor_ += opus_frame::NUM_SAMPLES;
+    mix_cursor_ += opus_frame::NUM_SAMPLES_MINLATENCY;
   }
 
   /* encode audio */
-  while ( encoder_.min_encode_cursor() + opus_frame::NUM_SAMPLES <= client_mix_cursor() ) {
+  while ( encoder_.min_encode_cursor() + opus_frame::NUM_SAMPLES_MINLATENCY <= client_mix_cursor() ) {
     encoder_.encode_one_frame( mixed_audio_.ch1(), mixed_audio_.ch2() );
     connection_.push_frame( encoder_ );
   }
@@ -231,17 +231,17 @@ void Client::set_cursor_lag( const uint16_t num_samples )
 
 void AudioWriter::mix_and_write( const AudioBoard& board, const uint64_t cursor_sample )
 {
-  while ( mix_cursor_ + opus_frame::NUM_SAMPLES <= cursor_sample ) {
-    span<float> ch1_target = mixed_audio_.ch1().region( mix_cursor_, opus_frame::NUM_SAMPLES );
-    span<float> ch2_target = mixed_audio_.ch2().region( mix_cursor_, opus_frame::NUM_SAMPLES );
+  while ( mix_cursor_ + opus_frame::NUM_SAMPLES_MINLATENCY <= cursor_sample ) {
+    span<float> ch1_target = mixed_audio_.ch1().region( mix_cursor_, opus_frame::NUM_SAMPLES_MINLATENCY );
+    span<float> ch2_target = mixed_audio_.ch2().region( mix_cursor_, opus_frame::NUM_SAMPLES_MINLATENCY );
 
     for ( uint8_t channel_i = 0; channel_i < board.num_channels(); channel_i++ ) {
       const span_view<float> other_channel
-        = board.channel( channel_i ).region( mix_cursor_, opus_frame::NUM_SAMPLES );
+        = board.channel( channel_i ).region( mix_cursor_, opus_frame::NUM_SAMPLES_MINLATENCY );
 
       const float gain_into_1 = 2.0;
       const float gain_into_2 = 2.0;
-      for ( uint8_t sample_i = 0; sample_i < opus_frame::NUM_SAMPLES; sample_i++ ) {
+      for ( uint8_t sample_i = 0; sample_i < opus_frame::NUM_SAMPLES_MINLATENCY; sample_i++ ) {
         const float value = other_channel[sample_i];
         const float orig_1 = ch1_target[sample_i];
         const float orig_2 = ch2_target[sample_i];
@@ -255,7 +255,7 @@ void AudioWriter::mix_and_write( const AudioBoard& board, const uint64_t cursor_
     auto frame_mutable = encoder_.front_ch1();
     webm_writer_.write( frame_mutable, mix_cursor_ );
     encoder_.pop_frame();
-    mix_cursor_ += opus_frame::NUM_SAMPLES;
+    mix_cursor_ += opus_frame::NUM_SAMPLES_MINLATENCY;
     mixed_audio_.pop_before( mix_cursor_ );
   }
 }

@@ -45,12 +45,12 @@ OpusEncoderProcess::OpusEncoderProcess( const int bit_rate1, const int bit_rate2
 {}
 
 OpusEncoderProcess::Channel::Channel( const int bit_rate, const int sample_rate )
-  : enc_( bit_rate, sample_rate )
+  : enc_( bit_rate, sample_rate, 1, OPUS_APPLICATION_RESTRICTED_LOWDELAY )
 {}
 
 bool OpusEncoderProcess::Channel::can_encode_frame( const size_t source_cursor ) const
 {
-  return ( source_cursor >= cursor() + opus_frame::NUM_SAMPLES ) and ( not output_.has_value() );
+  return ( source_cursor >= cursor() + opus_frame::NUM_SAMPLES_MINLATENCY ) and ( not output_.has_value() );
 }
 
 void OpusEncoderProcess::Channel::encode_one_frame( const AudioChannel& channel )
@@ -60,19 +60,19 @@ void OpusEncoderProcess::Channel::encode_one_frame( const AudioChannel& channel 
   }
 
   output_.emplace();
-  enc_.encode( channel.region( cursor(), opus_frame::NUM_SAMPLES ), output_.value() );
+  enc_.encode( channel.region( cursor(), opus_frame::NUM_SAMPLES_MINLATENCY ), output_.value() );
   num_pushed_++;
 }
 
 void OpusEncoderProcess::Channel::reset( const int bit_rate, const int sample_rate )
 {
-  enc_ = { bit_rate, sample_rate };
+  enc_ = { bit_rate, sample_rate, 1, OPUS_APPLICATION_RESTRICTED_LOWDELAY };
 }
 
-void OpusEncoderProcess::reset( const int bit_rate, const int sample_rate )
+void OpusEncoderProcess::reset( const int bit_rate1, const int bit_rate2, const int sample_rate )
 {
-  enc1_.reset( bit_rate, sample_rate );
-  enc2_.reset( bit_rate, sample_rate );
+  enc1_.reset( bit_rate1, sample_rate );
+  enc2_.reset( bit_rate2, sample_rate );
 }
 
 void OpusEncoderProcess::encode_one_frame( const AudioChannel& ch1, const AudioChannel& ch2 )

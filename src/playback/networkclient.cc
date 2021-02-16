@@ -29,8 +29,8 @@ void NetworkClient::NetworkSession::decode( const size_t decode_cursor,
   /* decode server's Opus frames to playback buffer */
   cursor.sample( connection.frames(),
                  decode_cursor,
-                 connection.unreceived_beyond_this_frame_index() * opus_frame::NUM_SAMPLES,
-                 connection.next_frame_needed() * opus_frame::NUM_SAMPLES,
+                 connection.unreceived_beyond_this_frame_index() * opus_frame::NUM_SAMPLES_MINLATENCY,
+                 connection.next_frame_needed() * opus_frame::NUM_SAMPLES_MINLATENCY,
                  decoder,
                  output );
 
@@ -119,20 +119,24 @@ NetworkClient::NetworkClient( const Address& server,
     "decode",
     [&] {
       session_->decode( decode_cursor_, decoder_, dest_->playback() );
-      decode_cursor_ += opus_frame::NUM_SAMPLES;
+      decode_cursor_ += opus_frame::NUM_SAMPLES_MINLATENCY;
 
       if ( session_->connection.sender_stats().last_good_ack_ts + 4'000'000'000 < Timer::timestamp_ns() ) {
         stats_.timeouts++;
         session_.reset();
       }
     },
-    [&] { return session_.has_value() and ( dest_->cursor() + opus_frame::NUM_SAMPLES + 60 >= decode_cursor_ ); } );
+    [&] {
+      return session_.has_value()
+             and ( dest_->cursor() + opus_frame::NUM_SAMPLES_MINLATENCY + 60 >= decode_cursor_ );
+    } );
 
   loop.add_rule(
     "play silence",
-    [&] { decode_cursor_ += opus_frame::NUM_SAMPLES; },
+    [&] { decode_cursor_ += opus_frame::NUM_SAMPLES_MINLATENCY; },
     [&] {
-      return ( !session_.has_value() ) and ( dest_->cursor() + opus_frame::NUM_SAMPLES + 60 >= decode_cursor_ );
+      return ( !session_.has_value() )
+             and ( dest_->cursor() + opus_frame::NUM_SAMPLES_MINLATENCY + 60 >= decode_cursor_ );
     } );
 
   loop.add_rule(

@@ -47,18 +47,18 @@ void Cursor::sample( const PartialFrameStore& frames,
     if ( cursor_location_.value() < 0 ) {
       miss();
       decoder.decode_missing( num_samples_output_, output );
-      num_samples_output_ += opus_frame::NUM_SAMPLES;
-      cursor_location_.value() += opus_frame::NUM_SAMPLES;
+      num_samples_output_ += opus_frame::NUM_SAMPLES_MINLATENCY;
+      cursor_location_.value() += opus_frame::NUM_SAMPLES_MINLATENCY;
       continue;
     }
 
     /* okay, we know where to get them from. Do we have an Opus frame ready to decode? */
-    const uint32_t frame_no = cursor_location_.value() / opus_frame::NUM_SAMPLES;
-    if ( not frames.has_value( cursor_location_.value() / opus_frame::NUM_SAMPLES ) ) {
+    const uint32_t frame_no = cursor_location_.value() / opus_frame::NUM_SAMPLES_MINLATENCY;
+    if ( not frames.has_value( cursor_location_.value() / opus_frame::NUM_SAMPLES_MINLATENCY ) ) {
       miss();
       decoder.decode_missing( num_samples_output_, output );
-      num_samples_output_ += opus_frame::NUM_SAMPLES;
-      cursor_location_.value() += opus_frame::NUM_SAMPLES;
+      num_samples_output_ += opus_frame::NUM_SAMPLES_MINLATENCY;
+      cursor_location_.value() += opus_frame::NUM_SAMPLES_MINLATENCY;
       continue;
     }
 
@@ -66,8 +66,8 @@ void Cursor::sample( const PartialFrameStore& frames,
     hit();
     decoder.decode(
       frames.at( frame_no ).value().ch1, frames.at( frame_no ).value().ch2, num_samples_output_, output );
-    num_samples_output_ += opus_frame::NUM_SAMPLES;
-    cursor_location_.value() += opus_frame::NUM_SAMPLES;
+    num_samples_output_ += opus_frame::NUM_SAMPLES_MINLATENCY;
+    cursor_location_.value() += opus_frame::NUM_SAMPLES_MINLATENCY;
   }
 }
 
@@ -88,7 +88,7 @@ size_t Cursor::ok_to_pop( const PartialFrameStore& frames ) const
     return 0;
   }
 
-  const size_t next_frame_needed = cursor_location_.value() / opus_frame::NUM_SAMPLES;
+  const size_t next_frame_needed = cursor_location_.value() / opus_frame::NUM_SAMPLES_MINLATENCY;
   if ( next_frame_needed <= frames.range_begin() ) {
     return 0;
   }

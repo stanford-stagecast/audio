@@ -140,7 +140,7 @@ void WebMWriter::write( opus_frame& frame, const uint64_t starting_sample_number
   packet.size = frame.length();
   packet.stream_index = 0;
   packet.flags = AV_PKT_FLAG_KEY;
-  packet.duration = WEBM_TIMEBASE * opus_frame::NUM_SAMPLES / sample_rate_;
+  packet.duration = WEBM_TIMEBASE * opus_frame::NUM_SAMPLES_MINLATENCY / sample_rate_;
   packet.pos = -1;
 
   av_check( av_write_frame( context_.get(), &packet ) );
