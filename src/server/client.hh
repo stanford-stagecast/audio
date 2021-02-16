@@ -35,7 +35,7 @@ class AudioWriter
 
   uint64_t mix_cursor_ {};
 
-  OpusEncoderProcess encoder_ { 96000, 600, 48000 };
+  OpusEncoderProcess encoder_ { Audio::TwoChannel, 96000, 600, 48000 };
   WebMWriter webm_writer_ { 96000, 48000, 1 };
 
 public:
@@ -55,7 +55,7 @@ class Client
   uint64_t server_mix_cursor() const;
   uint64_t client_mix_cursor() const;
 
-  OpusEncoderProcess encoder_ { 96000, 600, 48000 };
+  OpusEncoderProcess encoder_ { Audio::TwoChannel, 96000, 600, 48000 };
 
   uint8_t ch1_num_, ch2_num_;
 

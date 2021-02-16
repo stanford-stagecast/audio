@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 
 #include "base64.hh"
 #include "crypto.hh"
@@ -10,7 +11,10 @@
 struct AudioFrame
 {
   uint32_t frame_index {}; // units of opus_frame::NUM_SAMPLES_MINLATENCY, about four months at 2^32 * 120 / 48 kHz
-  opus_frame ch1 {}, ch2 {};
+  AudioType frame_type {};
+
+  opus_frame frame1 {};
+  std::optional<opus_frame> frame2 {};
 
   size_t sample_index() const { return frame_index * opus_frame::NUM_SAMPLES_MINLATENCY; }
 

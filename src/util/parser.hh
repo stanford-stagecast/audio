@@ -46,7 +46,7 @@ public:
       return;
     }
 
-    out = 0;
+    out = static_cast<T>( 0 );
     for ( size_t i = 0; i < sizeof( T ); i++ ) {
       out <<= 8;
       out += uint8_t( input_.at( i ) );

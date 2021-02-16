@@ -64,8 +64,10 @@ void Cursor::sample( const PartialFrameStore& frames,
 
     /* decode a frame! */
     hit();
-    decoder.decode(
-      frames.at( frame_no ).value().ch1, frames.at( frame_no ).value().ch2, num_samples_output_, output );
+    decoder.decode( frames.at( frame_no ).value().frame1,
+                    frames.at( frame_no ).value().frame2.value(),
+                    num_samples_output_,
+                    output );
     num_samples_output_ += opus_frame::NUM_SAMPLES_MINLATENCY;
     cursor_location_.value() += opus_frame::NUM_SAMPLES_MINLATENCY;
   }

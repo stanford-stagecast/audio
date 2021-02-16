@@ -105,7 +105,8 @@ void NetworkSender::push_frame( OpusEncoderProcess& encoder )
     stats_.frames_dropped += frames_to_drop;
   }
 
-  frames_.at( next_frame_index_ ) = { next_frame_index_, encoder.front_ch1(), encoder.front_ch2() };
+  frames_.at( next_frame_index_ )
+    = { next_frame_index_, Audio::TwoChannel, encoder.front_enc1(), encoder.front_enc2() };
   frame_status_.at( next_frame_index_ ) = { true, false };
   next_frame_index_++;
 

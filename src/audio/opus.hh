@@ -5,13 +5,19 @@
 
 #include "stackbuffer.hh"
 
-class opus_frame : public StackBuffer<0, uint8_t, 61>
+using AudioType = uint8_t;
+
+namespace Audio {
+static constexpr AudioType Mono = 0, Stereo = 1, TwoChannel = 2;
+}
+
+class opus_frame : public StackBuffer<0, uint8_t, 60>
 {
 public:
   static constexpr unsigned int NUM_SAMPLES_MINLATENCY = 120; /* 2.5 ms at 48 kHz */
 };
 
-static_assert( sizeof( opus_frame ) == 62 );
+static_assert( sizeof( opus_frame ) == 61 );
 
 class OpusEncoder
 {

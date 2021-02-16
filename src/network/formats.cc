@@ -6,21 +6,34 @@ using namespace std;
 
 uint8_t AudioFrame::serialized_length() const
 {
-  return sizeof( frame_index ) + ch1.serialized_length() + ch2.serialized_length();
+  uint8_t ret = sizeof( frame_index ) + sizeof( frame_type ) + frame1.serialized_length();
+  if ( frame_type == Audio::TwoChannel ) {
+    ret += frame2.value().serialized_length();
+  }
+  return ret;
 }
 
 void AudioFrame::serialize( Serializer& s ) const
 {
   s.integer( frame_index );
-  s.object( ch1 );
-  s.object( ch2 );
+  s.integer( frame_type );
+  s.object( frame1 );
+  if ( frame_type == Audio::TwoChannel ) {
+    s.object( frame2.value() );
+  }
 }
 
 void AudioFrame::parse( Parser& p )
 {
   p.integer( frame_index );
-  p.object( ch1 );
-  p.object( ch2 );
+  p.integer( frame_type );
+  p.object( frame1 );
+  if ( frame_type == Audio::TwoChannel ) {
+    frame2.emplace();
+    p.object( *frame2 );
+  } else {
+    frame2.reset();
+  }
 }
 
 uint32_t Packet::serialized_length() const
