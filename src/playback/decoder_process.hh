@@ -16,8 +16,8 @@ public:
   void decode( const opus_frame& ch1,
                const opus_frame& ch2,
                const size_t global_sample_index,
-               AudioBuffer& output );
-  void decode_missing( const size_t global_sample_index, AudioBuffer& output );
+               ChannelPair& output );
+  void decode_missing( const size_t global_sample_index, ChannelPair& output );
 
   const Statistics& stats() const { return stats_; }
 };

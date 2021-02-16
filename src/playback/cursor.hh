@@ -31,7 +31,7 @@ public:
                const size_t frontier_sample_index,
                const size_t safe_sample_index,
                OpusDecoderProcess& decoder,
-               AudioBuffer& output );
+               ChannelPair& output );
 
   void summary( std::ostream& out ) const;
 

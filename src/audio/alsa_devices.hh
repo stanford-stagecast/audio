@@ -120,8 +120,8 @@ public:
   bool update();
 
   void copy_all_available_samples_to( AudioInterface& other,
-                                      AudioBuffer& capture_output,
-                                      const AudioBuffer& playback_input,
+                                      ChannelPair& capture_output,
+                                      const ChannelPair& playback_input,
                                       AudioStatistics::SampleStats& stats );
 
   const Configuration& config() const { return config_; }
@@ -169,7 +169,7 @@ public:
 
   void start() { microphone_.start(); }
   void recover();
-  void loopback( AudioBuffer& capture_output, const AudioBuffer& playback_input );
+  void loopback( ChannelPair& capture_output, const ChannelPair& playback_input );
 
   bool mic_has_samples();
   unsigned int mic_avail() { return microphone_.avail(); }

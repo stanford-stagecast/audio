@@ -324,7 +324,7 @@ bool AudioPair::mic_has_samples()
   return microphone_.avail();
 }
 
-void AudioPair::loopback( AudioBuffer& capture_output, const AudioBuffer& playback_input )
+void AudioPair::loopback( ChannelPair& capture_output, const ChannelPair& playback_input )
 {
   statistics_.total_wakeups++;
   fd_.register_read();
@@ -381,8 +381,8 @@ inline int32_t float_to_sample( const float sample_f )
 }
 
 void AudioInterface::copy_all_available_samples_to( AudioInterface& other,
-                                                    AudioBuffer& capture_output,
-                                                    const AudioBuffer& playback_input,
+                                                    ChannelPair& capture_output,
+                                                    const ChannelPair& playback_input,
                                                     AudioStatistics::SampleStats& stats )
 {
   unsigned int avail_remaining = avail();

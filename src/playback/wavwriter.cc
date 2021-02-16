@@ -10,7 +10,7 @@ WavWriter::WavWriter( const string& path, const int sample_rate )
   }
 }
 
-void WavWriter::write( const AudioBuffer& buffer, const size_t range_end )
+void WavWriter::write( const ChannelPair& buffer, const size_t range_end )
 {
   if ( range_end < buffer.range_begin() ) {
     throw std::out_of_range( "WavWriter::write" );

@@ -14,7 +14,7 @@ class KnownClient;
 class AudioBoard
 {
   std::vector<std::string> channel_names_;
-  std::vector<AudioBuffer> decoded_audio_;
+  std::vector<ChannelPair> decoded_audio_;
 
 public:
   AudioBoard( const uint8_t num_channels );
@@ -22,7 +22,7 @@ public:
   void set_name( const uint8_t ch_num, const std::string_view name ) { channel_names_.at( ch_num ) = name; }
 
   const AudioChannel& channel( const uint8_t ch_num ) const;
-  AudioBuffer& buffer( const uint8_t ch1_num, const uint8_t ch2_num );
+  ChannelPair& buffer( const uint8_t ch1_num, const uint8_t ch2_num );
   void pop_samples_until( const uint64_t sample );
 
   uint8_t num_channels() const { return channel_names_.size(); }
@@ -31,7 +31,7 @@ public:
 
 class AudioWriter
 {
-  AudioBuffer mixed_audio_ { 8192 };
+  ChannelPair mixed_audio_ { 8192 };
 
   uint64_t mix_cursor_ {};
 
@@ -47,7 +47,7 @@ class Client
   NetworkConnection connection_;
   Cursor cursor_;
   OpusDecoderProcess decoder_ {};
-  AudioBuffer mixed_audio_ { 8192 };
+  ChannelPair mixed_audio_ { 8192 };
 
   uint64_t mix_cursor_ {};
   std::optional<uint32_t> outbound_frame_offset_ {};

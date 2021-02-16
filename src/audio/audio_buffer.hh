@@ -4,12 +4,12 @@
 
 using AudioChannel = SafeEndlessBuffer<float>;
 
-class AudioBuffer
+class ChannelPair
 {
   AudioChannel ch1_, ch2_;
 
 public:
-  AudioBuffer( const size_t capacity )
+  ChannelPair( const size_t capacity )
     : ch1_( capacity )
     , ch2_( capacity )
   {}

@@ -6,7 +6,7 @@ using namespace std;
 void OpusDecoderProcess::decode( const opus_frame& ch1,
                                  const opus_frame& ch2,
                                  const size_t global_sample_index,
-                                 AudioBuffer& output )
+                                 ChannelPair& output )
 {
   if ( global_sample_index < output.range_begin()
        or global_sample_index + opus_frame::NUM_SAMPLES >= output.range_end() ) {
@@ -20,7 +20,7 @@ void OpusDecoderProcess::decode( const opus_frame& ch1,
   stats_.successful_decodes++;
 }
 
-void OpusDecoderProcess::decode_missing( const size_t global_sample_index, AudioBuffer& output )
+void OpusDecoderProcess::decode_missing( const size_t global_sample_index, ChannelPair& output )
 {
   if ( global_sample_index < output.range_begin()
        or global_sample_index + opus_frame::NUM_SAMPLES >= output.range_end() ) {

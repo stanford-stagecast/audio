@@ -18,7 +18,7 @@ class NetworkClient : public Summarizable
 
     void transmit_frame( OpusEncoderProcess& source, UDPSocket& socket );
     void network_receive( const Ciphertext& ciphertext );
-    void decode( const size_t decode_cursor, OpusDecoderProcess& decoder, AudioBuffer& output );
+    void decode( const size_t decode_cursor, OpusDecoderProcess& decoder, ChannelPair& output );
     void summary( std::ostream& out ) const;
   };
 

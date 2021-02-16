@@ -33,7 +33,7 @@ bool Client::receive_packet( const Address& source, const Ciphertext& ciphertext
 
 void Client::decode_audio( const uint64_t cursor_sample, AudioBoard& board )
 {
-  AudioBuffer& output = board.buffer( ch1_num_, ch2_num_ );
+  ChannelPair& output = board.buffer( ch1_num_, ch2_num_ );
 
   cursor_.sample( connection_.frames(),
                   cursor_sample,
@@ -205,7 +205,7 @@ const AudioChannel& AudioBoard::channel( const uint8_t ch_num ) const
   return is_ch2 ? buf.ch2() : buf.ch1();
 }
 
-AudioBuffer& AudioBoard::buffer( const uint8_t ch1_num, const uint8_t ch2_num )
+ChannelPair& AudioBoard::buffer( const uint8_t ch1_num, const uint8_t ch2_num )
 {
   const uint8_t buf_num = ch1_num / 2;
   if ( ch1_num == buf_num * 2 and ch2_num == ch1_num + 1 ) {

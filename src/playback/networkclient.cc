@@ -24,7 +24,7 @@ void NetworkClient::NetworkSession::network_receive( const Ciphertext& ciphertex
 
 void NetworkClient::NetworkSession::decode( const size_t decode_cursor,
                                             OpusDecoderProcess& decoder,
-                                            AudioBuffer& output )
+                                            ChannelPair& output )
 {
   /* decode server's Opus frames to playback buffer */
   cursor.sample( connection.frames(),

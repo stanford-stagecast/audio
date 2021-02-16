@@ -20,7 +20,7 @@ void Cursor::sample( const PartialFrameStore& frames,
                      const size_t frontier_sample_index,
                      const size_t safe_sample_index,
                      OpusDecoderProcess& decoder,
-                     AudioBuffer& output )
+                     ChannelPair& output )
 {
   /* initialize cursor if necessary */
   if ( not cursor_location_.has_value() ) {
