@@ -11,19 +11,20 @@ Cursor::Cursor( const uint32_t target_lag_samples, const uint32_t max_lag_sample
   , max_lag_samples_( max_lag_samples )
   , stretcher_( 48000,
                 2,
-                Option::OptionProcessRealTime | Option::OptionThreadingNever | Option::OptionPitchHighConsistency )
+                Option::OptionProcessRealTime | Option::OptionThreadingNever | Option::OptionPitchHighConsistency
+                  | Option::OptionWindowShort )
 {
   stretcher_.setMaxProcessSize( opus_frame::NUM_SAMPLES_MINLATENCY );
 }
 
 void Cursor::miss()
 {
-  ewma_update( stats_.quality, 0.0, 0.01 );
+  ewma_update( stats_.quality, 0.0, ALPHA );
 }
 
 void Cursor::hit()
 {
-  ewma_update( stats_.quality, 1.0, 0.01 );
+  ewma_update( stats_.quality, 1.0, ALPHA );
 }
 
 void Cursor::sample( const PartialFrameStore& frames,
@@ -34,36 +35,61 @@ void Cursor::sample( const PartialFrameStore& frames,
                      ChannelPair& output )
 {
   /* initialize cursor if necessary */
-  if ( not cursor_location_.has_value() ) {
-    cursor_location_ = frontier_sample_index - target_lag_samples_;
+  if ( not frame_cursor_.has_value() and frontier_sample_index > target_lag_samples_ ) {
+    frame_cursor_ = ( frontier_sample_index - target_lag_samples_ ) / opus_frame::NUM_SAMPLES_MINLATENCY;
     num_samples_output_ = global_sample_index;
     stats_.resets++;
   }
 
+  if ( not frame_cursor_.has_value() ) {
+    return;
+  }
+
   /* do we owe any samples to the output? */
   while ( global_sample_index > num_samples_output_ ) {
+    const uint64_t frame_cursor = frame_cursor_.value();
+
+    const int64_t margin_to_frontier = frontier_sample_index - greatest_read_location();
+    stats_.min_margin_to_frontier = min( stats_.min_margin_to_frontier, margin_to_frontier );
+    ewma_update( stats_.mean_margin_to_frontier, margin_to_frontier, ALPHA );
+    ewma_update(
+      stats_.mean_margin_to_safe_index, int64_t( safe_sample_index ) - int64_t( greatest_read_location() ), ALPHA );
+
     /* adjust cursor if necessary */
-    if ( cursor_location_.value() > int64_t( frontier_sample_index ) ) {
+    if ( greatest_read_location() >= frontier_sample_index ) {
       /* underflow, reset */
-      cursor_location_ = frontier_sample_index - target_lag_samples_;
-      stats_.resets++;
+      if ( frontier_sample_index > target_lag_samples_ ) {
+        frame_cursor_ = ( frontier_sample_index - target_lag_samples_ ) / opus_frame::NUM_SAMPLES_MINLATENCY;
+        if ( greatest_read_location() >= frontier_sample_index ) {
+          throw runtime_error( "internal error" );
+        }
+        stats_.min_margin_to_frontier = frontier_sample_index - greatest_read_location();
+        stats_.resets++;
+        continue;
+      } else {
+        frame_cursor_.reset();
+        stats_.resets++;
+        return;
+      }
     }
 
-    ewma_update(
-      stats_.mean_margin_to_frontier, int64_t( frontier_sample_index ) - cursor_location_.value(), 0.01 );
-    ewma_update( stats_.mean_margin_to_safe_index, int64_t( safe_sample_index ) - cursor_location_.value(), 0.01 );
+    /* should we start speeding up? */
+    if ( ( not compressing_ ) and ( stats_.mean_margin_to_frontier > max_lag_samples_ )
+         and ( margin_to_frontier > max_lag_samples_ ) ) {
+      compressing_ = true;
+      stretcher_.setTimeRatio( 0.95 );
+    }
 
-    /* we owe some samples to the output -- how many? */
+    /* should we stop speeding up? */
+    if ( compressing_ and ( margin_to_frontier <= target_lag_samples_ ) ) {
+      compressing_ = false;
+      stretcher_.setTimeRatio( 1.0 );
+    }
+
+    ewma_update( stats_.mean_time_ratio, stretcher_.getTimeRatio(), ALPHA );
+
     if ( output.range_end() < num_samples_output_ + opus_frame::NUM_SAMPLES_MINLATENCY ) {
       throw runtime_error( "samples owed exceeds available storage" );
-    }
-
-    /* not enough buffer accumulated yet */
-    if ( cursor_location_.value() < 0 ) {
-      miss();
-      num_samples_output_ += opus_frame::NUM_SAMPLES_MINLATENCY;
-      cursor_location_.value() += opus_frame::NUM_SAMPLES_MINLATENCY;
-      continue;
     }
 
     array<float, 1024> ch1_scratch, ch2_scratch;
@@ -71,22 +97,23 @@ void Cursor::sample( const PartialFrameStore& frames,
     span<float> ch1_decoded { ch1_scratch.data(), opus_frame::NUM_SAMPLES_MINLATENCY };
     span<float> ch2_decoded { ch2_scratch.data(), opus_frame::NUM_SAMPLES_MINLATENCY };
 
-    /* okay, we know where to get them from. Do we have an Opus frame ready to decode? */
-    const uint32_t frame_no = cursor_location_.value() / opus_frame::NUM_SAMPLES_MINLATENCY;
-    if ( not frames.has_value( cursor_location_.value() / opus_frame::NUM_SAMPLES_MINLATENCY ) ) {
-      /* leave it as silence */
+    /* Do we have an Opus frame ready to decode? */
+    if ( not frames.has_value( frame_cursor ) ) {
+      /* no, so leave it as silence */
+      miss();
       fill( ch1_decoded.begin(), ch1_decoded.end(), 0 );
       fill( ch2_decoded.begin(), ch2_decoded.end(), 0 );
-      miss();
     } else {
       /* decode a frame! */
       hit();
 
-      if ( frames.at( frame_no ).value().separate_channels ) {
-        decoder.decode(
-          frames.at( frame_no ).value().frame1, frames.at( frame_no ).value().frame2, ch1_decoded, ch2_decoded );
+      if ( frames.at( frame_cursor ).value().separate_channels ) {
+        decoder.decode( frames.at( frame_cursor ).value().frame1,
+                        frames.at( frame_cursor ).value().frame2,
+                        ch1_decoded,
+                        ch2_decoded );
       } else {
-        decoder.decode_stereo( frames.at( frame_no ).value().frame1, ch1_decoded, ch2_decoded );
+        decoder.decode_stereo( frames.at( frame_cursor ).value().frame1, ch1_decoded, ch2_decoded );
       }
     }
 
@@ -119,7 +146,7 @@ void Cursor::sample( const PartialFrameStore& frames,
     output.ch2().region( num_samples_output_, samples_out ).copy( ch2_stretched );
 
     num_samples_output_ += samples_out;
-    cursor_location_.value() += opus_frame::NUM_SAMPLES_MINLATENCY;
+    ++frame_cursor_.value();
   }
 }
 
@@ -128,22 +155,23 @@ void Cursor::summary( ostream& out ) const
   out << "Cursor: ";
   out << " target lag=" << target_lag_samples_;
   out << " actual lag=" << stats_.mean_margin_to_frontier;
+  out << " min lag=" << stats_.min_margin_to_frontier;
   out << " safety margin=" << stats_.mean_margin_to_safe_index;
   out << " quality=" << fixed << setprecision( 5 ) << stats_.quality;
+  out << " time ratio=" << fixed << setprecision( 5 ) << stats_.mean_time_ratio;
   out << " resets=" << stats_.resets;
   out << "\n";
 }
 
 size_t Cursor::ok_to_pop( const PartialFrameStore& frames ) const
 {
-  if ( not cursor_location_.has_value() ) {
+  if ( not frame_cursor_.has_value() ) {
     return 0;
   }
 
-  const size_t next_frame_needed = cursor_location_.value() / opus_frame::NUM_SAMPLES_MINLATENCY;
-  if ( next_frame_needed <= frames.range_begin() ) {
+  if ( frame_cursor_.value() <= frames.range_begin() ) {
     return 0;
   }
 
-  return next_frame_needed - frames.range_begin();
+  return frame_cursor_.value() - frames.range_begin();
 }

@@ -14,11 +14,15 @@ class Cursor
   struct Statistics
   {
     unsigned int resets;
-    float mean_margin_to_frontier, mean_margin_to_safe_index, quality;
+    int64_t min_margin_to_frontier;
+    float mean_margin_to_frontier, mean_margin_to_safe_index, quality, mean_time_ratio;
   } stats_ {};
 
   size_t num_samples_output_ {};
-  std::optional<int64_t> cursor_location_ {};
+  std::optional<uint64_t> frame_cursor_ {};
+
+  uint64_t cursor_location() const { return frame_cursor_.value() * opus_frame::NUM_SAMPLES_MINLATENCY; }
+  uint64_t greatest_read_location() const { return cursor_location() + opus_frame::NUM_SAMPLES_MINLATENCY - 1; }
 
   static constexpr float ALPHA = 0.01;
 
@@ -43,5 +47,5 @@ public:
 
   void set_target_lag( const unsigned int num_samples ) { target_lag_samples_ = num_samples; }
 
-  void reset() { cursor_location_.reset(); }
+  void reset() { frame_cursor_.reset(); }
 };

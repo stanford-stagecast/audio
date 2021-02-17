@@ -290,7 +290,8 @@ void NetworkSender::receive_receiver_section( const Packet::ReceiverSection& rec
   }
 
   for ( unsigned int seqno = start_of_range_to_assume_departed; seqno < end_of_range_to_assume_departed; seqno++ ) {
-    if ( not packets_in_flight_[seqno].acked ) {
+    if ( packets_in_flight_.range_begin() <= seqno and packets_in_flight_.range_end() > seqno
+         and not packets_in_flight_[seqno].acked ) {
       assume_departed( packets_in_flight_[seqno], true );
       packets_in_flight_[seqno].assumed_lost = true;
     }
