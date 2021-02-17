@@ -5,6 +5,12 @@
 
 using namespace std;
 
+Cursor::Cursor( const uint32_t target_lag_samples, const uint32_t max_lag_samples )
+  : target_lag_samples_( target_lag_samples )
+  , max_lag_samples_( max_lag_samples )
+  , stretcher_( 48000, 2 )
+{}
+
 void Cursor::miss()
 {
   ewma_update( stats_.quality, 0.0, 0.01 );

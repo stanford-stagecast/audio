@@ -15,7 +15,7 @@ uint64_t Client::server_mix_cursor() const
 
 Client::Client( const uint8_t node_id, const uint8_t ch1_num, const uint8_t ch2_num, CryptoSession&& crypto )
   : connection_( 0, node_id, move( crypto ) )
-  , cursor_( 960 )
+  , cursor_( 960, 1920 )
   , ch1_num_( ch1_num )
   , ch2_num_( ch2_num )
 {}

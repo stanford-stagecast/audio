@@ -39,7 +39,7 @@ pkg_check_modules ( CryptoPP REQUIRED libcrypto++ )
 include_directories ( ${CryptoPP_INCLUDE_DIRS} )
 add_compile_options ( ${CryptoPP_CFLAGS} )
 
-pkg_check_modules ( Rubberband REQUIRED rubberband )
+pkg_check_modules ( Rubberband REQUIRED rubberband samplerate fftw3 )
 include_directories ( ${Rubberband_INCLUDE_DIRS} )
 add_compile_options ( ${Rubberband_CFLAGS} )
 

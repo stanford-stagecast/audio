@@ -43,7 +43,7 @@ target_link_libraries ("stagecast-client-embedded" ${Opus_LDFLAGS_OTHER})
 target_link_libraries ("stagecast-client-embedded" ${Rubberband_LDFLAGS})
 target_link_libraries ("stagecast-client-embedded" ${Rubberband_LDFLAGS_OTHER})
 
-target_link_libraries ("stagecast-client-embedded" "-Wl,-Bdynamic")
+target_link_libraries ("stagecast-client-embedded" "-pthread -Wl,-Bdynamic")
 endif(BUILD_EMBEDDED_CLIENT)
 
 add_executable (stagecast-server "stagecast-server.cc")

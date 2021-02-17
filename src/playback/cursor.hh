@@ -7,7 +7,9 @@
 
 class Cursor
 {
-  uint32_t target_lag_samples_;
+  uint32_t target_lag_samples_; /* initialized lag, and end of time-compression */
+  uint32_t max_lag_samples_;    /* if lag gets this big, start time-compression */
+  bool compressing_ {};
 
   struct Statistics
   {
@@ -23,10 +25,10 @@ class Cursor
   void miss();
   void hit();
 
+  RubberBand::RubberBandStretcher stretcher_;
+
 public:
-  Cursor( const uint32_t target_lag_samples )
-    : target_lag_samples_( target_lag_samples )
-  {}
+  Cursor( const uint32_t target_lag_samples, const uint32_t max_lag_samples );
 
   void sample( const PartialFrameStore& frames,
                const size_t global_sample_index,
