@@ -10,11 +10,10 @@
 
 struct AudioFrame
 {
-  uint32_t frame_index {}; // units of opus_frame::NUM_SAMPLES_MINLATENCY, about four months at 2^32 * 120 / 48 kHz
-  AudioType frame_type {};
+  uint32_t frame_index {}; // units of opus_frame::NUM_SAMPLES_MINLATENCY, about two months at 2^31 * 120 / 48 kHz
+  bool separate_channels {};
 
-  opus_frame frame1 {};
-  std::optional<opus_frame> frame2 {};
+  opus_frame frame1 {}, frame2 {};
 
   size_t sample_index() const { return frame_index * opus_frame::NUM_SAMPLES_MINLATENCY; }
 

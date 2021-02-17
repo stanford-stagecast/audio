@@ -5,12 +5,6 @@
 
 #include "stackbuffer.hh"
 
-using AudioType = uint8_t;
-
-namespace Audio {
-static constexpr AudioType Mono = 0, Stereo = 1, TwoChannel = 2;
-}
-
 class opus_frame : public StackBuffer<0, uint8_t, 60>
 {
 public:

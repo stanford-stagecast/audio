@@ -252,8 +252,8 @@ void AudioWriter::mix_and_write( const AudioBoard& board, const uint64_t cursor_
     }
 
     encoder_.encode_one_frame( mixed_audio_.ch1(), mixed_audio_.ch2() );
-    auto frame_mutable = encoder_.front_enc1();
-    webm_writer_.write( frame_mutable, mix_cursor_ );
+    auto frame_mutable = encoder_.front_as_audioframe( 0 );
+    webm_writer_.write( frame_mutable.frame1, mix_cursor_ ); // XXX stereo!
     encoder_.pop_frame();
     mix_cursor_ += opus_frame::NUM_SAMPLES_MINLATENCY;
     mixed_audio_.pop_before( mix_cursor_ );

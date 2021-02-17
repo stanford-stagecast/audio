@@ -5,16 +5,15 @@ using namespace std;
 template class EncoderTask<AudioDeviceTask>;
 
 template<class AudioSource>
-EncoderTask<AudioSource>::EncoderTask( const AudioType audio_type,
-                                       const int bit_rate,
+EncoderTask<AudioSource>::EncoderTask( const int bit_rate,
                                        const int sample_rate,
                                        const shared_ptr<AudioSource> source,
                                        EventLoop& loop )
-  : OpusEncoderProcess( audio_type, bit_rate, sample_rate )
+  : OpusEncoderProcess( bit_rate, sample_rate )
   , source_( source )
 {
   loop.add_rule(
-    "encode",
+    "encode [stereo]",
     [&] {
       enc1_.encode_one_frame( source_->capture().ch1() );
       pop_from_source();
@@ -23,13 +22,12 @@ EncoderTask<AudioSource>::EncoderTask( const AudioType audio_type,
 }
 
 template<class AudioSource>
-EncoderTask<AudioSource>::EncoderTask( const AudioType audio_type,
-                                       const int bit_rate1,
+EncoderTask<AudioSource>::EncoderTask( const int bit_rate1,
                                        const int bit_rate2,
                                        const int sample_rate,
                                        const shared_ptr<AudioSource> source,
                                        EventLoop& loop )
-  : OpusEncoderProcess( audio_type, bit_rate1, bit_rate2, sample_rate )
+  : OpusEncoderProcess( bit_rate1, bit_rate2, sample_rate )
   , source_( source )
 {
   loop.add_rule(
@@ -83,28 +81,15 @@ void OpusEncoderProcess::pop_frame()
   num_popped_++;
 }
 
-OpusEncoderProcess::OpusEncoderProcess( const AudioType audio_type,
-                                        const int bit_rate1,
-                                        const int bit_rate2,
-                                        const int sample_rate )
-  : audio_type_( audio_type )
-  , enc1_( bit_rate1, sample_rate )
+OpusEncoderProcess::OpusEncoderProcess( const int bit_rate1, const int bit_rate2, const int sample_rate )
+  : enc1_( bit_rate1, sample_rate )
   , enc2_( make_optional<TrackedEncoder>( bit_rate2, sample_rate ) )
-{
-  if ( audio_type_ != Audio::TwoChannel ) {
-    throw runtime_error( "use of two-channel constructor without TwoChannel AudioType" );
-  }
-}
+{}
 
-OpusEncoderProcess::OpusEncoderProcess( const AudioType audio_type, const int bit_rate1, const int sample_rate )
-  : audio_type_( audio_type )
-  , enc1_( bit_rate1, sample_rate )
+OpusEncoderProcess::OpusEncoderProcess( const int bit_rate1, const int sample_rate )
+  : enc1_( bit_rate1, sample_rate )
   , enc2_()
-{
-  if ( audio_type_ == Audio::TwoChannel ) {
-    throw runtime_error( "use of TwoChannel AudioType without two-channel constructor" );
-  }
-}
+{}
 
 OpusEncoderProcess::TrackedEncoder::TrackedEncoder( const int bit_rate, const int sample_rate )
   : enc_( bit_rate, sample_rate, 1, OPUS_APPLICATION_RESTRICTED_LOWDELAY )
@@ -155,4 +140,16 @@ void OpusEncoderProcess::encode_one_frame( const AudioChannel& ch1, const AudioC
 {
   enc1_.encode_one_frame( ch1 );
   enc2_.value().encode_one_frame( ch2 );
+}
+
+AudioFrame OpusEncoderProcess::front_as_audioframe( const uint32_t frame_index ) const
+{
+  AudioFrame ret;
+  ret.frame_index = frame_index;
+  ret.separate_channels = enc2_.has_value();
+  ret.frame1 = enc1_.output().value();
+  if ( enc2_.has_value() ) {
+    ret.frame2 = enc2_.value().output().value();
+  }
+  return ret;
 }

@@ -6,33 +6,33 @@ using namespace std;
 
 uint8_t AudioFrame::serialized_length() const
 {
-  uint8_t ret = sizeof( frame_index ) + sizeof( frame_type ) + frame1.serialized_length();
-  if ( frame_type == Audio::TwoChannel ) {
-    ret += frame2.value().serialized_length();
-  }
-  return ret;
+  return sizeof( frame_index ) + frame1.serialized_length()
+         + ( separate_channels ? frame2.serialized_length() : 0 );
 }
 
 void AudioFrame::serialize( Serializer& s ) const
 {
-  s.integer( frame_index );
-  s.integer( frame_type );
+  const uint32_t first_word = ( separate_channels << 31 ) | ( frame_index & 0x7FFF'FFFF );
+
+  s.integer( first_word );
   s.object( frame1 );
-  if ( frame_type == Audio::TwoChannel ) {
-    s.object( frame2.value() );
+
+  if ( separate_channels ) {
+    s.object( frame2 );
   }
 }
 
 void AudioFrame::parse( Parser& p )
 {
-  p.integer( frame_index );
-  p.integer( frame_type );
+  uint32_t first_word {};
+  p.integer( first_word );
+  frame_index = first_word & 0x7FFF'FFFF;
+  separate_channels = first_word & 0x8000'0000;
+
   p.object( frame1 );
-  if ( frame_type == Audio::TwoChannel ) {
-    frame2.emplace();
-    p.object( *frame2 );
-  } else {
-    frame2.reset();
+
+  if ( separate_channels ) {
+    p.object( frame2 );
   }
 }
 
