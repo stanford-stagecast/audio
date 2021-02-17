@@ -42,6 +42,7 @@ void Cursor::sample( const PartialFrameStore& frames,
   }
 
   if ( not frame_cursor_.has_value() ) {
+    num_samples_output_ = global_sample_index;
     return;
   }
 
@@ -68,6 +69,7 @@ void Cursor::sample( const PartialFrameStore& frames,
         continue;
       } else {
         frame_cursor_.reset();
+        num_samples_output_ = global_sample_index;
         stats_.resets++;
         return;
       }
