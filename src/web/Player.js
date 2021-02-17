@@ -32,18 +32,20 @@ function sourceOpen(e) {
     }
 
     var playing = false;
+
+    var resets = 0.0;
+    document.getElementById('buffer').innerHTML = "resets: " + resets;
     
     bump = function() {
         if (queue.length > 0 && !sourceBuffer.updating) {
             sourceBuffer.appendBuffer(queue.shift());
 
-//	    document.getElementById('buffer').innerHTML = sourceBuffer.buffered.end(0) - audio.currentTime;
-	    
 	    if ( sourceBuffer.buffered.length > 0 ) {
-		if ( sourceBuffer.buffered.end(0) > (audio.currentTime + 0.35)
-		     && sourceBuffer.buffered.start(0) <= (sourceBuffer.buffered.end(0) - 0.05) ) {
-		    audio.currentTime = sourceBuffer.buffered.end(0) - 0.05;
-		    console.log( "adjustment, curtime now " + audio.currentTime + " on " + sourceBuffer.buffered.start(0) + " .. " + sourceBuffer.buffered.end(0) );
+		if ( sourceBuffer.buffered.end(0) > (audio.currentTime + 0.5)
+		     && sourceBuffer.buffered.start(0) <= (sourceBuffer.buffered.end(0) - 0.4) ) {
+		    audio.currentTime = sourceBuffer.buffered.end(0) - 0.4;
+		    resets++;
+		    document.getElementById('buffer').innerHTML = "resets: " + resets;
 		}
 	    }
 	}
