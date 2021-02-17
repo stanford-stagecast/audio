@@ -93,7 +93,6 @@ void Cursor::sample( const PartialFrameStore& frames,
     }
 
     array<float, 1024> ch1_scratch, ch2_scratch;
-    array<float*, 2> scratch = { ch1_scratch.data(), ch2_scratch.data() };
     span<float> ch1_decoded { ch1_scratch.data(), opus_frame::NUM_SAMPLES_MINLATENCY };
     span<float> ch2_decoded { ch2_scratch.data(), opus_frame::NUM_SAMPLES_MINLATENCY };
 
@@ -117,7 +116,9 @@ void Cursor::sample( const PartialFrameStore& frames,
       }
     }
 
+#if 0
     /* time-stretch */
+    array<float*, 2> scratch = { ch1_scratch.data(), ch2_scratch.data() };
     stretcher_.process( scratch.data(), opus_frame::NUM_SAMPLES_MINLATENCY, false );
 
     const int samples_available = stretcher_.available();
@@ -137,7 +138,9 @@ void Cursor::sample( const PartialFrameStore& frames,
     if ( samples_out != stretcher_.retrieve( scratch.data(), samples_out ) ) {
       throw runtime_error( "unexpected output from stretcher_.retrieve()" );
     }
+#endif
 
+    const size_t samples_out = opus_frame::NUM_SAMPLES_MINLATENCY;
     const span_view<float> ch1_stretched { ch1_scratch.data(), samples_out };
     const span_view<float> ch2_stretched { ch2_scratch.data(), samples_out };
 
