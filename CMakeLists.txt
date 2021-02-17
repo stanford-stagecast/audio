@@ -39,6 +39,10 @@ pkg_check_modules ( CryptoPP REQUIRED libcrypto++ )
 include_directories ( ${CryptoPP_INCLUDE_DIRS} )
 add_compile_options ( ${CryptoPP_CFLAGS} )
 
+pkg_check_modules ( Rubberband REQUIRED rubberband )
+include_directories ( ${Rubberband_INCLUDE_DIRS} )
+add_compile_options ( ${Rubberband_CFLAGS} )
+
 include_directories ("${PROJECT_SOURCE_DIR}/src/util")
 include_directories ("${PROJECT_SOURCE_DIR}/src/crypto")
 include_directories ("${PROJECT_SOURCE_DIR}/src/http")

@@ -15,6 +15,7 @@ libsndfile1-dev
 libavformat-dev
 libssl-dev
 libcrypto++-dev
+librubberband-dev
 ```
 Note: If you have installed g++-9 and it still doesn't work,
 make sure to check out this article: https://linuxconfig.org/how-to-switch-between-multiple-gcc-and-g-compiler-versions-on-ubuntu-20-04-lts-focal-fossa

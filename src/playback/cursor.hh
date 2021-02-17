@@ -3,6 +3,8 @@
 #include "connection.hh"
 #include "decoder_process.hh"
 
+#include <rubberband/RubberBandStretcher.h>
+
 class Cursor
 {
   uint32_t target_lag_samples_;

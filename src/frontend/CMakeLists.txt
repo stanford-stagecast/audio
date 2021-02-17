@@ -19,6 +19,9 @@ target_link_libraries ("stagecast-client" ${DBus_LDFLAGS_OTHER})
 target_link_libraries ("stagecast-client" ${Opus_LDFLAGS})
 target_link_libraries ("stagecast-client" ${Opus_LDFLAGS_OTHER})
 
+target_link_libraries ("stagecast-client" ${Rubberband_LDFLAGS})
+target_link_libraries ("stagecast-client" ${Rubberband_LDFLAGS_OTHER})
+
 if(BUILD_EMBEDDED_CLIENT)
 add_executable (stagecast-client-embedded "stagecast-client-embedded.cc")
 target_link_libraries ("stagecast-client-embedded" stats)
@@ -33,8 +36,13 @@ target_link_libraries ("stagecast-client-embedded" ${ALSA_LDFLAGS})
 target_link_libraries ("stagecast-client-embedded" ${ALSA_LDFLAGS_OTHER})
 
 target_link_libraries ("stagecast-client-embedded" "-Wl,--static")
+
 target_link_libraries ("stagecast-client-embedded" ${Opus_LDFLAGS})
 target_link_libraries ("stagecast-client-embedded" ${Opus_LDFLAGS_OTHER})
+
+target_link_libraries ("stagecast-client-embedded" ${Rubberband_LDFLAGS})
+target_link_libraries ("stagecast-client-embedded" ${Rubberband_LDFLAGS_OTHER})
+
 target_link_libraries ("stagecast-client-embedded" "-Wl,-Bdynamic")
 endif(BUILD_EMBEDDED_CLIENT)
 
@@ -58,6 +66,9 @@ target_link_libraries ("stagecast-server" ${Sndfile_LDFLAGS_OTHER})
 
 target_link_libraries ("stagecast-server" ${AVFormat_LDFLAGS})
 target_link_libraries ("stagecast-server" ${AVFormat_LDFLAGS_OTHER})
+
+target_link_libraries ("stagecast-server" ${Rubberband_LDFLAGS})
+target_link_libraries ("stagecast-server" ${Rubberband_LDFLAGS_OTHER})
 
 add_executable (make-key "make-key.cc")
 target_link_libraries ("make-key" network)
