@@ -15,6 +15,7 @@ Cursor::Cursor( const uint32_t target_lag_samples, const uint32_t max_lag_sample
                   | Option::OptionWindowShort )
 {
   stretcher_.setMaxProcessSize( opus_frame::NUM_SAMPLES_MINLATENCY );
+  stretcher_.setTimeRatio( 1.05 );
 }
 
 void Cursor::miss()
@@ -83,7 +84,7 @@ void Cursor::sample( const PartialFrameStore& frames,
     /* should we stop speeding up? */
     if ( compressing_ and ( margin_to_frontier <= target_lag_samples_ ) ) {
       compressing_ = false;
-      stretcher_.setTimeRatio( 1.0 );
+      stretcher_.setTimeRatio( 1.05 );
     }
 
     ewma_update( stats_.mean_time_ratio, stretcher_.getTimeRatio(), ALPHA );
