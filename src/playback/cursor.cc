@@ -40,62 +40,85 @@ void Cursor::sample( const PartialFrameStore& frames,
     stats_.resets++;
   }
 
-  /* adjust cursor if necessary */
-  if ( cursor_location_.value() > int64_t( frontier_sample_index ) ) {
-    /* underflow, reset */
-    cursor_location_ = frontier_sample_index - target_lag_samples_;
-    stats_.resets++;
-  }
-
-  ewma_update( stats_.mean_margin_to_frontier, int64_t( frontier_sample_index ) - cursor_location_.value(), 0.01 );
-  ewma_update( stats_.mean_margin_to_safe_index, int64_t( safe_sample_index ) - cursor_location_.value(), 0.01 );
-
   /* do we owe any samples to the output? */
   while ( global_sample_index > num_samples_output_ ) {
+    /* adjust cursor if necessary */
+    if ( cursor_location_.value() > int64_t( frontier_sample_index ) ) {
+      /* underflow, reset */
+      cursor_location_ = frontier_sample_index - target_lag_samples_;
+      stats_.resets++;
+    }
+
+    ewma_update(
+      stats_.mean_margin_to_frontier, int64_t( frontier_sample_index ) - cursor_location_.value(), 0.01 );
+    ewma_update( stats_.mean_margin_to_safe_index, int64_t( safe_sample_index ) - cursor_location_.value(), 0.01 );
+
     /* we owe some samples to the output -- how many? */
     if ( output.range_end() < num_samples_output_ + opus_frame::NUM_SAMPLES_MINLATENCY ) {
-      return;
+      throw runtime_error( "samples owed exceeds available storage" );
     }
 
     /* not enough buffer accumulated yet */
     if ( cursor_location_.value() < 0 ) {
       miss();
-      decoder.decode_missing( output.ch1().region( num_samples_output_, opus_frame::NUM_SAMPLES_MINLATENCY ),
-                              output.ch2().region( num_samples_output_, opus_frame::NUM_SAMPLES_MINLATENCY ) );
       num_samples_output_ += opus_frame::NUM_SAMPLES_MINLATENCY;
       cursor_location_.value() += opus_frame::NUM_SAMPLES_MINLATENCY;
       continue;
     }
+
+    array<float, 1024> ch1_scratch, ch2_scratch;
+    array<float*, 2> scratch = { ch1_scratch.data(), ch2_scratch.data() };
+    span<float> ch1_decoded { ch1_scratch.data(), opus_frame::NUM_SAMPLES_MINLATENCY };
+    span<float> ch2_decoded { ch2_scratch.data(), opus_frame::NUM_SAMPLES_MINLATENCY };
 
     /* okay, we know where to get them from. Do we have an Opus frame ready to decode? */
     const uint32_t frame_no = cursor_location_.value() / opus_frame::NUM_SAMPLES_MINLATENCY;
     if ( not frames.has_value( cursor_location_.value() / opus_frame::NUM_SAMPLES_MINLATENCY ) ) {
+      /* leave it as silence */
+      fill( ch1_decoded.begin(), ch1_decoded.end(), 0 );
+      fill( ch2_decoded.begin(), ch2_decoded.end(), 0 );
       miss();
-      decoder.decode_missing( output.ch1().region( num_samples_output_, opus_frame::NUM_SAMPLES_MINLATENCY ),
-                              output.ch2().region( num_samples_output_, opus_frame::NUM_SAMPLES_MINLATENCY ) );
-      num_samples_output_ += opus_frame::NUM_SAMPLES_MINLATENCY;
-      cursor_location_.value() += opus_frame::NUM_SAMPLES_MINLATENCY;
-      continue;
-    }
-
-    /* decode a frame! */
-    hit();
-
-    array<float, opus_frame::NUM_SAMPLES_MINLATENCY> ch1, ch2;
-    span<float> ch1_span { ch1.data(), ch1.size() }, ch2_span { ch2.data(), ch2.size() };
-
-    if ( frames.at( frame_no ).value().separate_channels ) {
-      decoder.decode(
-        frames.at( frame_no ).value().frame1, frames.at( frame_no ).value().frame2, ch1_span, ch2_span );
     } else {
-      decoder.decode_stereo( frames.at( frame_no ).value().frame1, ch1_span, ch2_span );
+      /* decode a frame! */
+      hit();
+
+      if ( frames.at( frame_no ).value().separate_channels ) {
+        decoder.decode(
+          frames.at( frame_no ).value().frame1, frames.at( frame_no ).value().frame2, ch1_decoded, ch2_decoded );
+      } else {
+        decoder.decode_stereo( frames.at( frame_no ).value().frame1, ch1_decoded, ch2_decoded );
+      }
     }
 
-    /* XXX copy to output */
-    output.ch1().region( num_samples_output_, opus_frame::NUM_SAMPLES_MINLATENCY ).copy( ch1_span );
-    output.ch2().region( num_samples_output_, opus_frame::NUM_SAMPLES_MINLATENCY ).copy( ch2_span );
+    /* time-stretch */
+    stretcher_.process( scratch.data(), opus_frame::NUM_SAMPLES_MINLATENCY, false );
 
-    num_samples_output_ += opus_frame::NUM_SAMPLES_MINLATENCY;
+    const int samples_available = stretcher_.available();
+    if ( samples_available < 0 ) {
+      throw runtime_error( "stretcher_.available() < 0" );
+    }
+    const size_t samples_out = samples_available;
+
+    if ( samples_out > ch1_scratch.size() ) {
+      throw runtime_error( "stretcher has too many samples available (" + to_string( samples_out ) + ")" );
+    }
+
+    if ( num_samples_output_ + samples_out > output.ch1().range_end() ) {
+      throw runtime_error( "stretcher output exceeds available output size" );
+    }
+
+    if ( samples_out != stretcher_.retrieve( scratch.data(), samples_out ) ) {
+      throw runtime_error( "unexpected output from stretcher_.retrieve()" );
+    }
+
+    const span_view<float> ch1_stretched { ch1_scratch.data(), samples_out };
+    const span_view<float> ch2_stretched { ch2_scratch.data(), samples_out };
+
+    /* copy to output */
+    output.ch1().region( num_samples_output_, samples_out ).copy( ch1_stretched );
+    output.ch2().region( num_samples_output_, samples_out ).copy( ch2_stretched );
+
+    num_samples_output_ += samples_out;
     cursor_location_.value() += opus_frame::NUM_SAMPLES_MINLATENCY;
   }
 }
