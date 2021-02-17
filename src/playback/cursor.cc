@@ -4,12 +4,17 @@
 #include <iostream>
 
 using namespace std;
+using Option = RubberBand::RubberBandStretcher::Option;
 
 Cursor::Cursor( const uint32_t target_lag_samples, const uint32_t max_lag_samples )
   : target_lag_samples_( target_lag_samples )
   , max_lag_samples_( max_lag_samples )
-  , stretcher_( 48000, 2 )
-{}
+  , stretcher_( 48000,
+                2,
+                Option::OptionProcessRealTime | Option::OptionThreadingNever | Option::OptionPitchHighConsistency )
+{
+  stretcher_.setMaxProcessSize( opus_frame::NUM_SAMPLES_MINLATENCY );
+}
 
 void Cursor::miss()
 {
@@ -48,11 +53,15 @@ void Cursor::sample( const PartialFrameStore& frames,
   /* do we owe any samples to the output? */
   while ( global_sample_index > num_samples_output_ ) {
     /* we owe some samples to the output -- how many? */
+    if ( output.range_end() < num_samples_output_ + opus_frame::NUM_SAMPLES_MINLATENCY ) {
+      return;
+    }
 
     /* not enough buffer accumulated yet */
     if ( cursor_location_.value() < 0 ) {
       miss();
-      decoder.decode_missing( num_samples_output_, output );
+      decoder.decode_missing( output.ch1().region( num_samples_output_, opus_frame::NUM_SAMPLES_MINLATENCY ),
+                              output.ch2().region( num_samples_output_, opus_frame::NUM_SAMPLES_MINLATENCY ) );
       num_samples_output_ += opus_frame::NUM_SAMPLES_MINLATENCY;
       cursor_location_.value() += opus_frame::NUM_SAMPLES_MINLATENCY;
       continue;
@@ -62,7 +71,8 @@ void Cursor::sample( const PartialFrameStore& frames,
     const uint32_t frame_no = cursor_location_.value() / opus_frame::NUM_SAMPLES_MINLATENCY;
     if ( not frames.has_value( cursor_location_.value() / opus_frame::NUM_SAMPLES_MINLATENCY ) ) {
       miss();
-      decoder.decode_missing( num_samples_output_, output );
+      decoder.decode_missing( output.ch1().region( num_samples_output_, opus_frame::NUM_SAMPLES_MINLATENCY ),
+                              output.ch2().region( num_samples_output_, opus_frame::NUM_SAMPLES_MINLATENCY ) );
       num_samples_output_ += opus_frame::NUM_SAMPLES_MINLATENCY;
       cursor_location_.value() += opus_frame::NUM_SAMPLES_MINLATENCY;
       continue;
@@ -70,12 +80,21 @@ void Cursor::sample( const PartialFrameStore& frames,
 
     /* decode a frame! */
     hit();
+
+    array<float, opus_frame::NUM_SAMPLES_MINLATENCY> ch1, ch2;
+    span<float> ch1_span { ch1.data(), ch1.size() }, ch2_span { ch2.data(), ch2.size() };
+
     if ( frames.at( frame_no ).value().separate_channels ) {
       decoder.decode(
-        frames.at( frame_no ).value().frame1, frames.at( frame_no ).value().frame2, num_samples_output_, output );
+        frames.at( frame_no ).value().frame1, frames.at( frame_no ).value().frame2, ch1_span, ch2_span );
     } else {
-      decoder.decode_stereo( frames.at( frame_no ).value().frame1, num_samples_output_, output );
+      decoder.decode_stereo( frames.at( frame_no ).value().frame1, ch1_span, ch2_span );
     }
+
+    /* XXX copy to output */
+    output.ch1().region( num_samples_output_, opus_frame::NUM_SAMPLES_MINLATENCY ).copy( ch1_span );
+    output.ch2().region( num_samples_output_, opus_frame::NUM_SAMPLES_MINLATENCY ).copy( ch2_span );
+
     num_samples_output_ += opus_frame::NUM_SAMPLES_MINLATENCY;
     cursor_location_.value() += opus_frame::NUM_SAMPLES_MINLATENCY;
   }

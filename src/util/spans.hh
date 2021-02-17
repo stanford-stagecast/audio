@@ -108,4 +108,11 @@ public:
   {
     return from_view( span_view<T>::substr( pos, count ) );
   }
+
+  size_t copy( const span_view<T> other )
+  {
+    const size_t amount_to_copy = std::min( span_view<T>::size(), other.size() );
+    memcpy( mutable_data(), other.data(), amount_to_copy * sizeof( T ) );
+    return amount_to_copy;
+  }
 };
