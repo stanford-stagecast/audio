@@ -36,8 +36,8 @@ void Cursor::sample( const PartialFrameStore& frames,
     stats_.resets++;
   }
 
-  ewma_update( stats_.mean_margin_to_frontier, int64_t( frontier_sample_index ) - cursor_location_.value(), 0.001 );
-  ewma_update( stats_.mean_margin_to_safe_index, int64_t( safe_sample_index ) - cursor_location_.value(), 0.001 );
+  ewma_update( stats_.mean_margin_to_frontier, int64_t( frontier_sample_index ) - cursor_location_.value(), 0.01 );
+  ewma_update( stats_.mean_margin_to_safe_index, int64_t( safe_sample_index ) - cursor_location_.value(), 0.01 );
 
   /* do we owe any samples to the output? */
   while ( global_sample_index > num_samples_output_ ) {
