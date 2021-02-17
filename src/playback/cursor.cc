@@ -64,8 +64,12 @@ void Cursor::sample( const PartialFrameStore& frames,
 
     /* decode a frame! */
     hit();
-    decoder.decode(
-      frames.at( frame_no ).value().frame1, frames.at( frame_no ).value().frame2, num_samples_output_, output );
+    if ( frames.at( frame_no ).value().separate_channels ) {
+      decoder.decode(
+        frames.at( frame_no ).value().frame1, frames.at( frame_no ).value().frame2, num_samples_output_, output );
+    } else {
+      decoder.decode_stereo( frames.at( frame_no ).value().frame1, num_samples_output_, output );
+    }
     num_samples_output_ += opus_frame::NUM_SAMPLES_MINLATENCY;
     cursor_location_.value() += opus_frame::NUM_SAMPLES_MINLATENCY;
   }

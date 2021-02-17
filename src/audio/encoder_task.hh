@@ -10,15 +10,17 @@ class OpusEncoderProcess
 {
   class TrackedEncoder
   {
+    int channel_count_;
     OpusEncoder enc_;
     std::optional<opus_frame> output_ {};
     size_t num_pushed_ {};
 
   public:
-    TrackedEncoder( const int bit_rate, const int sample_rate );
+    TrackedEncoder( const int bit_rate, const int sample_rate, const int channel_count );
 
     bool can_encode_frame( const size_t source_cursor ) const;
     void encode_one_frame( const AudioChannel& channel );
+    void encode_one_frame( const AudioChannel& ch1, const AudioChannel& ch2 );
     size_t cursor() const { return num_pushed_ * opus_frame::NUM_SAMPLES_MINLATENCY; }
 
     std::optional<opus_frame>& output() { return output_; }
@@ -49,7 +51,6 @@ public:
   AudioFrame front_as_audioframe( const uint32_t frame_index ) const;
 
   void encode_one_frame( const AudioChannel& ch1, const AudioChannel& ch2 );
-  void encode_one_frame( const AudioChannel& frame );
 };
 
 template<class AudioSource>
@@ -60,11 +61,6 @@ class EncoderTask : public OpusEncoderProcess
   void pop_from_source();
 
 public:
-  EncoderTask( const int bit_rate,
-               const int sample_rate,
-               const std::shared_ptr<AudioSource> source,
-               EventLoop& loop );
-
   EncoderTask( const int bit_rate1,
                const int bit_rate2,
                const int sample_rate,

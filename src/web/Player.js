@@ -37,10 +37,10 @@ function sourceOpen(e) {
         if (queue.length > 0 && !sourceBuffer.updating) {
             sourceBuffer.appendBuffer(queue.shift());
 
-	    document.getElementById('buffer').innerHTML = sourceBuffer.buffered.end(0) - audio.currentTime;
+//	    document.getElementById('buffer').innerHTML = sourceBuffer.buffered.end(0) - audio.currentTime;
 	    
 	    if ( sourceBuffer.buffered.length > 0 ) {
-		if ( sourceBuffer.buffered.end(0) > (audio.currentTime + 0.3)
+		if ( sourceBuffer.buffered.end(0) > (audio.currentTime + 0.35)
 		     && sourceBuffer.buffered.start(0) <= (sourceBuffer.buffered.end(0) - 0.05) ) {
 		    audio.currentTime = sourceBuffer.buffered.end(0) - 0.05;
 		    console.log( "adjustment, curtime now " + audio.currentTime + " on " + sourceBuffer.buffered.start(0) + " .. " + sourceBuffer.buffered.end(0) );

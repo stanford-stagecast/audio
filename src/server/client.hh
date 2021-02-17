@@ -35,8 +35,8 @@ class AudioWriter
 
   uint64_t mix_cursor_ {};
 
-  OpusEncoderProcess encoder_ { 96000, 600, 48000 };
-  WebMWriter webm_writer_ { 96000, 48000, 1 };
+  OpusEncoderProcess encoder_ { 96000, 48000 };
+  WebMWriter webm_writer_ { 96000, 48000, 2 };
 
 public:
   void mix_and_write( const AudioBoard& board, const uint64_t cursor_sample );
@@ -46,7 +46,7 @@ class Client
 {
   NetworkConnection connection_;
   Cursor cursor_;
-  OpusDecoderProcess decoder_ {};
+  OpusDecoderProcess decoder_ { true };
   ChannelPair mixed_audio_ { 8192 };
 
   uint64_t mix_cursor_ {};
@@ -55,7 +55,7 @@ class Client
   uint64_t server_mix_cursor() const;
   uint64_t client_mix_cursor() const;
 
-  OpusEncoderProcess encoder_ { 96000, 600, 48000 };
+  OpusEncoderProcess encoder_ { 96000, 48000 };
 
   uint8_t ch1_num_, ch2_num_;
 

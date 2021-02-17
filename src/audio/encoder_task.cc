@@ -5,23 +5,6 @@ using namespace std;
 template class EncoderTask<AudioDeviceTask>;
 
 template<class AudioSource>
-EncoderTask<AudioSource>::EncoderTask( const int bit_rate,
-                                       const int sample_rate,
-                                       const shared_ptr<AudioSource> source,
-                                       EventLoop& loop )
-  : OpusEncoderProcess( bit_rate, sample_rate )
-  , source_( source )
-{
-  loop.add_rule(
-    "encode [stereo]",
-    [&] {
-      enc1_.encode_one_frame( source_->capture().ch1() );
-      pop_from_source();
-    },
-    [&] { return enc1_.can_encode_frame( source_->cursor() ); } );
-}
-
-template<class AudioSource>
 EncoderTask<AudioSource>::EncoderTask( const int bit_rate1,
                                        const int bit_rate2,
                                        const int sample_rate,
@@ -82,18 +65,26 @@ void OpusEncoderProcess::pop_frame()
 }
 
 OpusEncoderProcess::OpusEncoderProcess( const int bit_rate1, const int bit_rate2, const int sample_rate )
-  : enc1_( bit_rate1, sample_rate )
-  , enc2_( make_optional<TrackedEncoder>( bit_rate2, sample_rate ) )
+  : enc1_( bit_rate1, sample_rate, 1 )
+  , enc2_( make_optional<TrackedEncoder>( bit_rate2, sample_rate, 1 ) )
 {}
 
 OpusEncoderProcess::OpusEncoderProcess( const int bit_rate1, const int sample_rate )
-  : enc1_( bit_rate1, sample_rate )
+  : enc1_( bit_rate1, sample_rate, 2 )
   , enc2_()
 {}
 
-OpusEncoderProcess::TrackedEncoder::TrackedEncoder( const int bit_rate, const int sample_rate )
-  : enc_( bit_rate, sample_rate, 1, OPUS_APPLICATION_RESTRICTED_LOWDELAY )
+OpusEncoderProcess::TrackedEncoder::TrackedEncoder( const int bit_rate,
+                                                    const int sample_rate,
+                                                    const int channel_count )
+  : channel_count_( channel_count )
+  , enc_( bit_rate, sample_rate, channel_count_, OPUS_APPLICATION_RESTRICTED_LOWDELAY )
 {}
+
+void OpusEncoderProcess::TrackedEncoder::reset( const int bit_rate, const int sample_rate )
+{
+  enc_ = { bit_rate, sample_rate, channel_count_, OPUS_APPLICATION_RESTRICTED_LOWDELAY };
+}
 
 size_t OpusEncoderProcess::min_encode_cursor() const
 {
@@ -120,14 +111,25 @@ void OpusEncoderProcess::TrackedEncoder::encode_one_frame( const AudioChannel& c
   num_pushed_++;
 }
 
-void OpusEncoderProcess::TrackedEncoder::reset( const int bit_rate, const int sample_rate )
+void OpusEncoderProcess::TrackedEncoder::encode_one_frame( const AudioChannel& ch1, const AudioChannel& ch2 )
 {
-  enc_ = { bit_rate, sample_rate, 1, OPUS_APPLICATION_RESTRICTED_LOWDELAY };
+  if ( output_.has_value() ) {
+    throw runtime_error( "internal error: encode_one_frame called but output already has value" );
+  }
+
+  output_.emplace();
+  enc_.encode_stereo( ch1.region( cursor(), opus_frame::NUM_SAMPLES_MINLATENCY ),
+                      ch2.region( cursor(), opus_frame::NUM_SAMPLES_MINLATENCY ),
+                      output_.value() );
+  num_pushed_++;
 }
 
 void OpusEncoderProcess::reset( const int bit_rate1, const int sample_rate )
 {
   enc1_.reset( bit_rate1, sample_rate );
+  if ( enc2_.has_value() ) {
+    throw runtime_error( "stereo reset called on independent-channel OpusEncoderProcess" );
+  }
 }
 
 void OpusEncoderProcess::reset( const int bit_rate1, const int bit_rate2, const int sample_rate )
@@ -138,8 +140,12 @@ void OpusEncoderProcess::reset( const int bit_rate1, const int bit_rate2, const 
 
 void OpusEncoderProcess::encode_one_frame( const AudioChannel& ch1, const AudioChannel& ch2 )
 {
-  enc1_.encode_one_frame( ch1 );
-  enc2_.value().encode_one_frame( ch2 );
+  if ( enc2_.has_value() ) {
+    enc1_.encode_one_frame( ch1 );
+    enc2_->encode_one_frame( ch2 );
+  } else {
+    enc1_.encode_one_frame( ch1, ch2 );
+  }
 }
 
 AudioFrame OpusEncoderProcess::front_as_audioframe( const uint32_t frame_index ) const

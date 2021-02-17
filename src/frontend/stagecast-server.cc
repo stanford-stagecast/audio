@@ -44,26 +44,26 @@ void program_body( const vector<string>& keyfiles )
 
 int main( int argc, char* argv[] )
 {
-  try {
-    if ( argc <= 0 ) {
-      abort();
-    }
+  //  try {
+  if ( argc <= 0 ) {
+    abort();
+  }
 
-    if ( argc <= 1 ) {
-      cerr << "Usage: " << argv[0] << " keyfile...\n";
-      return EXIT_FAILURE;
-    }
-
-    vector<string> keys;
-    for ( int i = 1; i < argc; i++ ) {
-      keys.push_back( argv[i] );
-    }
-    program_body( keys );
-  } catch ( const exception& e ) {
-    cerr << "Exception: " << e.what() << "\n";
-    global_timer().summary( cerr );
+  if ( argc <= 1 ) {
+    cerr << "Usage: " << argv[0] << " keyfile...\n";
     return EXIT_FAILURE;
   }
+
+  vector<string> keys;
+  for ( int i = 1; i < argc; i++ ) {
+    keys.push_back( argv[i] );
+  }
+  program_body( keys );
+  /*  } catch ( const exception& e ) {
+  cerr << "Exception: " << e.what() << "\n";
+  global_timer().summary( cerr );
+  return EXIT_FAILURE;
+  }*/
 
   return EXIT_SUCCESS;
 }

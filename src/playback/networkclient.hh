@@ -29,7 +29,7 @@ class NetworkClient : public Summarizable
   CryptoSession long_lived_crypto_;
 
   std::optional<NetworkSession> session_ {};
-  OpusDecoderProcess decoder_ {};
+  OpusDecoderProcess decoder_ { false };
 
   std::shared_ptr<OpusEncoderProcess> source_;
 
