@@ -24,7 +24,10 @@ Client::Client( const uint8_t node_id, const uint8_t ch1_num, const uint8_t ch2_
                   | Option::OptionWindowShort )
   , ch1_num_( ch1_num )
   , ch2_num_( ch2_num )
-{}
+{
+  stretcher_.setMaxProcessSize( opus_frame::NUM_SAMPLES_MINLATENCY );
+  stretcher_.calculateStretch();
+}
 
 bool Client::receive_packet( const Address& source, const Ciphertext& ciphertext, const uint64_t clock_sample )
 {

@@ -16,6 +16,7 @@ class Cursor
     unsigned int resets;
     int64_t min_margin_to_frontier;
     float mean_margin_to_frontier, mean_margin_to_safe_index, quality, mean_time_ratio;
+    unsigned int compress_starts, compress_stops;
   } stats_ {};
 
   size_t num_samples_output_ {};

@@ -74,12 +74,14 @@ void Cursor::sample( const PartialFrameStore& frames,
          and ( margin_to_frontier > max_lag_samples_ ) ) {
       compressing_ = true;
       stretcher.setTimeRatio( 0.9 );
+      stats_.compress_starts++;
     }
 
     /* should we stop speeding up? */
     if ( compressing_ and ( margin_to_frontier <= target_lag_samples_ ) ) {
       compressing_ = false;
       stretcher.setTimeRatio( 1.00 );
+      stats_.compress_stops++;
     }
 
     ewma_update( stats_.mean_time_ratio, stretcher.getTimeRatio(), ALPHA );
@@ -155,6 +157,7 @@ void Cursor::summary( ostream& out ) const
   out << " safety margin=" << stats_.mean_margin_to_safe_index;
   out << " quality=" << fixed << setprecision( 5 ) << stats_.quality;
   out << " time ratio=" << fixed << setprecision( 5 ) << stats_.mean_time_ratio;
+  out << " compression starts=" << stats_.compress_starts << " stops=" << stats_.compress_stops;
   out << " resets=" << stats_.resets;
   out << "\n";
 }

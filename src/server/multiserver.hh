@@ -36,4 +36,6 @@ public:
 
   void set_cursor_lag( const std::string_view name, const uint16_t num_samples );
   void set_gain( const std::string_view name, const float gain );
+
+  void initialize_clock();
 };

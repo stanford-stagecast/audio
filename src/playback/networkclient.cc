@@ -86,6 +86,8 @@ NetworkClient::NetworkClient( const Address& server,
   , next_key_request_( steady_clock::now() )
 {
   socket_.set_blocking( false );
+  stretcher_.setMaxProcessSize( opus_frame::NUM_SAMPLES_MINLATENCY );
+  stretcher_.calculateStretch();
 
   loop.add_rule(
     "network transmit",

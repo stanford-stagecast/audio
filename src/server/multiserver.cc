@@ -35,6 +35,11 @@ void NetworkMultiServer::add_key( const LongLivedKey& key )
   board_.set_name( ch2, string( key.name() ) + "-CH2" );
 }
 
+void NetworkMultiServer::initialize_clock()
+{
+  next_cursor_sample_ = server_clock() + opus_frame::NUM_SAMPLES_MINLATENCY;
+}
+
 NetworkMultiServer::NetworkMultiServer( const uint8_t num_clients, EventLoop& loop )
   : socket_()
   , global_ns_timestamp_at_creation_( Timer::timestamp_ns() )

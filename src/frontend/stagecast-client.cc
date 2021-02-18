@@ -73,23 +73,22 @@ void program_body( const string& host, const string& service, const string& key_
 
 int main( int argc, char* argv[] )
 {
-  //  try {
-  if ( argc <= 0 ) {
-    abort();
-  }
+  try {
+    if ( argc <= 0 ) {
+      abort();
+    }
 
-  if ( argc != 4 ) {
-    cerr << "Usage: " << argv[0] << " host service keyfile\n";
+    if ( argc != 4 ) {
+      cerr << "Usage: " << argv[0] << " host service keyfile\n";
+      return EXIT_FAILURE;
+    }
+
+    program_body( argv[1], argv[2], argv[3] );
+  } catch ( const exception& e ) {
+    cerr << "Exception: " << e.what() << "\n";
+    global_timer().summary( cerr );
     return EXIT_FAILURE;
   }
-
-  program_body( argv[1], argv[2], argv[3] );
-  /*
-} catch ( const exception& e ) {
-  cerr << "Exception: " << e.what() << "\n";
-  global_timer().summary( cerr );
-  return EXIT_FAILURE;
-  } */
 
   return EXIT_SUCCESS;
 }
