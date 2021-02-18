@@ -41,7 +41,8 @@ void program_body( const string& host, const string& service, const string& key_
   auto loop = make_shared<EventLoop>();
 
   /* Audio task gets first priority in EventLoop */
-  const auto [name, interface_name] = ALSADevices::find_device( "UAC-2, USB Audio" );
+  const auto [name, interface_name]
+    = ALSADevices::find_device( { "Scarlett Solo USB, USB Audio", "UAC-2, USB Audio" } );
 
 #ifndef NDBUS
   const auto device_claim = AudioDeviceClaim::try_claim( name );

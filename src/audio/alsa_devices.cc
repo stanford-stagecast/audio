@@ -98,32 +98,22 @@ vector<ALSADevices::Device> ALSADevices::list()
   return ret;
 }
 
-pair<string, string> ALSADevices::find_device( const string_view expected_description )
+pair<string, string> ALSADevices::find_device( const vector<string_view> descriptions )
 {
   ALSADevices devices;
-  bool found = false;
-
-  string name, interface_name;
 
   for ( const auto& dev : devices.list() ) {
     for ( const auto& interface : dev.interfaces ) {
-      if ( interface.second == expected_description ) {
-        if ( found ) {
-          throw runtime_error( "Multiple devices matching description" );
-        } else {
-          found = true;
-          name = dev.name;
-          interface_name = interface.first;
+      for ( const auto& description : descriptions ) {
+        if ( interface.second == description ) {
+          cerr << "Found audio device: " << description << ": " << dev.name << "/" << interface.first << endl;
+          return { dev.name, interface.first };
         }
       }
     }
   }
 
-  if ( not found ) {
-    throw runtime_error( "Device \"" + string( expected_description ) + "\" not found" );
-  }
-
-  return { name, interface_name };
+  throw runtime_error( "Audio device not found" );
 }
 
 AudioPair::AudioPair( const string_view interface_name )
