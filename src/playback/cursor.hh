@@ -29,8 +29,6 @@ class Cursor
   void miss();
   void hit();
 
-  RubberBand::RubberBandStretcher stretcher_;
-
 public:
   Cursor( const uint32_t target_lag_samples, const uint32_t max_lag_samples );
 
@@ -39,6 +37,7 @@ public:
                const size_t frontier_sample_index,
                const size_t safe_sample_index,
                OpusDecoderProcess& decoder,
+               RubberBand::RubberBandStretcher& stretcher,
                ChannelPair& output );
 
   void summary( std::ostream& out ) const;

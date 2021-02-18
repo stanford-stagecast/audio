@@ -7,6 +7,8 @@
 #include "encoder_task.hh"
 #include "keys.hh"
 
+#include <rubberband/RubberBandStretcher.h>
+
 class NetworkClient : public Summarizable
 {
   struct NetworkSession
@@ -18,7 +20,10 @@ class NetworkClient : public Summarizable
 
     void transmit_frame( OpusEncoderProcess& source, UDPSocket& socket );
     void network_receive( const Ciphertext& ciphertext );
-    void decode( const size_t decode_cursor, OpusDecoderProcess& decoder, ChannelPair& output );
+    void decode( const size_t decode_cursor,
+                 OpusDecoderProcess& decoder,
+                 RubberBand::RubberBandStretcher& stretcher,
+                 ChannelPair& output );
     void summary( std::ostream& out ) const;
   };
 
@@ -30,6 +35,7 @@ class NetworkClient : public Summarizable
 
   std::optional<NetworkSession> session_ {};
   OpusDecoderProcess decoder_ { false };
+  RubberBand::RubberBandStretcher stretcher_;
 
   std::shared_ptr<OpusEncoderProcess> source_;
 

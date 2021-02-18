@@ -4,6 +4,8 @@
 using namespace std;
 using namespace std::chrono;
 
+using Option = RubberBand::RubberBandStretcher::Option;
+
 NetworkClient::NetworkSession::NetworkSession( const uint8_t node_id,
                                                const KeyPair& session_key,
                                                const Address& destination )
@@ -24,6 +26,7 @@ void NetworkClient::NetworkSession::network_receive( const Ciphertext& ciphertex
 
 void NetworkClient::NetworkSession::decode( const size_t decode_cursor,
                                             OpusDecoderProcess& decoder,
+                                            RubberBand::RubberBandStretcher& stretcher,
                                             ChannelPair& output )
 {
   /* decode server's Opus frames to playback buffer */
@@ -32,6 +35,7 @@ void NetworkClient::NetworkSession::decode( const size_t decode_cursor,
                  connection.unreceived_beyond_this_frame_index() * opus_frame::NUM_SAMPLES_MINLATENCY,
                  connection.next_frame_needed() * opus_frame::NUM_SAMPLES_MINLATENCY,
                  decoder,
+                 stretcher,
                  output );
 
   /* pop used Opus frames from server */
@@ -73,6 +77,10 @@ NetworkClient::NetworkClient( const Address& server,
   : server_( server )
   , name_( key.name() )
   , long_lived_crypto_( key.key_pair().uplink, key.key_pair().downlink, true )
+  , stretcher_( 48000,
+                2,
+                Option::OptionProcessRealTime | Option::OptionThreadingNever | Option::OptionPitchHighConsistency
+                  | Option::OptionWindowShort )
   , source_( source )
   , dest_( dest )
   , next_key_request_( steady_clock::now() )
@@ -118,7 +126,7 @@ NetworkClient::NetworkClient( const Address& server,
   loop.add_rule(
     "decode",
     [&] {
-      session_->decode( decode_cursor_, decoder_, dest_->playback() );
+      session_->decode( decode_cursor_, decoder_, stretcher_, dest_->playback() );
       decode_cursor_ += opus_frame::NUM_SAMPLES_MINLATENCY;
 
       if ( session_->connection.sender_stats().last_good_ack_ts + 4'000'000'000 < Timer::timestamp_ns() ) {

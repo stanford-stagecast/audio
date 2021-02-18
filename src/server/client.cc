@@ -3,6 +3,8 @@
 using namespace std;
 using namespace chrono;
 
+using Option = RubberBand::RubberBandStretcher::Option;
+
 uint64_t Client::client_mix_cursor() const
 {
   return mix_cursor_;
@@ -16,6 +18,10 @@ uint64_t Client::server_mix_cursor() const
 Client::Client( const uint8_t node_id, const uint8_t ch1_num, const uint8_t ch2_num, CryptoSession&& crypto )
   : connection_( 0, node_id, move( crypto ) )
   , cursor_( 960, 1920 )
+  , stretcher_( 48000,
+                2,
+                Option::OptionProcessRealTime | Option::OptionThreadingNever | Option::OptionPitchHighConsistency
+                  | Option::OptionWindowShort )
   , ch1_num_( ch1_num )
   , ch2_num_( ch2_num )
 {}
@@ -40,6 +46,7 @@ void Client::decode_audio( const uint64_t cursor_sample, AudioBoard& board )
                   connection_.unreceived_beyond_this_frame_index() * opus_frame::NUM_SAMPLES_MINLATENCY,
                   connection_.next_frame_needed() * opus_frame::NUM_SAMPLES_MINLATENCY,
                   decoder_,
+                  stretcher_,
                   output );
 
   connection_.pop_frames( min( cursor_.ok_to_pop( connection_.frames() ),

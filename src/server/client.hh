@@ -9,6 +9,8 @@
 #include "keys.hh"
 #include "webmwriter.hh"
 
+#include <rubberband/RubberBandStretcher.h>
+
 class KnownClient;
 
 class AudioBoard
@@ -47,6 +49,7 @@ class Client
   NetworkConnection connection_;
   Cursor cursor_;
   OpusDecoderProcess decoder_ { true };
+  RubberBand::RubberBandStretcher stretcher_;
   ChannelPair mixed_audio_ { 8192 };
 
   uint64_t mix_cursor_ {};

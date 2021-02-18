@@ -353,10 +353,12 @@ void AudioPair::loopback( ChannelPair& capture_output, const ChannelPair& playba
   const unsigned int combined = microphone_.avail() + headphone_.delay();
   statistics_.max_combined_samples = max( statistics_.max_combined_samples, combined );
 
+  /*
   if ( combined > 128 ) {
     recover();
     return;
   }
+  */
 
   microphone_.copy_all_available_samples_to( headphone_, capture_output, playback_input, statistics_.sample_stats );
 }

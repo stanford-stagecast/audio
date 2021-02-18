@@ -4,18 +4,11 @@
 #include <iostream>
 
 using namespace std;
-using Option = RubberBand::RubberBandStretcher::Option;
 
 Cursor::Cursor( const uint32_t target_lag_samples, const uint32_t max_lag_samples )
   : target_lag_samples_( target_lag_samples )
   , max_lag_samples_( max_lag_samples )
-  , stretcher_( 48000,
-                2,
-                Option::OptionProcessRealTime | Option::OptionThreadingNever | Option::OptionPitchHighConsistency
-                  | Option::OptionWindowShort )
-{
-  stretcher_.setMaxProcessSize( opus_frame::NUM_SAMPLES_MINLATENCY );
-}
+{}
 
 void Cursor::miss()
 {
@@ -32,6 +25,7 @@ void Cursor::sample( const PartialFrameStore& frames,
                      const size_t frontier_sample_index,
                      const size_t safe_sample_index,
                      OpusDecoderProcess& decoder,
+                     RubberBand::RubberBandStretcher& stretcher,
                      ChannelPair& output )
 {
   /* initialize cursor if necessary */
@@ -79,16 +73,16 @@ void Cursor::sample( const PartialFrameStore& frames,
     if ( ( not compressing_ ) and ( stats_.mean_margin_to_frontier > max_lag_samples_ )
          and ( margin_to_frontier > max_lag_samples_ ) ) {
       compressing_ = true;
-      stretcher_.setTimeRatio( 0.95 );
+      stretcher.setTimeRatio( 0.9 );
     }
 
     /* should we stop speeding up? */
     if ( compressing_ and ( margin_to_frontier <= target_lag_samples_ ) ) {
       compressing_ = false;
-      stretcher_.setTimeRatio( 1.0 );
+      stretcher.setTimeRatio( 1.00 );
     }
 
-    ewma_update( stats_.mean_time_ratio, stretcher_.getTimeRatio(), ALPHA );
+    ewma_update( stats_.mean_time_ratio, stretcher.getTimeRatio(), ALPHA );
 
     if ( output.range_end() < num_samples_output_ + opus_frame::NUM_SAMPLES_MINLATENCY ) {
       throw runtime_error( "samples owed exceeds available storage" );
@@ -118,14 +112,13 @@ void Cursor::sample( const PartialFrameStore& frames,
       }
     }
 
-#if 0
     /* time-stretch */
     array<float*, 2> scratch = { ch1_scratch.data(), ch2_scratch.data() };
-    stretcher_.process( scratch.data(), opus_frame::NUM_SAMPLES_MINLATENCY, false );
+    stretcher.process( scratch.data(), opus_frame::NUM_SAMPLES_MINLATENCY, false );
 
-    const int samples_available = stretcher_.available();
+    const int samples_available = stretcher.available();
     if ( samples_available < 0 ) {
-      throw runtime_error( "stretcher_.available() < 0" );
+      throw runtime_error( "stretcher.available() < 0" );
     }
     const size_t samples_out = samples_available;
 
@@ -137,12 +130,10 @@ void Cursor::sample( const PartialFrameStore& frames,
       throw runtime_error( "stretcher output exceeds available output size" );
     }
 
-    if ( samples_out != stretcher_.retrieve( scratch.data(), samples_out ) ) {
-      throw runtime_error( "unexpected output from stretcher_.retrieve()" );
+    if ( samples_out != stretcher.retrieve( scratch.data(), samples_out ) ) {
+      throw runtime_error( "unexpected output from stretcher.retrieve()" );
     }
-#endif
 
-    const size_t samples_out = opus_frame::NUM_SAMPLES_MINLATENCY;
     const span_view<float> ch1_stretched { ch1_scratch.data(), samples_out };
     const span_view<float> ch2_stretched { ch2_scratch.data(), samples_out };
 
