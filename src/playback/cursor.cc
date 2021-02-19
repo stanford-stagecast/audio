@@ -5,8 +5,9 @@
 
 using namespace std;
 
-Cursor::Cursor( const uint32_t target_lag_samples, const uint32_t max_lag_samples )
+Cursor::Cursor( const uint32_t target_lag_samples, const uint32_t min_lag_samples, const uint32_t max_lag_samples )
   : target_lag_samples_( target_lag_samples )
+  , min_lag_samples_( min_lag_samples )
   , max_lag_samples_( max_lag_samples )
 {}
 
@@ -26,6 +27,7 @@ void Cursor::setup( const size_t global_sample_index, const size_t frontier_samp
   if ( not frame_cursor_.has_value() and frontier_sample_index > target_lag_samples_ ) {
     frame_cursor_ = ( frontier_sample_index - target_lag_samples_ ) / opus_frame::NUM_SAMPLES_MINLATENCY;
     num_samples_output_ = global_sample_index;
+    rate_ = Rate::Steady;
     stats_.resets++;
   }
 }
@@ -53,6 +55,7 @@ void Cursor::sample( const PartialFrameStore& frames,
     }
 
     frame_cursor_ = ( frontier_sample_index - target_lag_samples_ ) / opus_frame::NUM_SAMPLES_MINLATENCY;
+    rate_ = Rate::Steady;
     if ( greatest_read_location() >= frontier_sample_index ) {
       throw runtime_error( "internal error" );
     }
@@ -67,19 +70,34 @@ void Cursor::sample( const PartialFrameStore& frames,
   ewma_update(
     stats_.mean_margin_to_safe_index, int64_t( safe_sample_index ) - int64_t( greatest_read_location() ), ALPHA );
 
-  /* should we start speeding up? */
-  if ( ( not compressing_ ) and ( stats_.mean_margin_to_frontier > max_lag_samples_ )
-       and ( margin_to_frontier > max_lag_samples_ ) ) {
-    compressing_ = true;
-    stretcher.setTimeRatio( 0.9 );
-    stats_.compress_starts++;
-  }
+  /* adjust stretching behavior */
 
-  /* should we stop speeding up? */
-  if ( compressing_ and ( margin_to_frontier <= target_lag_samples_ ) ) {
-    compressing_ = false;
+  /* 1) should we stop compressing? */
+  if ( rate_ == Rate::Compressing and ( margin_to_frontier <= target_lag_samples_ ) ) {
+    rate_ = Rate::Steady;
     stretcher.setTimeRatio( 1.00 );
     stats_.compress_stops++;
+  }
+
+  /* 2) should we stop expanding? */
+  if ( rate_ == Rate::Expanding and ( margin_to_frontier >= target_lag_samples_ ) ) {
+    rate_ = Rate::Steady;
+    stretcher.setTimeRatio( 1.00 );
+    stats_.expand_stops++;
+  }
+
+  /* 3) should we start compressing or expanding? */
+  if ( rate_ == Rate::Steady ) {
+    if ( ( margin_to_frontier > max_lag_samples_ ) and ( stats_.mean_margin_to_frontier > max_lag_samples_ ) ) {
+      rate_ = Rate::Compressing;
+      stretcher.setTimeRatio( 0.95 );
+      stats_.compress_starts++;
+    } else if ( ( margin_to_frontier < min_lag_samples_ )
+                and ( stats_.mean_margin_to_frontier < min_lag_samples_ ) ) {
+      rate_ = Rate::Expanding;
+      stretcher.setTimeRatio( 1.05 );
+      stats_.expand_starts++;
+    }
   }
 
   ewma_update( stats_.mean_time_ratio, stretcher.getTimeRatio(), ALPHA );
@@ -143,7 +161,9 @@ void Cursor::summary( ostream& out ) const
   out << " safety margin=" << stats_.mean_margin_to_safe_index;
   out << " quality=" << fixed << setprecision( 5 ) << stats_.quality;
   out << " time ratio=" << fixed << setprecision( 5 ) << stats_.mean_time_ratio;
-  out << " compression starts=" << stats_.compress_starts << " stops=" << stats_.compress_stops;
+  out << " compressions=" << stats_.compress_starts << "+" << stats_.compress_stops;
+  out << " expansions=" << stats_.expand_starts << "+" << stats_.expand_stops;
+  out << " rate=" << int( rate_ );
   out << " resets=" << stats_.resets;
   out << "\n";
 }

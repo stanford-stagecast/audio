@@ -9,14 +9,23 @@
 class Cursor
 {
   uint32_t target_lag_samples_; /* initialized lag, and end of time-compression */
-  uint32_t max_lag_samples_;    /* if lag gets this big, start time-compression */
-  bool compressing_ {};
+
+  uint32_t min_lag_samples_; /* if lag gets this small, start time-expansion */
+  uint32_t max_lag_samples_; /* if lag gets this big, start time-compression */
+
+  enum class Rate : uint8_t
+  {
+    Steady,
+    Compressing,
+    Expanding
+  } rate_ { Rate::Steady };
 
   struct Statistics
   {
     unsigned int resets;
     float mean_margin_to_frontier, mean_margin_to_safe_index, quality, mean_time_ratio;
     unsigned int compress_starts, compress_stops;
+    unsigned int expand_starts, expand_stops;
   } stats_ {};
 
   std::optional<size_t> num_samples_output_ {};
@@ -31,7 +40,7 @@ class Cursor
   void hit();
 
 public:
-  Cursor( const uint32_t target_lag_samples, const uint32_t max_lag_samples );
+  Cursor( const uint32_t target_lag_samples, const uint32_t min_lag_samples, const uint32_t max_lag_samples );
 
   struct AudioSlice
   {
