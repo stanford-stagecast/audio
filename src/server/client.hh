@@ -11,14 +11,34 @@
 
 #include <rubberband/RubberBandStretcher.h>
 
-class KnownClient;
+class AudioFeed
+{
+  Cursor cursor_;
+  OpusDecoderProcess decoder_ { true };
+  RubberBand::RubberBandStretcher stretcher_;
+
+public:
+  AudioFeed( const uint32_t target_lag_samples,
+             const uint32_t min_lag_samples,
+             const uint32_t max_lag_samples,
+             const bool short_window );
+
+  void summary( std::ostream& out ) const { cursor_.summary( out ); }
+
+  void decode_into( const PartialFrameStore& frames,
+                    uint64_t cursor_sample,
+                    const uint64_t frontier_sample_index,
+                    AudioChannel& ch1,
+                    AudioChannel& ch2 );
+
+  size_t ok_to_pop( const PartialFrameStore& frames ) const { return cursor_.ok_to_pop( frames ); }
+};
 
 class Client
 {
   NetworkConnection connection_;
-  Cursor cursor_;
-  OpusDecoderProcess decoder_ { true };
-  RubberBand::RubberBandStretcher stretcher_;
+  AudioFeed internal_feed_;
+
   ChannelPair mixed_audio_ { 8192 };
 
   uint64_t mix_cursor_ {};
@@ -48,7 +68,7 @@ public:
 
   const NetworkConnection& connection() const { return connection_; }
 
-  void set_cursor_lag( const uint16_t num_samples );
+  void set_cursor_lag( const uint16_t ) {} /* XXX */
 };
 
 class KnownClient

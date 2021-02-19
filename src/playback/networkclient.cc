@@ -38,12 +38,7 @@ void NetworkClient::NetworkSession::decode( const size_t decode_cursor,
   Cursor::AudioSlice audio;
 
   while ( cursor.initialized() and decode_cursor > cursor.num_samples_output() ) {
-    cursor.sample( connection.frames(),
-                   frontier_sample_index,
-                   connection.next_frame_needed() * opus_frame::NUM_SAMPLES_MINLATENCY,
-                   decoder,
-                   stretcher,
-                   audio );
+    cursor.sample( connection.frames(), frontier_sample_index, decoder, stretcher, audio );
 
     if ( audio.good ) {
       output.ch1().region( audio.sample_index, audio.length ).copy( audio.ch1_span() );

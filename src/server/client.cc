@@ -15,19 +15,26 @@ uint64_t Client::server_mix_cursor() const
   return mix_cursor_ + outbound_frame_offset_.value() * opus_frame::NUM_SAMPLES_MINLATENCY;
 }
 
-Client::Client( const uint8_t node_id, const uint8_t ch1_num, const uint8_t ch2_num, CryptoSession&& crypto )
-  : connection_( 0, node_id, move( crypto ) )
-  , cursor_( 960, 120, 1920 )
+AudioFeed::AudioFeed( const uint32_t target_lag_samples,
+                      const uint32_t min_lag_samples,
+                      const uint32_t max_lag_samples,
+                      const bool short_window )
+  : cursor_( target_lag_samples, min_lag_samples, max_lag_samples )
   , stretcher_( 48000,
                 2,
                 Option::OptionProcessRealTime | Option::OptionThreadingNever | Option::OptionPitchHighConsistency
-                  | Option::OptionWindowShort )
-  , ch1_num_( ch1_num )
-  , ch2_num_( ch2_num )
+                  | ( short_window ? Option::OptionWindowShort : 0 ) )
 {
   stretcher_.setMaxProcessSize( opus_frame::NUM_SAMPLES_MINLATENCY );
   stretcher_.calculateStretch();
 }
+
+Client::Client( const uint8_t node_id, const uint8_t ch1_num, const uint8_t ch2_num, CryptoSession&& crypto )
+  : connection_( 0, node_id, move( crypto ) )
+  , internal_feed_( 960, 120, 1920, true )
+  , ch1_num_( ch1_num )
+  , ch2_num_( ch2_num )
+{}
 
 bool Client::receive_packet( const Address& source, const Ciphertext& ciphertext, const uint64_t clock_sample )
 {
@@ -40,32 +47,37 @@ bool Client::receive_packet( const Address& source, const Ciphertext& ciphertext
   return false;
 }
 
-void Client::decode_audio( const uint64_t cursor_sample, AudioBoard& board )
+void AudioFeed::decode_into( const PartialFrameStore& frames,
+                             const uint64_t cursor_sample,
+                             const uint64_t frontier_sample_index,
+                             AudioChannel& ch1,
+                             AudioChannel& ch2 )
 {
-  ChannelPair& output = board.buffer( ch1_num_, ch2_num_ );
-
-  const size_t frontier_sample_index
-    = connection_.unreceived_beyond_this_frame_index() * opus_frame::NUM_SAMPLES_MINLATENCY;
-
   cursor_.setup( cursor_sample, frontier_sample_index );
 
   Cursor::AudioSlice audio;
 
   while ( cursor_.initialized() and cursor_sample > cursor_.num_samples_output() ) {
-    cursor_.sample( connection_.frames(),
-                    frontier_sample_index,
-                    connection_.next_frame_needed() * opus_frame::NUM_SAMPLES_MINLATENCY,
-                    decoder_,
-                    stretcher_,
-                    audio );
+    cursor_.sample( frames, frontier_sample_index, decoder_, stretcher_, audio );
 
     if ( audio.good ) {
-      output.ch1().region( audio.sample_index, audio.length ).copy( audio.ch1_span() );
-      output.ch2().region( audio.sample_index, audio.length ).copy( audio.ch2_span() );
+      ch1.region( audio.sample_index, audio.length ).copy( audio.ch1_span() );
+      ch2.region( audio.sample_index, audio.length ).copy( audio.ch2_span() );
     }
   }
+}
 
-  connection_.pop_frames( min( cursor_.ok_to_pop( connection_.frames() ),
+void Client::decode_audio( const uint64_t cursor_sample, AudioBoard& board )
+{
+  ChannelPair& output = board.buffer( ch1_num_, ch2_num_ );
+
+  internal_feed_.decode_into( connection_.frames(),
+                              cursor_sample,
+                              connection_.unreceived_beyond_this_frame_index() * opus_frame::NUM_SAMPLES_MINLATENCY,
+                              output.ch1(),
+                              output.ch2() );
+
+  connection_.pop_frames( min( internal_feed_.ok_to_pop( connection_.frames() ),
                                connection_.next_frame_needed() - connection_.frames().range_begin() ) );
 }
 
@@ -124,8 +136,8 @@ void Client::summary( ostream& out ) const
   if ( connection_.has_destination() ) {
     out << " (" << connection_.destination().to_string() << ") ";
   }
-  cursor_.summary( out );
-  connection_.summary( out );
+  internal_feed_.summary( out );
+  //  connection_.summary( out );
 }
 
 void KnownClient::summary( ostream& out ) const
@@ -204,10 +216,4 @@ void KnownClient::receive_packet( const Address& src, const Ciphertext& cipherte
     /* actually use packet */
     current_session_->receive_packet( src, ciphertext, clock_sample );
   }
-}
-
-void Client::set_cursor_lag( const uint16_t num_samples )
-{
-  cursor_.set_target_lag( num_samples );
-  cursor_.reset();
 }

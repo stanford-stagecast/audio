@@ -34,7 +34,6 @@ void Cursor::setup( const size_t global_sample_index, const size_t frontier_samp
 
 void Cursor::sample( const PartialFrameStore& frames,
                      const size_t frontier_sample_index,
-                     const size_t safe_sample_index,
                      OpusDecoderProcess& decoder,
                      RubberBand::RubberBandStretcher& stretcher,
                      AudioSlice& output )
@@ -67,8 +66,6 @@ void Cursor::sample( const PartialFrameStore& frames,
 
   const int64_t margin_to_frontier = frontier_sample_index - greatest_read_location();
   ewma_update( stats_.mean_margin_to_frontier, margin_to_frontier, ALPHA );
-  ewma_update(
-    stats_.mean_margin_to_safe_index, int64_t( safe_sample_index ) - int64_t( greatest_read_location() ), ALPHA );
 
   /* adjust stretching behavior */
 
@@ -158,7 +155,6 @@ void Cursor::summary( ostream& out ) const
   out << "Cursor: ";
   out << " target lag=" << target_lag_samples_;
   out << " actual lag=" << stats_.mean_margin_to_frontier;
-  out << " safety margin=" << stats_.mean_margin_to_safe_index;
   out << " quality=" << fixed << setprecision( 5 ) << stats_.quality;
   out << " time ratio=" << fixed << setprecision( 5 ) << stats_.mean_time_ratio;
   out << " compressions=" << stats_.compress_starts << "+" << stats_.compress_stops;

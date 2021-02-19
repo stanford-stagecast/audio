@@ -23,7 +23,7 @@ class Cursor
   struct Statistics
   {
     unsigned int resets;
-    float mean_margin_to_frontier, mean_margin_to_safe_index, quality, mean_time_ratio;
+    float mean_margin_to_frontier, quality, mean_time_ratio;
     unsigned int compress_starts, compress_stops;
     unsigned int expand_starts, expand_stops;
   } stats_ {};
@@ -55,7 +55,6 @@ public:
 
   void sample( const PartialFrameStore& frames,
                const size_t frontier_sample_index,
-               const size_t safe_sample_index,
                OpusDecoderProcess& decoder,
                RubberBand::RubberBandStretcher& stretcher,
                AudioSlice& output );
