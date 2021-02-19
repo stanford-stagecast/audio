@@ -37,7 +37,7 @@ public:
 class Client
 {
   NetworkConnection connection_;
-  AudioFeed internal_feed_;
+  AudioFeed internal_feed_, quality_feed_;
 
   ChannelPair mixed_audio_ { 8192 };
 
