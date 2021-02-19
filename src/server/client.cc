@@ -44,13 +44,26 @@ void Client::decode_audio( const uint64_t cursor_sample, AudioBoard& board )
 {
   ChannelPair& output = board.buffer( ch1_num_, ch2_num_ );
 
-  cursor_.sample( connection_.frames(),
-                  cursor_sample,
-                  connection_.unreceived_beyond_this_frame_index() * opus_frame::NUM_SAMPLES_MINLATENCY,
-                  connection_.next_frame_needed() * opus_frame::NUM_SAMPLES_MINLATENCY,
-                  decoder_,
-                  stretcher_,
-                  output );
+  const size_t frontier_sample_index
+    = connection_.unreceived_beyond_this_frame_index() * opus_frame::NUM_SAMPLES_MINLATENCY;
+
+  cursor_.setup( cursor_sample, frontier_sample_index );
+
+  Cursor::AudioSlice audio;
+
+  while ( cursor_.initialized() and cursor_sample > cursor_.num_samples_output() ) {
+    cursor_.sample( connection_.frames(),
+                    frontier_sample_index,
+                    connection_.next_frame_needed() * opus_frame::NUM_SAMPLES_MINLATENCY,
+                    decoder_,
+                    stretcher_,
+                    audio );
+
+    if ( audio.good ) {
+      output.ch1().region( audio.sample_index, audio.length ).copy( audio.ch1_span() );
+      output.ch2().region( audio.sample_index, audio.length ).copy( audio.ch2_span() );
+    }
+  }
 
   connection_.pop_frames( min( cursor_.ok_to_pop( connection_.frames() ),
                                connection_.next_frame_needed() - connection_.frames().range_begin() ) );

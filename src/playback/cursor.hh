@@ -2,6 +2,7 @@
 
 #include "connection.hh"
 #include "decoder_process.hh"
+#include "opus.hh"
 
 #include <rubberband/RubberBandStretcher.h>
 
@@ -14,12 +15,11 @@ class Cursor
   struct Statistics
   {
     unsigned int resets;
-    int64_t min_margin_to_frontier;
     float mean_margin_to_frontier, mean_margin_to_safe_index, quality, mean_time_ratio;
     unsigned int compress_starts, compress_stops;
   } stats_ {};
 
-  size_t num_samples_output_ {};
+  std::optional<size_t> num_samples_output_ {};
   std::optional<uint64_t> frame_cursor_ {};
 
   uint64_t cursor_location() const { return frame_cursor_.value() * opus_frame::NUM_SAMPLES_MINLATENCY; }
@@ -33,14 +33,26 @@ class Cursor
 public:
   Cursor( const uint32_t target_lag_samples, const uint32_t max_lag_samples );
 
+  struct AudioSlice
+  {
+    std::array<float, 1024> ch1, ch2;
+    size_t sample_index;
+    uint16_t length;
+    bool good;
+
+    span_view<float> ch1_span() const { return { ch1.data(), length }; }
+    span_view<float> ch2_span() const { return { ch2.data(), length }; }
+  };
+
   void sample( const PartialFrameStore& frames,
-               const size_t global_sample_index,
                const size_t frontier_sample_index,
                const size_t safe_sample_index,
                OpusDecoderProcess& decoder,
                RubberBand::RubberBandStretcher& stretcher,
-               ChannelPair& output );
+               AudioSlice& output );
 
+  void setup( const size_t global_sample_index, const size_t frontier_sample_index );
+  bool initialized() const { return frame_cursor_.has_value(); }
   void summary( std::ostream& out ) const;
 
   size_t ok_to_pop( const PartialFrameStore& frames ) const;
@@ -48,4 +60,6 @@ public:
   void set_target_lag( const unsigned int num_samples ) { target_lag_samples_ = num_samples; }
 
   void reset() { frame_cursor_.reset(); }
+
+  size_t num_samples_output() const { return num_samples_output_.value(); }
 };

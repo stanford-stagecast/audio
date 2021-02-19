@@ -30,13 +30,26 @@ void NetworkClient::NetworkSession::decode( const size_t decode_cursor,
                                             ChannelPair& output )
 {
   /* decode server's Opus frames to playback buffer */
-  cursor.sample( connection.frames(),
-                 decode_cursor,
-                 connection.unreceived_beyond_this_frame_index() * opus_frame::NUM_SAMPLES_MINLATENCY,
-                 connection.next_frame_needed() * opus_frame::NUM_SAMPLES_MINLATENCY,
-                 decoder,
-                 stretcher,
-                 output );
+  const size_t frontier_sample_index
+    = connection.unreceived_beyond_this_frame_index() * opus_frame::NUM_SAMPLES_MINLATENCY;
+
+  cursor.setup( decode_cursor, frontier_sample_index );
+
+  Cursor::AudioSlice audio;
+
+  while ( cursor.initialized() and decode_cursor > cursor.num_samples_output() ) {
+    cursor.sample( connection.frames(),
+                   frontier_sample_index,
+                   connection.next_frame_needed() * opus_frame::NUM_SAMPLES_MINLATENCY,
+                   decoder,
+                   stretcher,
+                   audio );
+
+    if ( audio.good ) {
+      output.ch1().region( audio.sample_index, audio.length ).copy( audio.ch1_span() );
+      output.ch2().region( audio.sample_index, audio.length ).copy( audio.ch2_span() );
+    }
+  }
 
   /* pop used Opus frames from server */
   connection.pop_frames( min( cursor.ok_to_pop( connection.frames() ),
