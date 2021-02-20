@@ -42,6 +42,7 @@ class JPEGDecompresser
   jpeg_error_mgr error_manager_ {};
 
   static void error( const j_common_ptr cinfo );
+  static void info( const j_common_ptr cinfo, const int level );
 
 public:
   JPEGDecompresser();

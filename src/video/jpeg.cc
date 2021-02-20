@@ -37,6 +37,7 @@ JPEGDecompresser::JPEGDecompresser()
 {
   jpeg_std_error( &error_manager_ );
   error_manager_.error_exit = JPEGDecompresser::error;
+  error_manager_.emit_message = JPEGDecompresser::info;
   decompresser_.err = &error_manager_;
   jpeg_create_decompress( &decompresser_ );
 }
@@ -52,6 +53,15 @@ void JPEGDecompresser::error( const j_common_ptr cinfo )
   ( *cinfo->err->format_message )( cinfo, error_message.data() );
 
   throw runtime_error( error_message.data() );
+}
+
+void JPEGDecompresser::info( const j_common_ptr cinfo, const int level )
+{
+  if ( level < 0 ) {
+    array<char, JMSG_LENGTH_MAX> error_message;
+    ( *cinfo->err->format_message )( cinfo, error_message.data() );
+    cerr << "info@" << level << ": " << error_message.data() << "\n";
+  }
 }
 
 void JPEGDecompresser::begin_decoding( const string_view chunk )

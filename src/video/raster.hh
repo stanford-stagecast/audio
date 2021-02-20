@@ -55,7 +55,7 @@ public:
 
   std::array<uint8_t**, 3> rows( const uint16_t y )
   {
-    return { &Y_rows_.at( y ), &Cr_rows_.at( y ), &Cb_rows_.at( y ) };
+    return { &Y_rows_.at( y ), &Cb_rows_.at( y ), &Cr_rows_.at( y ) };
   }
 
   RasterYUV422( const RasterYUV422& other ) = delete;

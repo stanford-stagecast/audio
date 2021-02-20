@@ -116,10 +116,7 @@ void Camera::get_next_frame( RasterYUV422& raster )
 
   const MMap_Region& mmap_region = kernel_v4l2_buffers_.at( next_buffer_index );
 
-  jpegdec_.begin_decoding( { mmap_region.addr(), buffer_info.bytesused } );
-  if ( jpegdec_.width() != width_ or jpegdec_.height() != height_ ) {
-    throw runtime_error( "size mismatch" );
-  }
+  jpegdec_.begin_decoding( mmap_region );
   jpegdec_.decode( raster );
 
   CheckSystemCall( "enqueue buffer", ioctl( camera_fd_.fd_num(), VIDIOC_QBUF, &buffer_info ) );
