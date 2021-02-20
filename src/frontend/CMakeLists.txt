@@ -118,3 +118,10 @@ target_link_libraries ("example-ws-server" ${SSL_LDFLAGS_OTHER})
 
 target_link_libraries ("example-ws-server" ${CryptoPP_LDFLAGS})
 target_link_libraries ("example-ws-server" ${CryptoPP_LDFLAGS_OTHER})
+
+add_executable (webcam-demo "webcam-demo.cc")
+target_link_libraries ("webcam-demo" video)
+target_link_libraries ("webcam-demo" util)
+
+target_link_libraries ("webcam-demo" ${V4L_LDFLAGS})
+target_link_libraries ("webcam-demo" ${V4L_LDFLAGS_OTHER})

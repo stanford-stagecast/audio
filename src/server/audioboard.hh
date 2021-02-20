@@ -8,20 +8,20 @@
 
 class AudioBoard
 {
-  std::vector<std::string> channel_names_;
-  std::vector<ChannelPair> decoded_audio_;
+  std::vector<std::pair<std::string, AudioChannel>> channels_ {};
 
 public:
   AudioBoard( const uint8_t num_channels );
 
-  void set_name( const uint8_t ch_num, const std::string_view name ) { channel_names_.at( ch_num ) = name; }
+  void set_name( const uint8_t ch_num, const std::string_view name ) { channels_.at( ch_num ).first = name; }
 
-  const AudioChannel& channel( const uint8_t ch_num ) const;
-  ChannelPair& buffer( const uint8_t ch1_num, const uint8_t ch2_num );
+  const AudioChannel& channel( const uint8_t ch_num ) const { return channels_.at( ch_num ).second; }
+  AudioChannel& channel( const uint8_t ch_num ) { return channels_.at( ch_num ).second; }
+
   void pop_samples_until( const uint64_t sample );
 
-  uint8_t num_channels() const { return channel_names_.size(); }
-  const std::string& channel_name( const uint8_t num ) const { return channel_names_.at( num ); }
+  uint8_t num_channels() const { return channels_.size(); }
+  const std::string& channel_name( const uint8_t num ) const { return channels_.at( num ).first; }
 };
 
 class AudioWriter

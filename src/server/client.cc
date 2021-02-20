@@ -70,13 +70,11 @@ void AudioFeed::decode_into( const PartialFrameStore& frames,
 
 void Client::decode_audio( const uint64_t cursor_sample, AudioBoard& board )
 {
-  ChannelPair& output = board.buffer( ch1_num_, ch2_num_ );
-
   internal_feed_.decode_into( connection_.frames(),
                               cursor_sample,
                               connection_.unreceived_beyond_this_frame_index() * opus_frame::NUM_SAMPLES_MINLATENCY,
-                              output.ch1(),
-                              output.ch2() );
+                              board.channel( ch1_num_ ),
+                              board.channel( ch2_num_ ) );
 
   connection_.pop_frames( min( internal_feed_.ok_to_pop( connection_.frames() ),
                                connection_.next_frame_needed() - connection_.frames().range_begin() ) );

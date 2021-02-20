@@ -3,42 +3,17 @@
 using namespace std;
 
 AudioBoard::AudioBoard( const uint8_t num_channels )
-  : channel_names_()
-  , decoded_audio_()
 {
-  if ( num_channels % 2 ) {
-    throw runtime_error( "odd number of channels" );
-  }
-
+  channels_.reserve( num_channels );
   for ( uint8_t i = 0; i < num_channels; i++ ) {
-    channel_names_.push_back( "Unknown " + to_string( i ) );
-    decoded_audio_.emplace_back( 8192 );
-  }
-}
-
-const AudioChannel& AudioBoard::channel( const uint8_t ch_num ) const
-{
-  const uint8_t buf_num = ch_num / 2;
-  const bool is_ch2 = ch_num % 2;
-  const auto& buf = decoded_audio_.at( buf_num );
-  return is_ch2 ? buf.ch2() : buf.ch1();
-}
-
-ChannelPair& AudioBoard::buffer( const uint8_t ch1_num, const uint8_t ch2_num )
-{
-  const uint8_t buf_num = ch1_num / 2;
-  if ( ch1_num == buf_num * 2 and ch2_num == ch1_num + 1 ) {
-    return decoded_audio_.at( buf_num );
-  } else {
-    throw runtime_error( "invalid combination of channel numbers: " + to_string( ch1_num ) + ":"
-                         + to_string( ch2_num ) );
+    channels_.emplace_back( "Unknown " + to_string( i ), AudioChannel { 8192 } );
   }
 }
 
 void AudioBoard::pop_samples_until( const uint64_t sample )
 {
-  for ( auto& buf : decoded_audio_ ) {
-    buf.pop_before( sample );
+  for ( auto& buf : channels_ ) {
+    buf.second.pop_before( sample );
   }
 }
 
