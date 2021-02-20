@@ -43,7 +43,7 @@ pkg_check_modules ( Rubberband REQUIRED rubberband samplerate fftw3 )
 include_directories ( ${Rubberband_INCLUDE_DIRS} )
 add_compile_options ( ${Rubberband_CFLAGS} )
 
-pkg_check_modules ( V4L REQUIRED libv4l2 libjpeg )
+pkg_check_modules ( V4L REQUIRED libv4l2 libjpeg libswscale )
 include_directories ( ${V4L_INCLUDE_DIRS} )
 add_compile_options ( ${V4L_CFLAGS} )
 

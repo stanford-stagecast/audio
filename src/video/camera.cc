@@ -103,7 +103,7 @@ Camera::~Camera()
 
 void Camera::get_next_frame( RasterYUV422& raster )
 {
-  if ( raster.luma_width() != width_ or raster.height() != height_ ) {
+  if ( raster.width() != width_ or raster.height() != height_ ) {
     throw runtime_error( "Camera::get_next_frame: mismatched raster size" );
   }
 

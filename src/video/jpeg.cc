@@ -101,7 +101,7 @@ unsigned int JPEGDecompresser::height() const
 
 void JPEGDecompresser::decode( RasterYUV422& r )
 {
-  if ( r.height() != height() or r.luma_width() != width() ) {
+  if ( r.height() != height() or r.width() != width() ) {
     throw runtime_error( "size mismatch" );
   }
 

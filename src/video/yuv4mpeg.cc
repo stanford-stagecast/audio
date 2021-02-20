@@ -28,15 +28,15 @@
 
 #include "yuv4mpeg.hh"
 
+#include <algorithm>
 #include <fcntl.h>
 #include <sstream>
 #include <utility>
-#include <algorithm>
 
 using namespace std;
 
 YUV4MPEGHeader::YUV4MPEGHeader( const RasterYUV422& r )
-  : width( r.luma_width() )
+  : width( r.width() )
   , height( r.height() )
   , fps_numerator( 24 )
   , fps_denominator( 1 )
@@ -46,10 +46,23 @@ YUV4MPEGHeader::YUV4MPEGHeader( const RasterYUV422& r )
   , color_space( ColorSpace::C422 )
 {}
 
+YUV4MPEGHeader::YUV4MPEGHeader( const RasterYUV420& r )
+  : width( r.width() )
+  , height( r.height() )
+  , fps_numerator( 24 )
+  , fps_denominator( 1 )
+  , pixel_aspect_ratio_numerator( 1 )
+  , pixel_aspect_ratio_denominator( 1 )
+  , interlacing_mode( InterlacingMode::PROGRESSIVE )
+  , color_space( ColorSpace::C420 )
+{}
+
 size_t YUV4MPEGHeader::frame_length()
 {
   if ( color_space == ColorSpace::C422 ) {
     return 2 * height * width;
+  } else if ( color_space == ColorSpace::C420 ) {
+    return 3 * height * width / 2;
   } else {
     throw runtime_error( "unimplemented" );
   }
@@ -57,17 +70,15 @@ size_t YUV4MPEGHeader::frame_length()
 
 size_t YUV4MPEGHeader::y_plane_length()
 {
-  if ( color_space == ColorSpace::C422 ) {
-    return height * width;
-  } else {
-    throw runtime_error( "unimplemented" );
-  }
+  return height * width;
 }
 
 size_t YUV4MPEGHeader::uv_plane_length()
 {
   if ( color_space == ColorSpace::C422 ) {
     return height * width / 2;
+  } else if ( color_space == ColorSpace::C420 ) {
+    return height * width / 4;
   } else {
     throw runtime_error( "unimplemented" );
   }
@@ -126,7 +137,7 @@ static void write_all( string_view s, FileDescriptor& fd )
   }
 }
 
-void YUV4MPEGFrameWriter::write( const RasterYUV422& r, FileDescriptor& fd )
+void YUV4MPEGFrameWriter::write( const RasterYUV& r, FileDescriptor& fd )
 {
   fd.write( "FRAME\n"sv );
   write_all( r.Y_view(), fd );

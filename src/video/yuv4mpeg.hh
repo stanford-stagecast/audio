@@ -55,6 +55,7 @@ public:
   };
 
   YUV4MPEGHeader( const RasterYUV422& r );
+  YUV4MPEGHeader( const RasterYUV420& r );
 
   uint16_t width;
   uint16_t height;
@@ -75,5 +76,5 @@ public:
 class YUV4MPEGFrameWriter
 {
 public:
-  static void write( const RasterYUV422& r, FileDescriptor& fd );
+  static void write( const RasterYUV& r, FileDescriptor& fd );
 };

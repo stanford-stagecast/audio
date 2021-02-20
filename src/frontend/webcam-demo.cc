@@ -8,6 +8,7 @@
 #include <unistd.h>
 
 #include "camera.hh"
+#include "scale.hh"
 #include "yuv4mpeg.hh"
 
 using namespace std;
@@ -20,28 +21,37 @@ void program_body()
 
   Camera camera { 3840, 2160, "/dev/video0" };
 
-  RasterYUV422 raster { 3840, 2160 };
+  RasterYUV422 camera_raster { 3840, 2160 };
+  RasterYUV420 output_raster { 1280, 720 };
 
-  YUV4MPEGHeader h { raster };
+  YUV4MPEGHeader h { output_raster };
   const auto header = h.to_string();
   if ( output.write( header ) != header.size() ) {
     throw runtime_error( "short write" );
   }
 
+  Scaler scaler;
+
+  unsigned int frame_no = 0;
   while ( true ) {
-    camera.get_next_frame( raster );
-    YUV4MPEGFrameWriter::write( raster, output );
+    scaler.setup( frame_no, frame_no, 3840 - 2 * frame_no, 2160 - 2 * frame_no );
+    camera.get_next_frame( camera_raster );
+    scaler.scale( camera_raster, output_raster );
+    YUV4MPEGFrameWriter::write( output_raster, output );
+    frame_no++;
   }
 }
 
 int main()
 {
-  try {
-    program_body();
-  } catch ( const exception& e ) {
-    cerr << "Exception: " << e.what() << "\n";
-    return EXIT_FAILURE;
-  }
+  //  try {
+  program_body();
+  /*
+} catch ( const exception& e ) {
+  cerr << "Exception: " << e.what() << "\n";
+  return EXIT_FAILURE;
+}
+  */
 
   return EXIT_SUCCESS;
 }
