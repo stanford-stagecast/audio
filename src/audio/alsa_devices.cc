@@ -105,7 +105,7 @@ pair<string, string> ALSADevices::find_device( const vector<string_view> descrip
   for ( const auto& dev : devices.list() ) {
     for ( const auto& interface : dev.interfaces ) {
       for ( const auto& description : descriptions ) {
-        if ( interface.second == description ) {
+        if ( interface.second.substr( 0, description.length() ) == description ) {
           cerr << "Found audio device: " << description << ": " << dev.name << "/" << interface.first << endl;
           return { dev.name, interface.first };
         }
