@@ -1,18 +1,16 @@
 #include "h264_encoder.hh"
 #include "exception.hh"
 
+#include <iostream>
+
 using namespace std;
 
-H264Encoder::H264Encoder( const uint16_t width,
-                          const uint16_t height,
-                          const uint8_t fps,
-                          const string& preset,
-                          const string& tune )
+H264Encoder::H264Encoder( const uint16_t width, const uint16_t height, const uint8_t fps, const string& preset )
   : width_( width )
   , height_( height )
   , fps_( fps )
 {
-  if ( x264_param_default_preset( &params_, preset.c_str(), tune.c_str() ) != 0 ) {
+  if ( x264_param_default_preset( &params_, preset.c_str(), nullptr ) != 0 ) {
     throw runtime_error( "Error: Failed to set preset on x264." );
   }
   // Set params for encoder
@@ -24,7 +22,10 @@ H264Encoder::H264Encoder( const uint16_t width,
   params_.b_annexb = 1;
   params_.b_repeat_headers = 1;
   params_.i_keyint_max = fps_ * 2;
-  params_.b_intra_refresh = true;
+  //  params_.b_intra_refresh = true;
+
+  params_.rc.i_qp_constant = 23;
+  params_.rc.i_rc_method = X264_RC_CQP;
 
   // Apply profile
   if ( x264_param_apply_profile( &params_, "high" ) != 0 ) {

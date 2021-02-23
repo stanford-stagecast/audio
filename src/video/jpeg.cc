@@ -52,7 +52,7 @@ void JPEGDecompresser::error( const j_common_ptr cinfo )
   array<char, JMSG_LENGTH_MAX> error_message;
   ( *cinfo->err->format_message )( cinfo, error_message.data() );
 
-  throw runtime_error( error_message.data() );
+  throw runtime_error( "JPEG error: "s + error_message.data() );
 }
 
 void JPEGDecompresser::info( const j_common_ptr cinfo, const int level )
@@ -60,7 +60,7 @@ void JPEGDecompresser::info( const j_common_ptr cinfo, const int level )
   if ( level < 0 ) {
     array<char, JMSG_LENGTH_MAX> error_message;
     ( *cinfo->err->format_message )( cinfo, error_message.data() );
-    cerr << "info@" << level << ": " << error_message.data() << "\n";
+    cerr << "JPEG info@" << level << ": " << error_message.data() << "\n";
   }
 }
 

@@ -66,6 +66,23 @@ Camera::Camera( const uint16_t width, const uint16_t height, const string& devic
     throw runtime_error( "couldn't configure the camera with the given format" );
   }
 
+  /* setting capture parameters */
+  v4l2_streamparm params {};
+  params.type = capture_type;
+  CheckSystemCall( "getting capture params", ioctl( camera_fd_.fd_num(), VIDIOC_G_PARM, &params ) );
+  if ( params.type != capture_type ) {
+    throw runtime_error( "bad v4l2_streamparm" );
+  }
+  if ( not( params.parm.capture.capability & V4L2_CAP_TIMEPERFRAME ) ) {
+    throw runtime_error( "can't set frame rate" );
+  }
+  params.parm.capture.timeperframe.numerator = 1;
+  params.parm.capture.timeperframe.denominator = 24;
+  CheckSystemCall( "setting capture params", ioctl( camera_fd_.fd_num(), VIDIOC_S_PARM, &params ) );
+  if ( params.parm.capture.timeperframe.numerator != 1 or params.parm.capture.timeperframe.denominator != 24 ) {
+    throw runtime_error( "can't set frame rate to 24 fps" );
+  }
+
   /* tell the v4l2 about our buffers */
   v4l2_requestbuffers buf_request {};
   buf_request.type = capture_type;
