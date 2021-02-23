@@ -25,13 +25,7 @@ void program_body()
 
   RasterYUV422 camera_raster { 3840, 2160 };
   RasterYUV420 output_raster { 1280, 720 };
-  H264Encoder encoder { 1280, 720, 24, "fast" };
-
-  YUV4MPEGHeader h { output_raster };
-  const auto header = h.to_string();
-  if ( output.write( header ) != header.size() ) {
-    throw runtime_error( "short write" );
-  }
+  H264Encoder encoder { 1280, 720, 24, "fast", "zerolatency" };
 
   Scaler scaler;
 

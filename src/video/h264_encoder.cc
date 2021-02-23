@@ -5,12 +5,16 @@
 
 using namespace std;
 
-H264Encoder::H264Encoder( const uint16_t width, const uint16_t height, const uint8_t fps, const string& preset )
+H264Encoder::H264Encoder( const uint16_t width,
+                          const uint16_t height,
+                          const uint8_t fps,
+                          const string& preset,
+                          const string& tune )
   : width_( width )
   , height_( height )
   , fps_( fps )
 {
-  if ( x264_param_default_preset( &params_, preset.c_str(), nullptr ) != 0 ) {
+  if ( x264_param_default_preset( &params_, preset.c_str(), tune.c_str() ) != 0 ) {
     throw runtime_error( "Error: Failed to set preset on x264." );
   }
   // Set params for encoder
@@ -58,11 +62,11 @@ string_view H264Encoder::encode( RasterYUV420& raster )
   int nals_count = 0;
   x264_nal_t* nal;
   x264_picture_t pic_out;
-  x264_encoder_encode( encoder_.get(), &nal, &nals_count, &pic_in_, &pic_out );
+  const auto frame_size = x264_encoder_encode( encoder_.get(), &nal, &nals_count, &pic_in_, &pic_out );
 
   if ( not nal or nal->i_payload <= 0 ) {
     return {};
   }
 
-  return { reinterpret_cast<const char*>( nal->p_payload ), size_t( nal->i_payload ) };
+  return { reinterpret_cast<const char*>( nal->p_payload ), size_t( frame_size ) };
 }

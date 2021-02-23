@@ -25,7 +25,11 @@ private:
   uint32_t frame_num_ {};
 
 public:
-  H264Encoder( const uint16_t width, const uint16_t height, const uint8_t fps, const std::string& preset );
+  H264Encoder( const uint16_t width,
+               const uint16_t height,
+               const uint8_t fps,
+               const std::string& preset,
+               const std::string& tune );
 
   std::string_view encode( RasterYUV420& raster );
 };
