@@ -129,4 +129,7 @@ target_link_libraries ("webcam-demo" ${V4L_LDFLAGS_OTHER})
 target_link_libraries ("webcam-demo" ${X264_LDFLAGS})
 target_link_libraries ("webcam-demo" ${X264_LDFLAGS_OTHER})
 
+target_link_libraries ("webcam-demo" ${AVFormat_LDFLAGS})
+target_link_libraries ("webcam-demo" ${AVFormat_LDFLAGS_OTHER})
+
 target_link_libraries ("webcam-demo" "-pthread")

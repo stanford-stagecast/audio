@@ -9,9 +9,9 @@
 
 #include "camera.hh"
 #include "h264_encoder.hh"
+#include "mp4writer.hh"
 #include "scale.hh"
 #include "timer.hh"
-#include "yuv4mpeg.hh"
 
 using namespace std;
 
@@ -26,6 +26,7 @@ void program_body()
   RasterYUV422 camera_raster { 3840, 2160 };
   RasterYUV420 output_raster { 1280, 720 };
   H264Encoder encoder { 1280, 720, 24, "fast", "zerolatency" };
+  MP4Writer writer_ { 24, 1280, 720 };
 
   Scaler scaler;
 
@@ -37,11 +38,13 @@ void program_body()
 
     camera.get_next_frame( camera_raster );
     scaler.scale( camera_raster, output_raster );
-    const auto encoded_frame = encoder.encode( output_raster );
-    if ( output.write( encoded_frame ) != encoded_frame.size() ) {
-      throw runtime_error( "short write" );
+    encoder.encode( output_raster );
+
+    if ( encoder.nal().has_value() ) {
+      writer_.write( encoder.nal()->NAL, encoder.nal()->pts, encoder.nal()->dts );
+
+      byte_count += encoder.nal()->NAL.size();
     }
-    byte_count += encoded_frame.size();
 
     //    YUV4MPEGFrameWriter::write( output_raster, output );
     if ( frame_no and ( frame_no % 24 == 0 ) ) {

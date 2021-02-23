@@ -1,6 +1,8 @@
 #pragma once
 
 #include <memory>
+#include <optional>
+
 #include <x264.h>
 
 #include "raster.hh"
@@ -16,13 +18,22 @@ private:
 
   std::unique_ptr<x264_t, x264_deleter> encoder_ {};
   x264_param_t params_ {};
-  x264_picture_t pic_in_ {};
+  x264_picture_t pic_in_ {}, pic_out_ {};
   int frame_size_ {};
 
   uint16_t width_;
   uint16_t height_;
   uint8_t fps_;
   uint32_t frame_num_ {};
+
+  struct EncodedNAL
+  {
+    span<uint8_t> NAL;
+    int64_t pts;
+    int64_t dts;
+  };
+
+  std::optional<EncodedNAL> encoded_ {};
 
 public:
   H264Encoder( const uint16_t width,
@@ -31,5 +42,7 @@ public:
                const std::string& preset,
                const std::string& tune );
 
-  std::string_view encode( RasterYUV420& raster );
+  void encode( RasterYUV420& raster );
+
+  std::optional<EncodedNAL>& nal() { return encoded_; }
 };

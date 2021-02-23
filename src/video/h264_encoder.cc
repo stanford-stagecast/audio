@@ -40,7 +40,7 @@ H264Encoder::H264Encoder( const uint16_t width,
   x264_picture_init( &pic_in_ );
 }
 
-string_view H264Encoder::encode( RasterYUV420& raster )
+void H264Encoder::encode( RasterYUV420& raster )
 {
   if ( raster.width() != width_ or raster.height() != height_ ) {
     throw runtime_error( "H264Encoder::encode(): size mismatch" );
@@ -61,12 +61,11 @@ string_view H264Encoder::encode( RasterYUV420& raster )
 
   int nals_count = 0;
   x264_nal_t* nal;
-  x264_picture_t pic_out;
-  const auto frame_size = x264_encoder_encode( encoder_.get(), &nal, &nals_count, &pic_in_, &pic_out );
+  const auto frame_size = x264_encoder_encode( encoder_.get(), &nal, &nals_count, &pic_in_, &pic_out_ );
 
-  if ( not nal or nal->i_payload <= 0 ) {
-    return {};
+  if ( not nal or frame_size <= 0 ) {
+    encoded_.reset();
   }
 
-  return { reinterpret_cast<const char*>( nal->p_payload ), size_t( frame_size ) };
+  encoded_.emplace( EncodedNAL { { nal->p_payload, size_t( frame_size ) }, pic_out_.i_pts, pic_out_.i_dts } );
 }
