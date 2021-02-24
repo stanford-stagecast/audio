@@ -36,6 +36,10 @@ Address::Address( const sockaddr* addr, const size_t size )
   memcpy( &_address.storage, addr, size );
 }
 
+Address::Address()
+  : _size( 0 )
+{}
+
 //! Error category for getaddrinfo and getnameinfo failures.
 class gai_error_category : public error_category
 {

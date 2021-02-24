@@ -28,7 +28,7 @@ H264Encoder::H264Encoder( const uint16_t width,
   params_.i_keyint_max = fps_ * 2;
   //  params_.b_intra_refresh = true;
 
-  params_.rc.i_qp_constant = 23;
+  params_.rc.i_qp_constant = 30;
   params_.rc.i_rc_method = X264_RC_CQP;
 
   // Apply profile
@@ -61,6 +61,7 @@ void H264Encoder::encode( RasterYUV420& raster )
 
   int nals_count = 0;
   x264_nal_t* nal;
+  //  x264_encoder_intra_refresh( encoder_.get() );
   const auto frame_size = x264_encoder_encode( encoder_.get(), &nal, &nals_count, &pic_in_, &pic_out_ );
 
   if ( not nal or frame_size <= 0 ) {

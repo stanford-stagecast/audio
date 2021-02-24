@@ -34,7 +34,7 @@ void program_body()
   uint64_t last_timestamp = Timer::timestamp_ns();
   uint64_t byte_count = 0;
   while ( true ) {
-    scaler.setup( frame_no, frame_no, 3840 - 2 * frame_no, 2160 - 2 * frame_no );
+    //    scaler.setup( frame_no, frame_no, 3840 - 2 * frame_no, 2160 - 2 * frame_no );
 
     camera.get_next_frame( camera_raster );
     scaler.scale( camera_raster, output_raster );

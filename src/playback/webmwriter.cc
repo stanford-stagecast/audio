@@ -107,7 +107,7 @@ WebMWriter::WebMWriter( const int bit_rate, const uint32_t sample_rate, const ui
   }
 
   static constexpr char filename[] = "/tmp/stagecast-audio.init";
-  FileDescriptor init_ { CheckSystemCall( filename,
+  FileDescriptor init_ { CheckSystemCall( "open( "s + filename + " )",
                                           open( filename, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR ) ) };
 
   avio_flush( context_->pb );

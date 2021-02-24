@@ -45,8 +45,6 @@ MP4Writer::MP4Writer( const unsigned int frame_rate, const unsigned int width, c
   , frame_rate_( frame_rate )
   , width_( width )
   , height_( height )
-  , output_ { CheckSystemCall( "open( /tmp/test.mp4 )",
-                               open( "/tmp/test.mp4", O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR ) ) }
 {
   {
     AVFormatContext* tmp_context;
@@ -71,14 +69,19 @@ MP4Writer::MP4Writer( const unsigned int frame_rate, const unsigned int width, c
   video_stream_->time_base = { 1, MP4_TIMEBASE };
   video_stream_->codecpar->codec_type = AVMEDIA_TYPE_VIDEO;
   video_stream_->codecpar->codec_id = AV_CODEC_ID_H264;
+  video_stream_->codecpar->profile = FF_PROFILE_H264_HIGH;
+  video_stream_->codecpar->level = FF_PROFILE_H264_HIGH;
   video_stream_->codecpar->width = width_;
   video_stream_->codecpar->height = height_;
+  video_stream_->codecpar->sample_aspect_ratio = { 1, 1 };
+  video_stream_->codecpar->color_space = AVCOL_SPC_BT709;
+  video_stream_->codecpar->format = AV_PIX_FMT_YUV420P;
   video_stream_->codecpar->video_delay = 0;
   video_stream_->codecpar->initial_padding = 0;
   video_stream_->codecpar->trailing_padding = 0;
 
   AVDictionary* flags = nullptr;
-  av_check( av_dict_set( &flags, "movflags", "empty_moov", 0 ) );
+  av_check( av_dict_set( &flags, "movflags", "empty_moov+default_base_moof", 0 ) );
 
   /* now write the header */
   av_check( avformat_write_header( context_.get(), &flags ) );
@@ -89,9 +92,13 @@ MP4Writer::MP4Writer( const unsigned int frame_rate, const unsigned int width, c
                          + to_string( video_stream_->time_base.den ) );
   }
 
+  static constexpr char filename[] = "/tmp/stagecast-video.init";
+  FileDescriptor init_ { CheckSystemCall( "open( "s + filename + " )",
+                                          open( filename, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR ) ) };
+
   avio_flush( context_->pb );
-  buf_.pop_to_fd( output_ );
-  //  init_.close();
+  buf_.pop_to_fd( init_ );
+  init_.close();
 
   if ( buf_.readable_region().size() ) {
     throw runtime_error( "did not write entire init segment" );
@@ -125,8 +132,10 @@ void MP4Writer::write( span<uint8_t> nal, const int64_t pts, const int64_t dts )
   av_check( av_write_frame( context_.get(), &packet ) );
   av_check( av_write_frame( context_.get(), nullptr ) );
   avio_flush( context_->pb );
-  buf_.pop_to_fd( output_ );
+  if ( buf_.readable_region().size() > 65535 ) {
+    throw runtime_error( "implement Unix-domain sockets already!" );
+  }
 
-  //  stream_socket_.sendto( stream_destination_, buf_.readable_region() );
-  //  buf_.pop( buf_.readable_region().size() );
+  stream_socket_.sendto( stream_destination_, buf_.readable_region() );
+  buf_.pop( buf_.readable_region().size() );
 }

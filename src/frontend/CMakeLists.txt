@@ -133,3 +133,10 @@ target_link_libraries ("webcam-demo" ${AVFormat_LDFLAGS})
 target_link_libraries ("webcam-demo" ${AVFormat_LDFLAGS_OTHER})
 
 target_link_libraries ("webcam-demo" "-pthread")
+
+add_executable (example-video-server "example-video-server.cc")
+target_link_libraries ("example-video-server" stats)
+target_link_libraries ("example-video-server" util)
+
+target_link_libraries ("example-video-server" ${SSL_LDFLAGS})
+target_link_libraries ("example-video-server" ${SSL_LDFLAGS_OTHER})

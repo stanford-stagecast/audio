@@ -39,6 +39,8 @@ public:
   //! Construct from a [sockaddr *](@ref man7::socket).
   Address( const sockaddr* addr, const std::size_t size );
 
+  Address();
+
   //! Equality comparison.
   bool operator==( const Address& other ) const;
   bool operator!=( const Address& other ) const { return not operator==( other ); }
