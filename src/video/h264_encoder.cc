@@ -42,6 +42,10 @@ H264Encoder::H264Encoder( const uint16_t width,
 
 void H264Encoder::encode( RasterYUV420& raster )
 {
+  if ( has_nal() ) {
+    throw runtime_error( "H264Encoder can't encode when still has NAL" );
+  }
+
   if ( raster.width() != width_ or raster.height() != height_ ) {
     throw runtime_error( "H264Encoder::encode(): size mismatch" );
   }

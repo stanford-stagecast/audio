@@ -148,7 +148,7 @@ void OpusEncoderProcess::encode_one_frame( const AudioChannel& ch1, const AudioC
   }
 }
 
-AudioFrame OpusEncoderProcess::front_as_audioframe( const uint32_t frame_index ) const
+AudioFrame OpusEncoderProcess::front( const uint32_t frame_index ) const
 {
   AudioFrame ret;
   ret.frame_index = frame_index;

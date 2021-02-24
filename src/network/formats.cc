@@ -38,19 +38,25 @@ void AudioFrame::parse( Parser& p )
 
 uint16_t VideoChunk::serialized_length() const
 {
-  return sizeof( frame_index ) + slice.serialized_length();
+  return sizeof( frame_index ) + data.serialized_length();
 }
 
 void VideoChunk::serialize( Serializer& s ) const
 {
-  s.integer( frame_index );
-  s.object( slice );
+  const uint32_t first_word = ( end_of_nal << 31 ) | ( frame_index & 0x7FFF'FFFF );
+
+  s.integer( first_word );
+  s.object( data );
 }
 
 void VideoChunk::parse( Parser& p )
 {
-  p.integer( frame_index );
-  p.object( slice );
+  uint32_t first_word {};
+  p.integer( first_word );
+  frame_index = first_word & 0x7FFF'FFFF;
+  end_of_nal = first_word & 0x8000'0000;
+
+  p.object( data );
 }
 
 template<class FrameType>

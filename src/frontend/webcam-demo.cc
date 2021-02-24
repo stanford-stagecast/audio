@@ -40,10 +40,10 @@ void program_body()
     scaler.scale( camera_raster, output_raster );
     encoder.encode( output_raster );
 
-    if ( encoder.nal().has_value() ) {
-      writer_.write( encoder.nal()->NAL, encoder.nal()->pts, encoder.nal()->dts );
+    if ( encoder.has_nal() ) {
+      writer_.write( encoder.nal().NAL, encoder.nal().pts, encoder.nal().dts );
 
-      byte_count += encoder.nal()->NAL.size();
+      byte_count += encoder.nal().NAL.size();
     }
 
     //    YUV4MPEGFrameWriter::write( output_raster, output );

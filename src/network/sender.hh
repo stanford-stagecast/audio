@@ -60,7 +60,36 @@ private:
   Statistics stats_ {};
 
 public:
-  void push_frame( OpusEncoderProcess& encoder );
+  template<class SourceType>
+  void push_frame( SourceType& encoder )
+  {
+    if ( frames_.range_begin() != frame_status_.range_begin() ) {
+      throw std::runtime_error( "NetworkSender internal error" );
+    }
+
+    if ( next_frame_index_ < frames_.range_begin() ) {
+      throw std::runtime_error( "NetworkSender internal error: next_frame_index_ < frames_.range_begin()" );
+    }
+
+    if ( need_immediate_send_ ) {
+      throw std::runtime_error( "packet pushed but not sent" );
+    }
+
+    if ( next_frame_index_ >= frames_.range_end() ) {
+      const size_t frames_to_drop = next_frame_index_ - frames_.range_end() + 1;
+      frames_.pop( frames_to_drop );
+      frame_status_.pop( frames_to_drop );
+      stats_.frames_dropped += frames_to_drop;
+    }
+
+    frames_.at( next_frame_index_ ) = encoder.front( next_frame_index_ );
+    frame_status_.at( next_frame_index_ ) = { true, false };
+    next_frame_index_++;
+
+    need_immediate_send_ = true;
+
+    encoder.pop_frame();
+  }
 
   void set_sender_section( typename Packet<FrameType>::SenderSection& p );
   void receive_receiver_section( const typename Packet<FrameType>::ReceiverSection& receiver_section );

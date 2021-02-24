@@ -32,6 +32,8 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 
+#include <iostream>
+
 #include "exception.hh"
 #include "jpeg.hh"
 
@@ -131,10 +133,19 @@ void Camera::get_next_frame( RasterYUV422& raster )
 
   CheckSystemCall( "dequeue buffer", ioctl( camera_fd_.fd_num(), VIDIOC_DQBUF, &buffer_info ) );
 
-  const MMap_Region& mmap_region = kernel_v4l2_buffers_.at( next_buffer_index );
+  camera_fd_.buffer_dequeued();
 
-  jpegdec_.begin_decoding( mmap_region );
-  jpegdec_.decode( raster );
+  if ( buffer_info.bytesused > 16 ) {
+    const MMap_Region& mmap_region = kernel_v4l2_buffers_.at( next_buffer_index );
+
+    try {
+      jpegdec_.begin_decoding( static_cast<string_view>( mmap_region ).substr( 0, buffer_info.bytesused ) );
+      jpegdec_.decode( raster );
+    } catch ( const exception& e ) {
+      cerr << "JPEG exception: " << e.what() << "\n";
+      jpegdec_ = JPEGDecompresser {};
+    }
+  }
 
   CheckSystemCall( "enqueue buffer", ioctl( camera_fd_.fd_num(), VIDIOC_QBUF, &buffer_info ) );
 

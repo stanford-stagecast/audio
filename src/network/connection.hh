@@ -46,7 +46,7 @@ public:
 
   uint32_t next_frame_needed() const { return receiver_.next_frame_needed(); }
   uint32_t unreceived_beyond_this_frame_index() const { return receiver_.unreceived_beyond_this_frame_index(); }
-  const PartialFrameStore<AudioFrame>& frames() const { return receiver_.frames(); }
+  const PartialFrameStore<FrameType>& frames() const { return receiver_.frames(); }
   void pop_frames( const size_t num ) { receiver_.pop_frames( num ); }
 
   uint8_t node_id() const { return node_id_; }

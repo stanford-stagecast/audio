@@ -5,6 +5,7 @@
 
 #include <x264.h>
 
+#include "formats.hh"
 #include "raster.hh"
 #include "spans.hh"
 
@@ -26,6 +27,7 @@ private:
   uint8_t fps_;
   uint32_t frame_num_ {};
 
+public:
   struct EncodedNAL
   {
     span<uint8_t> NAL;
@@ -33,6 +35,7 @@ private:
     int64_t dts;
   };
 
+private:
   std::optional<EncodedNAL> encoded_ {};
 
 public:
@@ -44,5 +47,9 @@ public:
 
   void encode( RasterYUV420& raster );
 
-  std::optional<EncodedNAL>& nal() { return encoded_; }
+  bool has_nal() const { return encoded_.has_value(); }
+
+  const EncodedNAL& nal() const { return encoded_.value(); }
+
+  void reset_nal() { encoded_.reset(); }
 };

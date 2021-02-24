@@ -35,6 +35,14 @@
 #include <optional>
 #include <unordered_map>
 
+class CameraFD : public FileDescriptor
+{
+public:
+  using FileDescriptor::FileDescriptor;
+
+  void buffer_dequeued() { register_read(); }
+};
+
 class Camera
 {
 private:
@@ -44,7 +52,7 @@ private:
   uint16_t width_;
   uint16_t height_;
 
-  FileDescriptor camera_fd_;
+  CameraFD camera_fd_;
   std::vector<MMap_Region> kernel_v4l2_buffers_;
   unsigned int next_buffer_index = 0;
   JPEGDecompresser jpegdec_ {};

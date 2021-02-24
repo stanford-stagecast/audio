@@ -48,7 +48,7 @@ public:
   size_t min_encode_cursor() const;
   size_t frame_index() const { return num_popped_; }
 
-  AudioFrame front_as_audioframe( const uint32_t frame_index ) const;
+  AudioFrame front( const uint32_t frame_index ) const;
 
   void encode_one_frame( const AudioChannel& ch1, const AudioChannel& ch2 );
 };

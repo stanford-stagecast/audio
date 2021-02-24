@@ -140,3 +140,33 @@ target_link_libraries ("example-video-server" util)
 
 target_link_libraries ("example-video-server" ${SSL_LDFLAGS})
 target_link_libraries ("example-video-server" ${SSL_LDFLAGS_OTHER})
+
+add_executable (stagecast-video-client "stagecast-video-client.cc")
+target_link_libraries ("stagecast-video-client" stats)
+target_link_libraries ("stagecast-video-client" video)
+target_link_libraries ("stagecast-video-client" control)
+target_link_libraries ("stagecast-video-client" playback)
+target_link_libraries ("stagecast-video-client" network)
+target_link_libraries ("stagecast-video-client" audio)
+target_link_libraries ("stagecast-video-client" crypto)
+target_link_libraries ("stagecast-video-client" util)
+
+target_link_libraries ("stagecast-video-client" "-no-pie")
+
+target_link_libraries ("stagecast-video-client" "-Wl,--static")
+
+target_link_libraries ("stagecast-video-client" ${V4L_LDFLAGS})
+target_link_libraries ("stagecast-video-client" ${V4L_LDFLAGS_OTHER})
+
+target_link_libraries ("stagecast-video-client" ${AVFormat_LDFLAGS})
+target_link_libraries ("stagecast-video-client" ${AVFormat_LDFLAGS_OTHER})
+
+target_link_libraries ("stagecast-video-client" ${Opus_LDFLAGS})
+target_link_libraries ("stagecast-video-client" ${Opus_LDFLAGS_OTHER})
+
+target_link_libraries ("stagecast-video-client" "-Wl,-Bdynamic")
+
+target_link_libraries ("stagecast-video-client" "-pthread")
+
+target_link_libraries ("stagecast-video-client" ${X264_LDFLAGS})
+target_link_libraries ("stagecast-video-client" ${X264_LDFLAGS_OTHER})

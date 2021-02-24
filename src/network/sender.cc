@@ -80,43 +80,6 @@ void NetworkSender<FrameType>::summary( ostream& out ) const
 }
 
 template<class FrameType>
-void NetworkSender<FrameType>::push_frame( OpusEncoderProcess& encoder )
-{
-  if ( frames_.range_begin() != frame_status_.range_begin() ) {
-    throw runtime_error( "NetworkSender internal error" );
-  }
-
-  /*
-  if ( encoder.frame_index() != next_frame_index_ ) {
-    throw runtime_error( "encoder/sender index mismatch" );
-  }
-  */
-
-  if ( next_frame_index_ < frames_.range_begin() ) {
-    throw runtime_error( "NetworkSender internal error: next_frame_index_ < frames_.range_begin()" );
-  }
-
-  if ( need_immediate_send_ ) {
-    throw runtime_error( "packet pushed but not sent" );
-  }
-
-  if ( next_frame_index_ >= frames_.range_end() ) {
-    const size_t frames_to_drop = next_frame_index_ - frames_.range_end() + 1;
-    frames_.pop( frames_to_drop );
-    frame_status_.pop( frames_to_drop );
-    stats_.frames_dropped += frames_to_drop;
-  }
-
-  frames_.at( next_frame_index_ ) = encoder.front_as_audioframe( next_frame_index_ );
-  frame_status_.at( next_frame_index_ ) = { true, false };
-  next_frame_index_++;
-
-  need_immediate_send_ = true;
-
-  encoder.pop_frame();
-}
-
-template<class FrameType>
 void NetworkSender<FrameType>::set_sender_section( typename Packet<FrameType>::SenderSection& p )
 {
   if ( frames_.range_begin() != frame_status_.range_begin() ) {

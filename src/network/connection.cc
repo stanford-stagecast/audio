@@ -2,6 +2,7 @@
 #include <iostream>
 
 #include "connection.hh"
+#include "video_source.hh"
 
 using namespace std;
 

@@ -29,14 +29,16 @@ static_assert( sizeof( AudioFrame ) == 128 );
 struct VideoChunk
 {
   uint32_t frame_index {};
+  bool end_of_nal {};
 
-  StackBuffer<0, uint16_t, 1200> slice {};
+  using Buffer = StackBuffer<0, uint16_t, 512>;
+  Buffer data {};
 
   uint16_t serialized_length() const;
   void serialize( Serializer& s ) const;
   void parse( Parser& p );
 
-  static constexpr uint8_t frames_per_packet = 1;
+  static constexpr uint8_t frames_per_packet = 2;
 };
 
 template<typename T>
