@@ -31,7 +31,7 @@ AudioFeed::AudioFeed( const uint32_t target_lag_samples,
 
 Client::Client( const uint8_t node_id, const uint8_t ch1_num, const uint8_t ch2_num, CryptoSession&& crypto )
   : connection_( 0, node_id, move( crypto ) )
-  , internal_feed_( 960, 120, 1920, true )
+  , internal_feed_( 480, 120, 960, true )
   , quality_feed_( 4800, 4800 - 960, 4800 + 960, false )
   , ch1_num_( ch1_num )
   , ch2_num_( ch2_num )
