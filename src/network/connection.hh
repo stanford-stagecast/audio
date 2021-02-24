@@ -17,7 +17,7 @@ class NetworkConnection : public Summarizable
 {
   char node_id_, peer_id_;
 
-  NetworkSender sender_ {};
+  AudioNetworkSender sender_ {};
   NetworkReceiver receiver_ {};
 
   CryptoSession crypto_;
@@ -53,6 +53,6 @@ public:
   uint8_t node_id() const { return node_id_; }
   uint8_t peer_id() const { return peer_id_; }
 
-  const NetworkSender::Statistics& sender_stats() const { return sender_.stats(); }
+  const AudioNetworkSender::Statistics& sender_stats() const { return sender_.stats(); }
   const NetworkReceiver::Statistics& receiver_stats() const { return receiver_.stats(); }
 };

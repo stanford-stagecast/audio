@@ -6,9 +6,10 @@
 #include "formats.hh"
 #include "typed_ring_buffer.hh"
 
+template<class FrameType>
 class NetworkSender
 {
-  struct AudioFrameStatus
+  struct FrameStatus
   {
     bool outstanding : 1;
     bool in_flight : 1;
@@ -16,8 +17,8 @@ class NetworkSender
     bool needs_send() const { return outstanding and not in_flight; }
   };
 
-  EndlessBuffer<AudioFrame> frames_ { 8192 }; // 20.48 seconds
-  EndlessBuffer<AudioFrameStatus> frame_status_ { 8192 };
+  EndlessBuffer<FrameType> frames_ { 8192 }; // 20.48 seconds
+  EndlessBuffer<FrameStatus> frame_status_ { 8192 };
   uint32_t next_frame_index_ {};
 
   constexpr static uint8_t reorder_window = 2; /* 2 packets, about 5 ms */
@@ -68,3 +69,5 @@ public:
 
   const Statistics& stats() const { return stats_; }
 };
+
+using AudioNetworkSender = NetworkSender<AudioFrame>;
