@@ -3,7 +3,8 @@
 
 using namespace std;
 
-void NetworkReceiver::receive_sender_section( const Packet::SenderSection& sender_section )
+template<class FrameType>
+void NetworkReceiver<FrameType>::receive_sender_section( const Packet::SenderSection& sender_section )
 {
   if ( not biggest_seqno_received_.has_value() ) {
     biggest_seqno_received_ = sender_section.sequence_number;
@@ -47,7 +48,8 @@ void NetworkReceiver::receive_sender_section( const Packet::SenderSection& sende
   }
 }
 
-void NetworkReceiver::discard_frames( const unsigned int num )
+template<class FrameType>
+void NetworkReceiver<FrameType>::discard_frames( const unsigned int num )
 {
   frames_.pop( num );
   stats_.dropped += num;
@@ -55,14 +57,16 @@ void NetworkReceiver::discard_frames( const unsigned int num )
   advance_next_frame_needed();
 }
 
-void NetworkReceiver::advance_next_frame_needed()
+template<class FrameType>
+void NetworkReceiver<FrameType>::advance_next_frame_needed()
 {
   while ( next_frame_needed_ < frames_.range_end() and frames_.at( next_frame_needed_ ).has_value() ) {
     next_frame_needed_++;
   }
 }
 
-void NetworkReceiver::set_receiver_section( Packet::ReceiverSection& receiver_section )
+template<class FrameType>
+void NetworkReceiver<FrameType>::set_receiver_section( Packet::ReceiverSection& receiver_section )
 {
   receiver_section.next_frame_needed = next_frame_needed_;
 
@@ -97,7 +101,8 @@ void NetworkReceiver::set_receiver_section( Packet::ReceiverSection& receiver_se
   }
 }
 
-void NetworkReceiver::summary( ostream& out ) const
+template<class FrameType>
+void NetworkReceiver<FrameType>::summary( ostream& out ) const
 {
   out << "Receiver info:";
 
@@ -148,7 +153,8 @@ void NetworkReceiver::summary( ostream& out ) const
   out << "\n";
 }
 
-void NetworkReceiver::pop_frames( const size_t num )
+template<class FrameType>
+void NetworkReceiver<FrameType>::pop_frames( const size_t num )
 {
   if ( num > next_frame_needed_ - frames_.range_begin() ) {
     throw std::out_of_range( "pop_frames: " + to_string( num ) + " > "
@@ -158,3 +164,5 @@ void NetworkReceiver::pop_frames( const size_t num )
   frames_.pop( num );
   stats_.popped += num;
 }
+
+template class NetworkReceiver<AudioFrame>;

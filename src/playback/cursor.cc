@@ -32,7 +32,7 @@ void Cursor::setup( const size_t global_sample_index, const size_t frontier_samp
   }
 }
 
-void Cursor::sample( const PartialFrameStore& frames,
+void Cursor::sample( const PartialFrameStore<AudioFrame>& frames,
                      const size_t frontier_sample_index,
                      OpusDecoderProcess& decoder,
                      RubberBand::RubberBandStretcher& stretcher,
@@ -164,7 +164,7 @@ void Cursor::summary( ostream& out ) const
   out << "\n";
 }
 
-size_t Cursor::ok_to_pop( const PartialFrameStore& frames ) const
+size_t Cursor::ok_to_pop( const PartialFrameStore<AudioFrame>& frames ) const
 {
   if ( not frame_cursor_.has_value() ) {
     return 0;

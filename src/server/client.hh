@@ -25,13 +25,13 @@ public:
 
   void summary( std::ostream& out ) const { cursor_.summary( out ); }
 
-  void decode_into( const PartialFrameStore& frames,
+  void decode_into( const PartialFrameStore<AudioFrame>& frames,
                     uint64_t cursor_sample,
                     const uint64_t frontier_sample_index,
                     AudioChannel& ch1,
                     AudioChannel& ch2 );
 
-  size_t ok_to_pop( const PartialFrameStore& frames ) const { return cursor_.ok_to_pop( frames ); }
+  size_t ok_to_pop( const PartialFrameStore<AudioFrame>& frames ) const { return cursor_.ok_to_pop( frames ); }
 };
 
 class Client

@@ -53,7 +53,7 @@ public:
     span_view<float> ch2_span() const { return { ch2.data(), length }; }
   };
 
-  void sample( const PartialFrameStore& frames,
+  void sample( const PartialFrameStore<AudioFrame>& frames,
                const size_t frontier_sample_index,
                OpusDecoderProcess& decoder,
                RubberBand::RubberBandStretcher& stretcher,
@@ -63,7 +63,7 @@ public:
   bool initialized() const { return frame_cursor_.has_value(); }
   void summary( std::ostream& out ) const;
 
-  size_t ok_to_pop( const PartialFrameStore& frames ) const;
+  size_t ok_to_pop( const PartialFrameStore<AudioFrame>& frames ) const;
 
   void set_target_lag( const unsigned int num_samples ) { target_lag_samples_ = num_samples; }
 

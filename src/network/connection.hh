@@ -18,7 +18,7 @@ class NetworkConnection : public Summarizable
   char node_id_, peer_id_;
 
   AudioNetworkSender sender_ {};
-  NetworkReceiver receiver_ {};
+  AudioNetworkReceiver receiver_ {};
 
   CryptoSession crypto_;
 
@@ -47,12 +47,12 @@ public:
 
   uint32_t next_frame_needed() const { return receiver_.next_frame_needed(); }
   uint32_t unreceived_beyond_this_frame_index() const { return receiver_.unreceived_beyond_this_frame_index(); }
-  const PartialFrameStore& frames() const { return receiver_.frames(); }
+  const PartialFrameStore<AudioFrame>& frames() const { return receiver_.frames(); }
   void pop_frames( const size_t num ) { receiver_.pop_frames( num ); }
 
   uint8_t node_id() const { return node_id_; }
   uint8_t peer_id() const { return peer_id_; }
 
   const AudioNetworkSender::Statistics& sender_stats() const { return sender_.stats(); }
-  const NetworkReceiver::Statistics& receiver_stats() const { return receiver_.stats(); }
+  const AudioNetworkReceiver::Statistics& receiver_stats() const { return receiver_.stats(); }
 };

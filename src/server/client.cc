@@ -48,7 +48,7 @@ bool Client::receive_packet( const Address& source, const Ciphertext& ciphertext
   return false;
 }
 
-void AudioFeed::decode_into( const PartialFrameStore& frames,
+void AudioFeed::decode_into( const PartialFrameStore<AudioFrame>& frames,
                              const uint64_t cursor_sample,
                              const uint64_t frontier_sample_index,
                              AudioChannel& ch1,
