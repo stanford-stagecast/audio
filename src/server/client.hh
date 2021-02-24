@@ -36,7 +36,7 @@ public:
 
 class Client
 {
-  NetworkConnection connection_;
+  AudioNetworkConnection connection_;
   AudioFeed internal_feed_, quality_feed_;
 
   ChannelPair mixed_audio_ { 8192 };
@@ -66,7 +66,7 @@ public:
   uint8_t node_id() const { return connection().node_id(); }
   uint8_t peer_id() const { return connection().peer_id(); }
 
-  const NetworkConnection& connection() const { return connection_; }
+  const AudioNetworkConnection& connection() const { return connection_; }
 
   void set_cursor_lag( const uint16_t ) {} /* XXX */
 };

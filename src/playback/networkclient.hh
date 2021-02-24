@@ -13,7 +13,7 @@ class NetworkClient : public Summarizable
 {
   struct NetworkSession
   {
-    NetworkConnection connection;
+    AudioNetworkConnection connection;
     Cursor cursor;
 
     NetworkSession( const uint8_t node_id, const KeyPair& session_key, const Address& destination );

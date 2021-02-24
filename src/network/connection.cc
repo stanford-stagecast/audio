@@ -5,17 +5,21 @@
 
 using namespace std;
 
-NetworkConnection::NetworkConnection( const char node_id,
-                                      const char peer_id,
-                                      CryptoSession&& crypto,
-                                      const Address& destination )
+template<class FrameType, class SourceType>
+NetworkConnection<FrameType, SourceType>::NetworkConnection( const char node_id,
+                                                             const char peer_id,
+                                                             CryptoSession&& crypto,
+                                                             const Address& destination )
   : NetworkConnection( node_id, peer_id, move( crypto ) )
 {
   auto_home_ = false;
   destination_.emplace( destination );
 }
 
-NetworkConnection::NetworkConnection( const char node_id, const char peer_id, CryptoSession&& crypto )
+template<class FrameType, class SourceType>
+NetworkConnection<FrameType, SourceType>::NetworkConnection( const char node_id,
+                                                             const char peer_id,
+                                                             CryptoSession&& crypto )
   : node_id_( node_id )
   , peer_id_( peer_id )
   , crypto_( move( crypto ) )
@@ -23,7 +27,8 @@ NetworkConnection::NetworkConnection( const char node_id, const char peer_id, Cr
   , destination_()
 {}
 
-void NetworkConnection::send_packet( UDPSocket& socket )
+template<class FrameType, class SourceType>
+void NetworkConnection<FrameType, SourceType>::send_packet( UDPSocket& socket )
 {
   if ( not has_destination() ) {
     throw runtime_error( "no destination" );
@@ -47,7 +52,8 @@ void NetworkConnection::send_packet( UDPSocket& socket )
   socket.sendto( destination_.value(), ciphertext );
 }
 
-bool NetworkConnection::receive_packet( const Ciphertext& ciphertext, const Address& source )
+template<class FrameType, class SourceType>
+bool NetworkConnection<FrameType, SourceType>::receive_packet( const Ciphertext& ciphertext, const Address& source )
 {
   if ( not receive_packet( ciphertext ) ) {
     return false;
@@ -67,7 +73,8 @@ bool NetworkConnection::receive_packet( const Ciphertext& ciphertext, const Addr
   return true;
 }
 
-bool NetworkConnection::receive_packet( const Ciphertext& ciphertext )
+template<class FrameType, class SourceType>
+bool NetworkConnection<FrameType, SourceType>::receive_packet( const Ciphertext& ciphertext )
 {
   /* decrypt */
   Plaintext plaintext;
@@ -92,7 +99,8 @@ bool NetworkConnection::receive_packet( const Ciphertext& ciphertext )
   return true;
 }
 
-void NetworkConnection::summary( ostream& out ) const
+template<class FrameType, class SourceType>
+void NetworkConnection<FrameType, SourceType>::summary( ostream& out ) const
 {
   if ( stats_.decryption_failures ) {
     out << "decryption_failures=" << stats_.decryption_failures << " ";
@@ -105,3 +113,5 @@ void NetworkConnection::summary( ostream& out ) const
   sender_.summary( out );
   receiver_.summary( out );
 }
+
+template class NetworkConnection<AudioFrame, OpusEncoderProcess>;

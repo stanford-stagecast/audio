@@ -11,14 +11,13 @@
 #include "socket.hh"
 #include "summarize.hh"
 
-class OpusEncoderProcess;
-
+template<class FrameType, class SourceType>
 class NetworkConnection : public Summarizable
 {
   char node_id_, peer_id_;
 
-  AudioNetworkSender sender_ {};
-  AudioNetworkReceiver receiver_ {};
+  NetworkSender<FrameType> sender_ {};
+  NetworkReceiver<FrameType> receiver_ {};
 
   CryptoSession crypto_;
 
@@ -38,7 +37,7 @@ public:
   bool has_destination() const { return destination_.has_value(); }
   const Address& destination() const { return destination_.value(); }
 
-  void push_frame( OpusEncoderProcess& source ) { sender_.push_frame( source ); }
+  void push_frame( SourceType& source ) { sender_.push_frame( source ); }
   void summary( std::ostream& out ) const override;
 
   void send_packet( UDPSocket& socket );
@@ -53,6 +52,8 @@ public:
   uint8_t node_id() const { return node_id_; }
   uint8_t peer_id() const { return peer_id_; }
 
-  const AudioNetworkSender::Statistics& sender_stats() const { return sender_.stats(); }
-  const AudioNetworkReceiver::Statistics& receiver_stats() const { return receiver_.stats(); }
+  const typename NetworkSender<FrameType>::Statistics& sender_stats() const { return sender_.stats(); }
+  const typename NetworkReceiver<FrameType>::Statistics& receiver_stats() const { return receiver_.stats(); }
 };
+
+using AudioNetworkConnection = NetworkConnection<AudioFrame, OpusEncoderProcess>;
