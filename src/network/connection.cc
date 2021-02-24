@@ -35,7 +35,7 @@ void NetworkConnection<FrameType, SourceType>::send_packet( UDPSocket& socket )
   }
 
   /* make packet to send */
-  Packet pack {};
+  Packet<FrameType> pack {};
   sender_.set_sender_section( pack.sender_section );
   receiver_.set_receiver_section( pack.receiver_section );
 
@@ -85,7 +85,7 @@ bool NetworkConnection<FrameType, SourceType>::receive_packet( const Ciphertext&
 
   /* parse */
   Parser parser { plaintext };
-  const Packet packet { parser };
+  const Packet<FrameType> packet { parser };
   if ( parser.error() ) {
     stats_.invalid++;
     parser.clear_error();

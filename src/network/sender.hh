@@ -27,7 +27,7 @@ class NetworkSender
 
   struct PacketSentRecord
   {
-    Packet::Record record;
+    typename Packet<FrameType>::Record record;
     uint64_t sent_timestamp;
     bool acked : 1;
     bool assumed_lost : 1;
@@ -62,8 +62,8 @@ private:
 public:
   void push_frame( OpusEncoderProcess& encoder );
 
-  void set_sender_section( Packet::SenderSection& p );
-  void receive_receiver_section( const Packet::ReceiverSection& receiver_section );
+  void set_sender_section( typename Packet<FrameType>::SenderSection& p );
+  void receive_receiver_section( const typename Packet<FrameType>::ReceiverSection& receiver_section );
 
   void summary( std::ostream& out ) const;
 

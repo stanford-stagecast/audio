@@ -4,7 +4,8 @@
 using namespace std;
 
 template<class FrameType>
-void NetworkReceiver<FrameType>::receive_sender_section( const Packet::SenderSection& sender_section )
+void NetworkReceiver<FrameType>::receive_sender_section(
+  const typename Packet<FrameType>::SenderSection& sender_section )
 {
   if ( not biggest_seqno_received_.has_value() ) {
     biggest_seqno_received_ = sender_section.sequence_number;
@@ -66,7 +67,8 @@ void NetworkReceiver<FrameType>::advance_next_frame_needed()
 }
 
 template<class FrameType>
-void NetworkReceiver<FrameType>::set_receiver_section( Packet::ReceiverSection& receiver_section )
+void NetworkReceiver<FrameType>::set_receiver_section(
+  typename Packet<FrameType>::ReceiverSection& receiver_section )
 {
   receiver_section.next_frame_needed = next_frame_needed_;
 
@@ -74,7 +76,7 @@ void NetworkReceiver<FrameType>::set_receiver_section( Packet::ReceiverSection& 
     receiver_section.packets_received.push_back( biggest_seqno_received_.value() );
   }
 
-  const span_view<Packet::Record> recent = recent_packets_.readable_region();
+  const span_view<typename Packet<FrameType>::Record> recent = recent_packets_.readable_region();
   for ( auto it = recent.end() - 1; it >= recent.begin(); --it ) {
     const auto& p = *it;
     if ( p.sequence_number == biggest_seqno_received_ ) {

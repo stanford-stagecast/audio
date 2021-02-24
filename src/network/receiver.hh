@@ -31,7 +31,7 @@ class NetworkReceiver
 
   std::optional<uint32_t> biggest_seqno_received_ {};
 
-  TypedRingBuffer<Packet::Record> recent_packets_ { 512 };
+  TypedRingBuffer<typename Packet<FrameType>::Record> recent_packets_ { 512 };
 
   void discard_frames( const unsigned int num );
   void advance_next_frame_needed();
@@ -47,8 +47,8 @@ private:
   Statistics stats_ {};
 
 public:
-  void receive_sender_section( const Packet::SenderSection& sender_section );
-  void set_receiver_section( Packet::ReceiverSection& receiver_section );
+  void receive_sender_section( const typename Packet<FrameType>::SenderSection& sender_section );
+  void set_receiver_section( typename Packet<FrameType>::ReceiverSection& receiver_section );
 
   void summary( std::ostream& out ) const;
 

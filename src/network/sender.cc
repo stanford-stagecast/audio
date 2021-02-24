@@ -117,7 +117,7 @@ void NetworkSender<FrameType>::push_frame( OpusEncoderProcess& encoder )
 }
 
 template<class FrameType>
-void NetworkSender<FrameType>::set_sender_section( Packet::SenderSection& p )
+void NetworkSender<FrameType>::set_sender_section( typename Packet<FrameType>::SenderSection& p )
 {
   if ( frames_.range_begin() != frame_status_.range_begin() ) {
     throw runtime_error( "NetworkSender internal error" );
@@ -206,7 +206,8 @@ void NetworkSender<FrameType>::assume_departed( const PacketSentRecord& pack, co
 }
 
 template<class FrameType>
-void NetworkSender<FrameType>::receive_receiver_section( const Packet::ReceiverSection& receiver_section )
+void NetworkSender<FrameType>::receive_receiver_section(
+  const typename Packet<FrameType>::ReceiverSection& receiver_section )
 {
   if ( frames_.range_begin() != frame_status_.range_begin() ) {
     throw runtime_error( "NetworkSender internal error" );

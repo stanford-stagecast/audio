@@ -20,6 +20,8 @@ struct AudioFrame
   uint8_t serialized_length() const;
   void serialize( Serializer& s ) const;
   void parse( Parser& p );
+
+  static constexpr uint8_t frames_per_packet = 8;
 };
 
 static_assert( sizeof( AudioFrame ) == 128 );
@@ -115,18 +117,19 @@ public:
   }
 };
 
+template<class FrameType>
 struct Packet
 {
   struct Record
   {
     uint32_t sequence_number {};
-    NetArray<NetInteger<uint32_t>, 8> frames {};
+    NetArray<NetInteger<uint32_t>, FrameType::frames_per_packet> frames {};
   };
 
   struct SenderSection
   {
     uint32_t sequence_number {};
-    NetArray<AudioFrame, 8> frames {};
+    NetArray<FrameType, FrameType::frames_per_packet> frames {};
 
     Record to_record() const;
   } sender_section {};
@@ -144,6 +147,8 @@ struct Packet
   Packet() {}
   Packet( Parser& p ) { parse( p ); }
 };
+
+using AudioPacket = Packet<AudioFrame>;
 
 struct KeyMessage
 {
