@@ -170,3 +170,28 @@ target_link_libraries ("stagecast-video-client" "-pthread")
 
 target_link_libraries ("stagecast-video-client" ${X264_LDFLAGS})
 target_link_libraries ("stagecast-video-client" ${X264_LDFLAGS_OTHER})
+
+add_executable (stagecast-video-server "stagecast-video-server.cc")
+target_link_libraries ("stagecast-video-server" stats)
+target_link_libraries ("stagecast-video-server" video)
+target_link_libraries ("stagecast-video-server" server)
+target_link_libraries ("stagecast-video-server" playback)
+target_link_libraries ("stagecast-video-server" network)
+target_link_libraries ("stagecast-video-server" audio)
+target_link_libraries ("stagecast-video-server" crypto)
+target_link_libraries ("stagecast-video-server" util)
+
+target_link_libraries ("stagecast-video-server" ${ALSA_LDFLAGS})
+target_link_libraries ("stagecast-video-server" ${ALSA_LDFLAGS_OTHER})
+
+target_link_libraries ("stagecast-video-server" ${Opus_LDFLAGS})
+target_link_libraries ("stagecast-video-server" ${Opus_LDFLAGS_OTHER})
+
+target_link_libraries ("stagecast-video-server" ${Sndfile_LDFLAGS})
+target_link_libraries ("stagecast-video-server" ${Sndfile_LDFLAGS_OTHER})
+
+target_link_libraries ("stagecast-video-server" ${AVFormat_LDFLAGS})
+target_link_libraries ("stagecast-video-server" ${AVFormat_LDFLAGS_OTHER})
+
+target_link_libraries ("stagecast-video-server" ${Rubberband_LDFLAGS})
+target_link_libraries ("stagecast-video-server" ${Rubberband_LDFLAGS_OTHER})

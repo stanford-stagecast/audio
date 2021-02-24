@@ -53,7 +53,7 @@ void program_body( const string& device, const string& host, const string& servi
 
   auto video_source = make_shared<VideoSource>();
 
-  VideoClient client { stagecast_server, key, video_source, *loop };
+  auto client = make_shared<VideoClient>( stagecast_server, key, video_source, *loop );
 
   loop->add_rule( "encode frame", camera.fd(), Direction::In, [&] {
     camera.get_next_frame( camera_raster );
@@ -65,6 +65,7 @@ void program_body( const string& device, const string& host, const string& servi
 
   /* Print out statistics to terminal */
   StatsPrinterTask stats_printer { loop };
+  stats_printer.add( client );
 
   while ( loop->wait_next_event( video_source->wait_time_ms( Timer::timestamp_ns() ) )
           != EventLoop::Result::Exit ) {
