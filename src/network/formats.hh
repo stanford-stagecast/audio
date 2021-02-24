@@ -26,6 +26,19 @@ struct AudioFrame
 
 static_assert( sizeof( AudioFrame ) == 128 );
 
+struct VideoChunk
+{
+  uint32_t frame_index {};
+
+  StackBuffer<0, uint16_t, 1200> slice {};
+
+  uint16_t serialized_length() const;
+  void serialize( Serializer& s ) const;
+  void parse( Parser& p );
+
+  static constexpr uint8_t frames_per_packet = 1;
+};
+
 template<typename T>
 struct NetInteger
 {
@@ -147,8 +160,6 @@ struct Packet
   Packet() {}
   Packet( Parser& p ) { parse( p ); }
 };
-
-using AudioPacket = Packet<AudioFrame>;
 
 struct KeyMessage
 {

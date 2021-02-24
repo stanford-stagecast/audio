@@ -69,5 +69,3 @@ public:
 
   const Statistics& stats() const { return stats_; }
 };
-
-using AudioNetworkSender = NetworkSender<AudioFrame>;

@@ -36,6 +36,23 @@ void AudioFrame::parse( Parser& p )
   }
 }
 
+uint16_t VideoChunk::serialized_length() const
+{
+  return sizeof( frame_index ) + slice.serialized_length();
+}
+
+void VideoChunk::serialize( Serializer& s ) const
+{
+  s.integer( frame_index );
+  s.object( slice );
+}
+
+void VideoChunk::parse( Parser& p )
+{
+  p.integer( frame_index );
+  p.object( slice );
+}
+
 template<class FrameType>
 uint32_t Packet<FrameType>::serialized_length() const
 {
@@ -77,7 +94,8 @@ typename Packet<FrameType>::Record Packet<FrameType>::SenderSection::to_record()
   return ret;
 }
 
-template class Packet<AudioFrame>;
+template struct Packet<AudioFrame>;
+template struct Packet<VideoChunk>;
 
 void KeyMessage::serialize( Serializer& s ) const
 {
