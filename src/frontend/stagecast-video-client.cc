@@ -55,13 +55,29 @@ void program_body( const string& device, const string& host, const string& servi
 
   auto client = make_shared<VideoClient>( stagecast_server, key, video_source, *loop );
 
-  loop->add_rule( "encode frame", camera.fd(), Direction::In, [&] {
+  unsigned int frames_fetched_ {}, frames_scaled_ {}, frames_encoded_ {};
+  loop->add_rule( "read camera frame", camera.fd(), Direction::In, [&] {
     camera.get_next_frame( camera_raster );
-    scaler.scale( camera_raster, output_raster );
-    encoder.encode( output_raster );
-    video_source->push( encoder.nal(), Timer::timestamp_ns() );
-    encoder.reset_nal();
+    frames_fetched_++;
   } );
+
+  loop->add_rule(
+    "scale frame",
+    [&] {
+      scaler.scale( camera_raster, output_raster );
+      frames_scaled_++;
+    },
+    [&] { return frames_fetched_ > frames_scaled_; } );
+
+  loop->add_rule(
+    "encode",
+    [&] {
+      encoder.encode( output_raster );
+      video_source->push( encoder.nal(), Timer::timestamp_ns() );
+      encoder.reset_nal();
+      frames_encoded_++;
+    },
+    [&] { return frames_scaled_ > frames_encoded_; } );
 
   /* Print out statistics to terminal */
   StatsPrinterTask stats_printer { loop };

@@ -146,7 +146,6 @@ void WebMWriter::write( opus_frame& frame, const uint64_t starting_sample_number
   av_check( av_write_frame( context_.get(), &packet ) );
   av_check( av_write_frame( context_.get(), nullptr ) );
   avio_flush( context_->pb );
-  stream_socket_.sendto( stream_destination1_, buf_.readable_region() );
-  stream_socket_.sendto( stream_destination2_, buf_.readable_region() );
+  stream_socket_.sendto( stream_destination_, buf_.readable_region() );
   buf_.pop( buf_.readable_region().size() );
 }

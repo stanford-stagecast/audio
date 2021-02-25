@@ -34,6 +34,8 @@ public:
   uint8_t peer_id() const { return connection().peer_id(); }
 
   const VideoNetworkConnection& connection() const { return connection_; }
+
+  RasterYUV420& raster() { return raster_; }
 };
 
 class KnownVideoClient

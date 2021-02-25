@@ -58,6 +58,10 @@ public:
   uint8_t* Cb_row( const uint16_t y ) { return &Cb_.at( y * chroma_width() ); }
   uint8_t* Cr_row( const uint16_t y ) { return &Cr_.at( y * chroma_width() ); }
 
+  const uint8_t* Y_row( const uint16_t y ) const { return &Y_.at( y * width() ); }
+  const uint8_t* Cb_row( const uint16_t y ) const { return &Cb_.at( y * chroma_width() ); }
+  const uint8_t* Cr_row( const uint16_t y ) const { return &Cr_.at( y * chroma_width() ); }
+
   std::array<uint8_t**, 3> rows( const uint16_t y )
   {
     return { &Y_rows_.at( y ), &Cb_rows_.at( y ), &Cr_rows_.at( y ) };

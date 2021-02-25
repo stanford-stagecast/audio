@@ -33,8 +33,7 @@ class WebMWriter
 
   AVStream* audio_stream_;
 
-  Address stream_destination1_ { "127.0.0.1", 9014 };
-  Address stream_destination2_ { "127.0.0.1", 9015 };
+  Address stream_destination_ { "127.0.0.1", 9015 };
   UDPSocket stream_socket_ {};
 
   static constexpr unsigned int BUF_SIZE = 65536;

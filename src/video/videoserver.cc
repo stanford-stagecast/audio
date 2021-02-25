@@ -33,15 +33,9 @@ void VideoServer::add_key( const LongLivedKey& key )
        << int( ch2 ) << "\n";
 }
 
-void VideoServer::initialize_clock()
-{
-  next_cursor_sample_ = server_clock() + opus_frame::NUM_SAMPLES_MINLATENCY;
-}
-
 VideoServer::VideoServer( const uint8_t num_clients, EventLoop& loop )
   : socket_()
   , global_ns_timestamp_at_creation_( Timer::timestamp_ns() )
-  , next_cursor_sample_( server_clock() + opus_frame::NUM_SAMPLES_MINLATENCY )
   , num_clients_( num_clients )
   , next_ack_ts_ { Timer::timestamp_ns() }
 {
@@ -83,11 +77,31 @@ VideoServer::VideoServer( const uint8_t num_clients, EventLoop& loop )
       next_ack_ts_ = Timer::timestamp_ns() + 5'000'000;
     },
     [&] { return Timer::timestamp_ns() > next_ack_ts_; } );
+
+  loop.add_rule(
+    "encode [camera]",
+    [&] {
+      RasterYUV420& output = clients_.at( camera_feed_live_no_ )
+                               ? clients_.at( camera_feed_live_no_ ).client().raster()
+                               : default_raster_;
+      camera_feed_.encode( output );
+      if ( camera_feed_.has_nal() ) {
+        camera_broadcast_socket_.sendto(
+          camera_destination_,
+          { reinterpret_cast<const char*>( camera_feed_.nal().NAL.data() ), camera_feed_.nal().NAL.size() } );
+        camera_feed_.reset_nal();
+      }
+    },
+    [&] { return server_clock() >= camera_feed_.frames_encoded() and not camera_feed_.has_nal(); } );
 }
 
 void VideoServer::summary( ostream& out ) const
 {
-  out << "bad packets: " << stats_.bad_packets << "\n";
+  out << "bad packets: " << stats_.bad_packets;
+  out << " camera frames encoded: " << camera_feed_.frames_encoded();
+  out << " live now: "
+      << ( clients_.at( camera_feed_live_no_ ) ? clients_.at( camera_feed_live_no_ ).name() : "none" );
+  out << "\n";
   for ( const auto& client : clients_ ) {
     if ( client ) {
       out << "#" << int( client.client().peer_id() ) << ": ";

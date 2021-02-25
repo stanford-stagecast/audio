@@ -31,13 +31,9 @@ void program_body( const vector<string>& keyfiles )
     server->add_key( LongLivedKey { p } );
   }
 
-  H264Decoder decoder {};
-
   /* Print out statistics to terminal */
   StatsPrinterTask stats_printer { loop };
   stats_printer.add( server );
-
-  server->initialize_clock();
 
   /* Start audio device and event loop */
   while ( loop->wait_next_event( 1 ) != EventLoop::Result::Exit ) {

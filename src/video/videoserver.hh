@@ -15,7 +15,6 @@ class VideoServer : public Summarizable
 
   UDPSocket socket_;
   uint64_t global_ns_timestamp_at_creation_;
-  uint64_t next_cursor_sample_;
   uint64_t server_clock() const;
 
   void receive_keyrequest( const Address& src, const Ciphertext& ciphertext );
@@ -29,6 +28,12 @@ class VideoServer : public Summarizable
   {
     unsigned int bad_packets;
   } stats_ {};
+
+  RasterYUV420 default_raster_ { 1280, 720 };
+  H264Encoder camera_feed_ { 1280, 720, 24, "veryfast", "zerolatency" };
+  uint8_t camera_feed_live_no_ {};
+  Address camera_destination_ { "127.0.0.1", 9115 };
+  UDPSocket camera_broadcast_socket_ {};
 
   void summary( std::ostream& out ) const override;
 

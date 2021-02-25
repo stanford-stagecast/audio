@@ -52,4 +52,6 @@ public:
   const EncodedNAL& nal() const { return encoded_.value(); }
 
   void reset_nal() { encoded_.reset(); }
+
+  uint32_t frames_encoded() const { return frame_num_; }
 };
