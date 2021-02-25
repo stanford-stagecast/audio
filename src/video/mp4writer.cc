@@ -4,26 +4,10 @@
 
 #include <iostream>
 
+#include "av_check.hh"
 #include "mp4writer.hh"
 
 using namespace std;
-
-int MP4Writer::av_check( const int retval )
-{
-  static array<char, 256> errbuf;
-
-  if ( retval < 0 ) {
-    if ( av_strerror( retval, errbuf.data(), errbuf.size() ) < 0 ) {
-      throw runtime_error( "av_strerror: error code not found" );
-    }
-
-    errbuf.back() = 0;
-
-    throw runtime_error( "libav error: " + string( errbuf.data() ) );
-  }
-
-  return retval;
-}
 
 int write_helper( void* rb_opaque, uint8_t* buf, int buf_size )
 {

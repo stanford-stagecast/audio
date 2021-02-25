@@ -47,6 +47,8 @@ Camera::Camera( const uint16_t width, const uint16_t height, const string& devic
   , camera_fd_( CheckSystemCall( "open camera", open( device_name.c_str(), O_RDWR ) ) )
   , kernel_v4l2_buffers_()
 {
+  camera_fd_.set_blocking( false );
+
   v4l2_capability cap {};
   CheckSystemCall( "ioctl", ioctl( camera_fd_.fd_num(), VIDIOC_QUERYCAP, &cap ) );
 
@@ -130,12 +132,12 @@ void Camera::get_next_frame( RasterYUV422& raster )
   buffer_info.type = capture_type;
   buffer_info.memory = V4L2_MEMORY_MMAP;
   buffer_info.index = next_buffer_index;
+  buffer_info.bytesused = 0;
 
   CheckSystemCall( "dequeue buffer", ioctl( camera_fd_.fd_num(), VIDIOC_DQBUF, &buffer_info ) );
-
   camera_fd_.buffer_dequeued();
 
-  if ( buffer_info.bytesused > 16 ) {
+  if ( buffer_info.bytesused > 16 and not( buffer_info.flags & V4L2_BUF_FLAG_ERROR ) ) {
     const MMap_Region& mmap_region = kernel_v4l2_buffers_.at( next_buffer_index );
 
     try {

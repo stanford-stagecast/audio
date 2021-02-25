@@ -41,8 +41,6 @@ class MP4Writer
   bool header_written_;
   unsigned int frame_rate_, width_, height_;
 
-  static int av_check( const int retval );
-
 public:
   MP4Writer( const unsigned int frame_rate, const unsigned int width, const unsigned int height );
 

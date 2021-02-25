@@ -69,9 +69,15 @@ VideoServer::VideoServer( const uint8_t num_clients, EventLoop& loop )
   loop.add_rule(
     "send acks",
     [&] {
+      const uint64_t ts_now = Timer::timestamp_ns();
+
       for ( auto& client : clients_ ) {
         if ( client ) {
           client.client().send_packet( socket_ );
+
+          if ( client.client().connection().sender_stats().last_good_ack_ts + CLIENT_TIMEOUT_NS < ts_now ) {
+            client.clear_current_session();
+          }
         }
       }
       next_ack_ts_ = Timer::timestamp_ns() + 5'000'000;

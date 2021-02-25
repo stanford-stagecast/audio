@@ -9,6 +9,7 @@
 #include "controller.hh"
 #include "encoder_task.hh"
 #include "eventloop.hh"
+#include "h264_decoder.hh"
 #include "stats_printer.hh"
 #include "videoserver.hh"
 
@@ -29,6 +30,8 @@ void program_body( const vector<string>& keyfiles )
     Parser p { file };
     server->add_key( LongLivedKey { p } );
   }
+
+  H264Decoder decoder {};
 
   /* Print out statistics to terminal */
   StatsPrinterTask stats_printer { loop };

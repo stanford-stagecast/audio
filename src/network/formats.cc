@@ -38,7 +38,7 @@ void AudioFrame::parse( Parser& p )
 
 uint16_t VideoChunk::serialized_length() const
 {
-  return sizeof( frame_index ) + data.serialized_length();
+  return sizeof( frame_index ) + sizeof( nal_index ) + data.serialized_length();
 }
 
 void VideoChunk::serialize( Serializer& s ) const
@@ -46,6 +46,7 @@ void VideoChunk::serialize( Serializer& s ) const
   const uint32_t first_word = ( end_of_nal << 31 ) | ( frame_index & 0x7FFF'FFFF );
 
   s.integer( first_word );
+  s.integer( nal_index );
   s.object( data );
 }
 
@@ -55,6 +56,8 @@ void VideoChunk::parse( Parser& p )
   p.integer( first_word );
   frame_index = first_word & 0x7FFF'FFFF;
   end_of_nal = first_word & 0x8000'0000;
+
+  p.integer( nal_index );
 
   p.object( data );
 }

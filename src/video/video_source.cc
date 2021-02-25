@@ -1,4 +1,5 @@
 #include "video_source.hh"
+#include "timer.hh"
 
 using namespace std;
 
@@ -6,8 +7,12 @@ static constexpr uint64_t frame_interval = 40'000'000; /* almost 1/24 s */
 
 void VideoSource::push( const H264Encoder::EncodedNAL& nal, const uint64_t now )
 {
+  if ( next_nal_index_ == 0 ) {
+    beginning_time_ = Timer::timestamp_ns();
+  }
+
   const string nal_as_string { reinterpret_cast<const char*>( nal.NAL.data() ), nal.NAL.size() };
-  outbound_queue_.push( { now + frame_interval, 0, move( nal_as_string ) } );
+  outbound_queue_.push( { next_nal_index_++, now + frame_interval, 0, move( nal_as_string ) } );
 
   if ( not timestamp_next_chunk_.has_value() ) {
     timestamp_next_chunk_.emplace( now );
@@ -91,6 +96,7 @@ VideoChunk VideoSource::front( const uint32_t frame_index ) const
 {
   VideoChunk ret;
   ret.frame_index = frame_index;
+  ret.nal_index = outbound_queue_.front().nal_index;
 
   ret.data.resize( outbound_queue_.front().next_chunk_size() );
   ret.data.mutable_buffer().copy( outbound_queue_.front().next_chunk() );
@@ -98,6 +104,13 @@ VideoChunk VideoSource::front( const uint32_t frame_index ) const
   ret.end_of_nal = outbound_queue_.front().last_chunk();
 
   return ret;
+}
+
+void VideoSource::summary( ostream& out ) const
+{
+  out << "next NAL: " << next_nal_index_;
+  out << " fps: " << next_nal_index_ / ( double( Timer::timestamp_ns() - beginning_time_ ) / 1000000000.0 );
+  out << "\n";
 }
 
 #include "connection.cc"

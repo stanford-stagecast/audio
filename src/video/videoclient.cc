@@ -61,7 +61,13 @@ VideoClient::VideoClient( const Address& server,
 
   loop.add_rule(
     "network transmit",
-    [&] { session_->transmit_frame( *source_, socket_ ); },
+    [&] {
+      session_->transmit_frame( *source_, socket_ );
+      if ( session_->connection.sender_stats().last_good_ack_ts + 4'000'000'000 < Timer::timestamp_ns() ) {
+        stats_.timeouts++;
+        session_.reset();
+      }
+    },
     [&] { return source_->ready( Timer::timestamp_ns() ) and session_.has_value(); } );
 
   loop.add_rule(

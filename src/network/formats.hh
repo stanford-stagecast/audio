@@ -28,8 +28,10 @@ static_assert( sizeof( AudioFrame ) == 128 );
 
 struct VideoChunk
 {
-  uint32_t frame_index {};
+  uint32_t frame_index {}; /* index of this chunk (not video frame) */
   bool end_of_nal {};
+
+  uint32_t nal_index {};
 
   using Buffer = StackBuffer<0, uint16_t, 512>;
   Buffer data {};

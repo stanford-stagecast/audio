@@ -66,6 +66,7 @@ void program_body( const string& device, const string& host, const string& servi
   /* Print out statistics to terminal */
   StatsPrinterTask stats_printer { loop };
   stats_printer.add( client );
+  stats_printer.add( video_source );
 
   while ( loop->wait_next_event( video_source->wait_time_ms( Timer::timestamp_ns() ) )
           != EventLoop::Result::Exit ) {

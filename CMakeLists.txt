@@ -31,6 +31,10 @@ pkg_check_modules ( AVFormat REQUIRED libavformat libavutil )
 include_directories ( ${AVFormat_INCLUDE_DIRS} )
 add_compile_options ( ${AVFormat_CFLAGS} )
 
+pkg_check_modules ( AVCodec REQUIRED libavcodec libavutil )
+include_directories ( ${AVCodec_INCLUDE_DIRS} )
+add_compile_options ( ${AVCodec_CFLAGS} )
+
 pkg_check_modules ( SSL REQUIRED libssl libcrypto )
 include_directories ( ${SSL_INCLUDE_DIRS} )
 add_compile_options ( ${SSL_CFLAGS} )

@@ -2,6 +2,7 @@
 
 #include "formats.hh"
 #include "h264_encoder.hh"
+#include "summarize.hh"
 #include "timestamp.hh"
 #include "typed_ring_buffer.hh"
 
@@ -9,10 +10,11 @@
 #include <string>
 #include <string_view>
 
-class VideoSource
+class VideoSource : public Summarizable
 {
   struct TimedNAL
   {
+    uint32_t nal_index;
     uint64_t timestamp_completion;
     size_t offset;
     std::string nal;
@@ -23,6 +25,8 @@ class VideoSource
     bool last_chunk() const;
   };
 
+  uint64_t beginning_time_ {};
+  uint32_t next_nal_index_ {};
   std::queue<TimedNAL> outbound_queue_ {};
   std::optional<uint64_t> timestamp_next_chunk_ {};
 
@@ -36,4 +40,6 @@ public:
   bool has_frame() const;
   void pop_frame();
   VideoChunk front( const uint32_t frame_index ) const;
+
+  void summary( std::ostream& out ) const override;
 };

@@ -21,7 +21,7 @@ void program_body()
 
   FileDescriptor output { CheckSystemCall( "dup STDERR_FILENO", dup( STDOUT_FILENO ) ) };
 
-  Camera camera { 3840, 2160, "/dev/video0" };
+  Camera camera { 3840, 2160, "/dev/video2" };
 
   RasterYUV422 camera_raster { 3840, 2160 };
   RasterYUV420 output_raster { 1280, 720 };
@@ -44,6 +44,7 @@ void program_body()
       writer_.write( encoder.nal().NAL, encoder.nal().pts, encoder.nal().dts );
 
       byte_count += encoder.nal().NAL.size();
+      encoder.reset_nal();
     }
 
     //    YUV4MPEGFrameWriter::write( output_raster, output );
@@ -62,14 +63,12 @@ void program_body()
 
 int main()
 {
-  //  try {
-  program_body();
-  /*
-} catch ( const exception& e ) {
-  cerr << "Exception: " << e.what() << "\n";
-  return EXIT_FAILURE;
-}
-  */
+  try {
+    program_body();
+  } catch ( const exception& e ) {
+    cerr << "Exception: " << e.what() << "\n";
+    return EXIT_FAILURE;
+  }
 
   return EXIT_SUCCESS;
 }

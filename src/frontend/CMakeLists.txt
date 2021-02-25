@@ -193,5 +193,8 @@ target_link_libraries ("stagecast-video-server" ${Sndfile_LDFLAGS_OTHER})
 target_link_libraries ("stagecast-video-server" ${AVFormat_LDFLAGS})
 target_link_libraries ("stagecast-video-server" ${AVFormat_LDFLAGS_OTHER})
 
+target_link_libraries ("stagecast-video-server" ${AVCodec_LDFLAGS})
+target_link_libraries ("stagecast-video-server" ${AVCodec_LDFLAGS_OTHER})
+
 target_link_libraries ("stagecast-video-server" ${Rubberband_LDFLAGS})
 target_link_libraries ("stagecast-video-server" ${Rubberband_LDFLAGS_OTHER})

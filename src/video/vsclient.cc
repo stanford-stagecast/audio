@@ -7,8 +7,6 @@ using Option = RubberBand::RubberBandStretcher::Option;
 
 VSClient::VSClient( const uint8_t node_id, CryptoSession&& crypto )
   : connection_( 0, node_id, move( crypto ) )
-  , output_( CheckSystemCall( "/tmp/serverout.h264",
-                              open( "/tmp/serverout.h264", O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR ) ) )
 {}
 
 bool VSClient::receive_packet( const Address& source, const Ciphertext& ciphertext )
@@ -16,7 +14,21 @@ bool VSClient::receive_packet( const Address& source, const Ciphertext& cipherte
   const bool ret = connection_.receive_packet( ciphertext, source );
 
   while ( connection_.next_frame_needed() > connection_.frames().range_begin() ) {
-    output_.write( connection_.frames().at( connection_.frames().range_begin() ).value().data );
+    const VideoChunk& chunk = connection_.frames().at( connection_.frames().range_begin() ).value();
+    const size_t new_size = current_nal_.length() + chunk.data.length();
+    if ( new_size + AV_INPUT_BUFFER_PADDING_SIZE > current_nal_.capacity() ) {
+      throw runtime_error( "NAL too big" );
+    }
+
+    memcpy( current_nal_.mutable_data_ptr() + current_nal_.length(), chunk.data.data_ptr(), chunk.data.length() );
+    current_nal_.resize( new_size );
+
+    if ( chunk.end_of_nal ) {
+      decoder_.decode( current_nal_.as_string_view(), raster_ );
+      NALs_decoded_++;
+      current_nal_.resize( 0 );
+    }
+
     connection_.pop_frames( 1 );
   }
 
@@ -35,6 +47,7 @@ void VSClient::summary( ostream& out ) const
   if ( connection_.has_destination() ) {
     out << " (" << connection_.destination().to_string() << ") ";
   }
+  out << "video frames decoded: " << NALs_decoded_ << "\n";
   connection_.summary( out );
 }
 

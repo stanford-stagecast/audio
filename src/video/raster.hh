@@ -65,8 +65,8 @@ public:
 
   RasterYUV( const RasterYUV& other ) = delete;
   RasterYUV& operator=( const RasterYUV& other ) = delete;
-  RasterYUV( RasterYUV&& other ) = delete;
-  RasterYUV& operator=( RasterYUV&& other ) = delete;
+  RasterYUV( RasterYUV&& other ) = default;
+  RasterYUV& operator=( RasterYUV&& other ) = default;
 };
 
 class RasterYUV422 : public RasterYUV

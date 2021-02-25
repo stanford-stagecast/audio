@@ -8,6 +8,7 @@
 #include "connection.hh"
 #include "crypto.hh"
 #include "cursor.hh"
+#include "h264_decoder.hh"
 #include "keys.hh"
 #include "videoclient.hh"
 
@@ -18,7 +19,11 @@ class VSClient
 public:
   VSClient( const uint8_t node_id, CryptoSession&& crypto );
 
-  FileDescriptor output_;
+  H264Decoder decoder_ {};
+  RasterYUV420 raster_ { 1280, 720 };
+  StackBuffer<0, uint32_t, 1048576> current_nal_ {};
+
+  unsigned int NALs_decoded_ {};
 
   bool receive_packet( const Address& source, const Ciphertext& ciphertext );
   void send_packet( UDPSocket& sock );
