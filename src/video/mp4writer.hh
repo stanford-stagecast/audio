@@ -30,9 +30,6 @@ class MP4Writer
 
   AVStream* video_stream_;
 
-  Address stream_destination_ { "127.0.0.1", 9016 };
-  UDPSocket stream_socket_ {};
-
   static constexpr unsigned int BUF_SIZE = 1048576;
   RingBuffer buf_ { BUF_SIZE };
 
@@ -46,7 +43,9 @@ public:
 
   ~MP4Writer();
 
-  void write( span<uint8_t> nal, const int64_t pts, const int64_t dts );
+  void write( const std::string_view nal, const uint32_t presentation_no, const uint32_t display_no );
+
+  RingBuffer& output() { return buf_; }
 
   MP4Writer( const MP4Writer& other ) = delete;
   MP4Writer& operator=( const MP4Writer& other ) = delete;

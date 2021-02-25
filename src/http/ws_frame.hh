@@ -37,6 +37,8 @@ struct WebSocketFrame
   bool operator!=( const WebSocketFrame& other ) const { return not operator==( other ); }
 
   void clear();
+
+  static constexpr uint8_t max_overhead() { return 14; }
 };
 
 template<size_t target_length>

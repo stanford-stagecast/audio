@@ -119,21 +119,6 @@ target_link_libraries ("example-ws-server" ${SSL_LDFLAGS_OTHER})
 target_link_libraries ("example-ws-server" ${CryptoPP_LDFLAGS})
 target_link_libraries ("example-ws-server" ${CryptoPP_LDFLAGS_OTHER})
 
-add_executable (webcam-demo "webcam-demo.cc")
-target_link_libraries ("webcam-demo" video)
-target_link_libraries ("webcam-demo" util)
-
-target_link_libraries ("webcam-demo" ${V4L_LDFLAGS})
-target_link_libraries ("webcam-demo" ${V4L_LDFLAGS_OTHER})
-
-target_link_libraries ("webcam-demo" ${X264_LDFLAGS})
-target_link_libraries ("webcam-demo" ${X264_LDFLAGS_OTHER})
-
-target_link_libraries ("webcam-demo" ${AVFormat_LDFLAGS})
-target_link_libraries ("webcam-demo" ${AVFormat_LDFLAGS_OTHER})
-
-target_link_libraries ("webcam-demo" "-pthread")
-
 add_executable (example-video-server "example-video-server.cc")
 target_link_libraries ("example-video-server" stats)
 target_link_libraries ("example-video-server" util)
@@ -204,3 +189,17 @@ target_link_libraries ("stagecast-video-server" ${X264_LDFLAGS_OTHER})
 
 target_link_libraries ("stagecast-video-server" "-pthread")
 
+add_executable (ws-video-server "ws-video-server.cc")
+target_link_libraries ("ws-video-server" stats)
+target_link_libraries ("ws-video-server" video)
+target_link_libraries ("ws-video-server" http)
+target_link_libraries ("ws-video-server" util)
+
+target_link_libraries ("ws-video-server" ${SSL_LDFLAGS})
+target_link_libraries ("ws-video-server" ${SSL_LDFLAGS_OTHER})
+
+target_link_libraries ("ws-video-server" ${CryptoPP_LDFLAGS})
+target_link_libraries ("ws-video-server" ${CryptoPP_LDFLAGS_OTHER})
+
+target_link_libraries ("ws-video-server" ${AVFormat_LDFLAGS})
+target_link_libraries ("ws-video-server" ${AVFormat_LDFLAGS_OTHER})

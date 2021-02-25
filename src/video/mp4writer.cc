@@ -100,13 +100,14 @@ MP4Writer::~MP4Writer()
   }
 }
 
-void MP4Writer::write( span<uint8_t> nal, const int64_t pts, const int64_t dts )
+void MP4Writer::write( const string_view nal, const uint32_t presentation_no, const uint32_t display_no )
 {
   AVPacket packet {};
   packet.buf = nullptr;
-  packet.pts = pts;
-  packet.dts = dts;
-  packet.data = nal.mutable_data();
+  packet.pts = presentation_no * MP4_TIMEBASE / frame_rate_;
+  packet.dts = display_no * MP4_TIMEBASE / frame_rate_;
+  packet.data = const_cast<uint8_t*>(
+    reinterpret_cast<const uint8_t*>( nal.data() ) ); /* hope that av_write_frame doesn't change contents */
   packet.size = nal.size();
   packet.stream_index = 0;
   packet.flags = AV_PKT_FLAG_KEY;
@@ -116,10 +117,4 @@ void MP4Writer::write( span<uint8_t> nal, const int64_t pts, const int64_t dts )
   av_check( av_write_frame( context_.get(), &packet ) );
   av_check( av_write_frame( context_.get(), nullptr ) );
   avio_flush( context_->pb );
-  if ( buf_.readable_region().size() > 65535 ) {
-    throw runtime_error( "implement Unix-domain sockets already!" );
-  }
-
-  stream_socket_.sendto( stream_destination_, buf_.readable_region() );
-  buf_.pop( buf_.readable_region().size() );
 }
