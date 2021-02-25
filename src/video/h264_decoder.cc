@@ -15,7 +15,7 @@ H264Decoder::H264Decoder()
   av_check( avcodec_open2( context_.get(), codec_, nullptr ) );
 }
 
-bool H264Decoder::decode( const span_view<uint8_t> nal, RasterYUV420& output __attribute( ( unused ) ) )
+bool H264Decoder::decode( const span_view<uint8_t> nal, RasterYUV420& output )
 {
   AVPacket packet {};
   packet.data = const_cast<uint8_t*>( nal.data() );
@@ -33,6 +33,16 @@ bool H264Decoder::decode( const span_view<uint8_t> nal, RasterYUV420& output __a
     av_check( receive_ret );
     return false;
   }
+
+  if ( frame_.frame->width != output.width() or frame_.frame->height != output.height()
+       or frame_.frame->format != AV_PIX_FMT_YUV420P ) {
+    cerr << "unexpected format\n";
+    return false;
+  }
+
+  memcpy( output.Y_row( 0 ), frame_.frame->data[0], output.width() * output.height() );
+  memcpy( output.Cb_row( 0 ), frame_.frame->data[1], output.chroma_width() * output.chroma_height() );
+  memcpy( output.Cr_row( 0 ), frame_.frame->data[2], output.chroma_width() * output.chroma_height() );
 
   return true;
 }
