@@ -49,11 +49,7 @@ Camera::Camera( const uint16_t width, const uint16_t height, const string& devic
   , kernel_v4l2_buffers_()
 {
   camera_fd_.set_blocking( false );
-  init();
-}
 
-void Camera::init()
-{
   v4l2_capability cap {};
   CheckSystemCall( "ioctl", ioctl( camera_fd_.fd_num(), VIDIOC_QUERYCAP, &cap ) );
 
@@ -92,6 +88,13 @@ void Camera::init()
     throw runtime_error( "can't set frame rate to 24 fps" );
   }
 
+  init();
+}
+
+void Camera::init()
+{
+  kernel_v4l2_buffers_.clear();
+
   /* tell the v4l2 about our buffers */
   v4l2_requestbuffers buf_request {};
   buf_request.type = capture_type;
@@ -120,6 +123,8 @@ void Camera::init()
   }
 
   CheckSystemCall( "stream on", ioctl( camera_fd_.fd_num(), VIDIOC_STREAMON, &capture_type ) );
+
+  frame_count_ = 0;
 }
 
 Camera::~Camera()
@@ -142,15 +147,19 @@ void Camera::get_next_frame( RasterYUV422& raster )
   CheckSystemCall( "dequeue buffer", ioctl( camera_fd_.fd_num(), VIDIOC_DQBUF, &buffer_info ) );
   camera_fd_.buffer_dequeued();
 
-  if ( buffer_info.bytesused > 16 and not( buffer_info.flags & V4L2_BUF_FLAG_ERROR ) ) {
+  if ( buffer_info.bytesused > 32 and not( buffer_info.flags & V4L2_BUF_FLAG_ERROR ) ) {
     const MMap_Region& mmap_region = kernel_v4l2_buffers_.at( next_buffer_index );
 
-    try {
-      jpegdec_.begin_decoding( static_cast<string_view>( mmap_region ).substr( 0, buffer_info.bytesused ) );
-      jpegdec_.decode( raster );
-    } catch ( const exception& e ) {
-      cerr << "JPEG exception in Camera::get_next_frame(): " << e.what() << "\n";
+    if ( frame_count_ > 5 ) {
+      try {
+        jpegdec_.begin_decoding( static_cast<string_view>( mmap_region ).substr( 0, buffer_info.bytesused ) );
+        jpegdec_.decode( raster );
+      } catch ( const exception& e ) {
+        cerr << "JPEG exception in Camera::get_next_frame(): " << e.what() << "\n";
+      }
     }
+
+    frame_count_++;
   }
 
   CheckSystemCall( "enqueue buffer", ioctl( camera_fd_.fd_num(), VIDIOC_QBUF, &buffer_info ) );
@@ -160,7 +169,7 @@ void Camera::get_next_frame( RasterYUV422& raster )
   if ( jpegdec_.bad() ) {
     cerr << "Restarting Camera for " << device_name_ << "... ";
     CheckSystemCall( "stream off", ioctl( camera_fd_.fd_num(), VIDIOC_STREAMOFF, &capture_type ) );
-    jpegdec_ = JPEGDecompresser {};
+    jpegdec_.reset();
     init();
     cerr << "done.\n";
   }

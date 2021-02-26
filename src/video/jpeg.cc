@@ -47,6 +47,12 @@ JPEGDecompresser::~JPEGDecompresser()
   jpeg_destroy_decompress( &decompresser_ );
 }
 
+void JPEGDecompresser::reset()
+{
+  jpeg_abort_decompress( &decompresser_ );
+  bad_ = false;
+}
+
 void JPEGDecompresser::error( const j_common_ptr cinfo )
 {
   array<char, JMSG_LENGTH_MAX> error_message;

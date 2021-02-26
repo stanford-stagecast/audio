@@ -164,11 +164,14 @@ void WebSocketServer::do_handshake( RingBuffer& in, RingBuffer& out )
     return;
   }
 
+  /* ignore origin */
+  /*
   if ( request.headers.origin != origin_ ) {
     cerr << "bad origin (" + request.headers.origin + " vs. " + origin_ + "\n";
     send_forbidden_response( out );
     return;
   }
+  */
 
   cerr << "Sending happy response\n";
 

@@ -64,4 +64,6 @@ public:
   unsigned int height() const;
 
   bool bad() const { return bad_; }
+
+  void reset();
 };

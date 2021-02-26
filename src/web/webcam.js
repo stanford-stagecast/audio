@@ -68,10 +68,11 @@ function sourceOpenVideo(e) {
     }
 
     videoSourceBuffer.addEventListener('abort', function(e) {
+	document.getElementById('status').innerHTML = "playback abort";
         console.log('video source buffer abort:', e);
     });
     videoSourceBuffer.addEventListener('error', function(e) {
-        console.log('video source buffer error:', e);
+	document.getElementById('status').innerHTML = "playback error";
 	ws.onmessage = function() {}
     });
     videoSourceBuffer.addEventListener('updateend', videobump);

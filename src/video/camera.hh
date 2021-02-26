@@ -60,6 +60,8 @@ private:
 
   void init();
 
+  unsigned int frame_count_ {};
+
 public:
   Camera( const uint16_t width, const uint16_t height, const std::string& device_name );
 
