@@ -51,6 +51,7 @@ private:
 
   uint16_t width_;
   uint16_t height_;
+  std::string device_name_;
 
   CameraFD camera_fd_;
   std::vector<MMap_Region> kernel_v4l2_buffers_;

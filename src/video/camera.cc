@@ -44,6 +44,7 @@ static constexpr int capture_type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 Camera::Camera( const uint16_t width, const uint16_t height, const string& device_name )
   : width_( width )
   , height_( height )
+  , device_name_( device_name )
   , camera_fd_( CheckSystemCall( "open camera", open( device_name.c_str(), O_RDWR ) ) )
   , kernel_v4l2_buffers_()
 {
@@ -144,12 +145,19 @@ void Camera::get_next_frame( RasterYUV422& raster )
       jpegdec_.begin_decoding( static_cast<string_view>( mmap_region ).substr( 0, buffer_info.bytesused ) );
       jpegdec_.decode( raster );
     } catch ( const exception& e ) {
-      cerr << "JPEG exception: " << e.what() << "\n";
-      jpegdec_ = JPEGDecompresser {};
+      cerr << "JPEG exception in Camera::get_next_frame(): " << e.what() << "\n";
     }
   }
 
   CheckSystemCall( "enqueue buffer", ioctl( camera_fd_.fd_num(), VIDIOC_QBUF, &buffer_info ) );
 
   next_buffer_index = ( next_buffer_index + 1 ) % NUM_BUFFERS;
+
+  if ( jpegdec_.bad() ) {
+    cerr << "Restarting stream for " << device_name_ << "... ";
+    CheckSystemCall( "stream off", ioctl( camera_fd_.fd_num(), VIDIOC_STREAMOFF, &capture_type ) );
+    CheckSystemCall( "stream on", ioctl( camera_fd_.fd_num(), VIDIOC_STREAMON, &capture_type ) );
+    jpegdec_ = JPEGDecompresser {};
+    cerr << "done.\n";
+  }
 }

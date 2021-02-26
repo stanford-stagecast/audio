@@ -104,7 +104,6 @@ void MP4Writer::write( const string_view nal, const uint32_t presentation_no, co
     reinterpret_cast<const uint8_t*>( nal.data() ) ); /* hope that av_write_frame doesn't change contents */
   packet.size = nal.size();
   packet.stream_index = 0;
-  packet.flags = AV_PKT_FLAG_KEY;
   packet.duration = MP4_TIMEBASE / frame_rate_;
   packet.pos = -1;
 
@@ -116,6 +115,7 @@ void MP4Writer::write( const string_view nal, const uint32_t presentation_no, co
     extradata_ = nal;
     video_stream_->codecpar->extradata = reinterpret_cast<uint8_t*>( extradata_.data() );
     video_stream_->codecpar->extradata_size = extradata_.size();
+    packet.flags = AV_PKT_FLAG_KEY;
     idr_hit_ = true;
   } else {
     video_stream_->codecpar->extradata = nullptr;

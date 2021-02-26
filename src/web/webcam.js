@@ -31,22 +31,20 @@ function sourceOpenVideo(e) {
 
     var playing = false;
 
-    var resets = 0.0;
+    var resets = 0;
     document.getElementById('videobuffer').innerHTML = "resets: " + resets;
 
     videobump = function() {
         if (videoqueue.length > 0 && !videoSourceBuffer.updating) {
-            videoSourceBuffer.appendBuffer(videoqueue.shift());
+	    videoSourceBuffer.appendBuffer(videoqueue.shift());
 
 	    if ( videoSourceBuffer.buffered.length > 0 ) {
 		var buffer_duration = (videoSourceBuffer.buffered.end(0) - video.currentTime);
-		document.getElementById('videobuffer').innerHTML = "buffer: " + buffer_duration;
+		document.getElementById('videobuffer').innerHTML = "buffer: " + buffer_duration.toFixed(2);
 
-		if ( buffer_duration > 5 ) {
-		    videoSourceBuffer.remove(0, videoSourceBuffer.buffered.end(0) - 5.0);
-		}
+		ws.send("buffer " + buffer_duration.toFixed(3));
 		
-		if ( buffer_duration > 0.5 ) {
+		if ( playing && (buffer_duration > 0.5) ) {
 		    video.currentTime = videoSourceBuffer.buffered.end(0) - 0.25;
 		    resets++;
 		    document.getElementById('videoresets').innerHTML = "resets: " + resets;
@@ -80,15 +78,16 @@ function sourceOpenVideo(e) {
     video.oncanplay = function() {
 	var play_promise = video.play();
 
-	if ( play_promise == undefined ) {
-	    console.log( "undefined promise" );
-	} else {
+	if (play_promise !== undefined) {
 	    play_promise.then(function() {
+		// playback started; only render UI here
+		document.getElementById('status').innerHTML = 'Playing...';
 		playing = true;
-		video.oncanplay = function() {};
 	    }).catch(function(error) {
-		console.log( "play error: " + error );
+		// playback failed
+		document.getElementById('status').innerHTML = 'Play failed. Please click play to begin playing.';
+		playing = false;
 	    });
-	} 
-    }
+	}
+    };
 }

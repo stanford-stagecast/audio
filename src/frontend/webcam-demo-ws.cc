@@ -51,6 +51,8 @@ class ClientConnection
     }
 
     rules_.clear();
+
+    cerr << "Culling.\n";
   }
 
 public:
@@ -132,7 +134,7 @@ public:
       [this] {
         ws_server_.endpoint().read( inbound_, outbound_ );
         if ( ws_server_.endpoint().ready() ) {
-          cerr << "got WS message\n";
+          cerr << "got WS message: " << ws_server_.endpoint().message() << "\n";
           ws_server_.endpoint().pop_message();
         }
       },
@@ -185,6 +187,15 @@ int main()
   loop.add_rule( "accept connection", web_listen_socket, Direction::In, [&] {
     clients.emplace_back( categories, web_listen_socket, loop, cull_needed );
   } );
+
+  /* cull old connections */
+  loop.add_rule(
+    "cull connections",
+    [&] {
+      clients.remove_if( []( const ClientConnection& x ) { return not x.good(); } );
+      *cull_needed = false;
+    },
+    [&cull_needed] { return *cull_needed; } );
 
   while ( loop.wait_next_event( -1 ) != EventLoop::Result::Exit ) {
   }

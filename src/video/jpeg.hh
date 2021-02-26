@@ -36,6 +36,12 @@
 
 #include "raster.hh"
 
+class JPEGException : public std::runtime_error
+{
+public:
+  using std::runtime_error::runtime_error;
+};
+
 class JPEGDecompresser
 {
   jpeg_decompress_struct decompresser_ {};
@@ -43,6 +49,8 @@ class JPEGDecompresser
 
   static void error( const j_common_ptr cinfo );
   static void info( const j_common_ptr cinfo, const int level );
+
+  bool bad_ {};
 
 public:
   JPEGDecompresser();
@@ -54,4 +62,6 @@ public:
 
   unsigned int width() const;
   unsigned int height() const;
+
+  bool bad() const { return bad_; }
 };

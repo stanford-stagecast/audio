@@ -52,7 +52,7 @@ void JPEGDecompresser::error( const j_common_ptr cinfo )
   array<char, JMSG_LENGTH_MAX> error_message;
   ( *cinfo->err->format_message )( cinfo, error_message.data() );
 
-  throw runtime_error( "JPEG error: "s + error_message.data() );
+  throw JPEGException( "JPEG error: "s + error_message.data() );
 }
 
 void JPEGDecompresser::info( const j_common_ptr cinfo, const int level )
@@ -60,13 +60,23 @@ void JPEGDecompresser::info( const j_common_ptr cinfo, const int level )
   if ( level < 0 ) {
     array<char, JMSG_LENGTH_MAX> error_message;
     ( *cinfo->err->format_message )( cinfo, error_message.data() );
-    cerr << "JPEG info@" << level << ": " << error_message.data() << "\n";
+    throw JPEGException( "JPEG info: "s + error_message.data() );
   }
 }
 
 void JPEGDecompresser::begin_decoding( const string_view chunk )
 {
-  jpeg_mem_src( &decompresser_, reinterpret_cast<const uint8_t*>( chunk.data() ), chunk.size() );
+  if ( bad() ) {
+    return;
+  }
+
+  try {
+    jpeg_mem_src( &decompresser_, reinterpret_cast<const uint8_t*>( chunk.data() ), chunk.size() );
+  } catch ( JPEGException& e ) {
+    cerr << "JPEG exception in begin_decoding: " << e.what() << "\n";
+    bad_ = true;
+    return;
+  }
 
   if ( JPEG_HEADER_OK != jpeg_read_header( &decompresser_, true ) ) {
     throw runtime_error( "invalid JPEG" );
@@ -101,18 +111,27 @@ unsigned int JPEGDecompresser::height() const
 
 void JPEGDecompresser::decode( RasterYUV422& r )
 {
+  if ( bad_ ) {
+    return;
+  }
+
   if ( r.height() != height() or r.width() != width() ) {
     throw runtime_error( "size mismatch" );
   }
 
-  jpeg_start_decompress( &decompresser_ );
+  try {
+    jpeg_start_decompress( &decompresser_ );
 
-  while ( decompresser_.output_scanline < decompresser_.output_height ) {
-    if ( jpeg_read_raw_data( &decompresser_, r.rows( decompresser_.output_scanline ).data(), height() )
-         != DCTSIZE ) {
-      throw runtime_error( "jpeg_read_raw_data returned short read" );
+    while ( decompresser_.output_scanline < decompresser_.output_height ) {
+      if ( jpeg_read_raw_data( &decompresser_, r.rows( decompresser_.output_scanline ).data(), height() )
+           != DCTSIZE ) {
+        throw runtime_error( "jpeg_read_raw_data returned short read" );
+      }
     }
-  }
 
-  jpeg_finish_decompress( &decompresser_ );
+    jpeg_finish_decompress( &decompresser_ );
+  } catch ( const JPEGException& e ) {
+    cerr << "JPEG exception in decompress: " << e.what() << "\n";
+    bad_ = true;
+  }
 }
