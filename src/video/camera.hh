@@ -58,6 +58,8 @@ private:
   unsigned int next_buffer_index = 0;
   JPEGDecompresser jpegdec_ {};
 
+  void init();
+
 public:
   Camera( const uint16_t width, const uint16_t height, const std::string& device_name );
 

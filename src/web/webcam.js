@@ -2,6 +2,7 @@ videoqueue = [];
 
 window.onload = async function(e){
     video = document.getElementById('video');
+    video.latencyHint = 0;
     if (window.MediaSource) {
 	var mediaSourceVideo = new MediaSource();
         mediaSourceVideo.addEventListener('sourceopen', sourceOpenVideo);
@@ -40,7 +41,7 @@ function sourceOpenVideo(e) {
 
 	    if ( videoSourceBuffer.buffered.length > 0 ) {
 		var buffer_duration = (videoSourceBuffer.buffered.end(0) - video.currentTime);
-		document.getElementById('videobuffer').innerHTML = "buffer: " + buffer_duration.toFixed(2);
+		document.getElementById('videobuffer').innerHTML = "buffer: " + (24*buffer_duration).toFixed(0) + " frames";
 
 		ws.send("buffer " + buffer_duration.toFixed(3));
 		

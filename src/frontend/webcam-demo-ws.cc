@@ -87,7 +87,6 @@ public:
     }
 
     if ( skipping_ and frames_since_idr_ >= 47 ) {
-      cerr << "skip " << frames_since_idr_ << "\n";
       idrs_since_skip_ = 0;
     } else {
       muxer_.write( s, video_frame_count_, video_frame_count_ );
@@ -165,11 +164,12 @@ public:
         if ( ws_server_.endpoint().ready() ) {
           parse_message( ws_server_.endpoint().message() );
 
-          if ( last_buffer_ > 0.11 and mean_buffer_ > 0.11 and idrs_since_skip_ > 1 ) {
+          if ( last_buffer_ > 0.11 and mean_buffer_ > 0.11 and idrs_since_skip_ > 0 ) {
             skipping_ = true;
           }
 
-          cerr << skipping_ << " " << idrs_since_skip_ << " " << last_buffer_ << " " << mean_buffer_ << "\n";
+          //          cerr << skipping_ << " " << idrs_since_skip_ << " " << last_buffer_ << " " << mean_buffer_ <<
+          //          "\n";
 
           ws_server_.endpoint().pop_message();
         }

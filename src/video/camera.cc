@@ -49,7 +49,11 @@ Camera::Camera( const uint16_t width, const uint16_t height, const string& devic
   , kernel_v4l2_buffers_()
 {
   camera_fd_.set_blocking( false );
+  init();
+}
 
+void Camera::init()
+{
   v4l2_capability cap {};
   CheckSystemCall( "ioctl", ioctl( camera_fd_.fd_num(), VIDIOC_QUERYCAP, &cap ) );
 
@@ -61,8 +65,8 @@ Camera::Camera( const uint16_t width, const uint16_t height, const string& devic
   v4l2_format format {};
   format.type = capture_type;
   format.fmt.pix.pixelformat = pixel_format;
-  format.fmt.pix.width = width;
-  format.fmt.pix.height = height;
+  format.fmt.pix.width = width_;
+  format.fmt.pix.height = height_;
 
   CheckSystemCall( "setting format", ioctl( camera_fd_.fd_num(), VIDIOC_S_FMT, &format ) );
 
@@ -154,10 +158,10 @@ void Camera::get_next_frame( RasterYUV422& raster )
   next_buffer_index = ( next_buffer_index + 1 ) % NUM_BUFFERS;
 
   if ( jpegdec_.bad() ) {
-    cerr << "Restarting stream for " << device_name_ << "... ";
+    cerr << "Restarting Camera for " << device_name_ << "... ";
     CheckSystemCall( "stream off", ioctl( camera_fd_.fd_num(), VIDIOC_STREAMOFF, &capture_type ) );
-    CheckSystemCall( "stream on", ioctl( camera_fd_.fd_num(), VIDIOC_STREAMON, &capture_type ) );
     jpegdec_ = JPEGDecompresser {};
+    init();
     cerr << "done.\n";
   }
 }
