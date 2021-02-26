@@ -52,5 +52,7 @@ public:
   MP4Writer( const MP4Writer& other ) = delete;
   MP4Writer& operator=( const MP4Writer& other ) = delete;
 
+  static bool is_idr( const std::string_view nal );
+
   void unhit_idr() { idr_hit_ = 0; }
 };

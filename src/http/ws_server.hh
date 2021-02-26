@@ -48,7 +48,7 @@ public:
   {}
 
   bool handshake_complete() const { return handshake_complete_; }
-  WebSocketEndpoint endpoint() { return wse_; }
+  WebSocketEndpoint& endpoint() { return wse_; }
 
   void do_handshake( RingBuffer& in, RingBuffer& out );
 

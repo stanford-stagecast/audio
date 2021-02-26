@@ -1,5 +1,6 @@
 #include "camera.hh"
 #include "eventloop.hh"
+#include "ewma.hh"
 #include "h264_encoder.hh"
 #include "mp4writer.hh"
 #include "scale.hh"
@@ -55,6 +56,21 @@ class ClientConnection
     cerr << "Culling.\n";
   }
 
+  float mean_buffer_ = 0.0;
+  float last_buffer_ = 0.0;
+  void parse_message( const string_view s )
+  {
+    if ( ( s.size() > 7 ) and ( s.substr( 0, 7 ) == "buffer " ) ) {
+      string_view num = s.substr( 8 );
+      last_buffer_ = stof( string( num ) );
+      ewma_update( mean_buffer_, last_buffer_, 0.05 );
+    }
+  }
+
+  bool skipping_ {};
+  unsigned int frames_since_idr_ {};
+  unsigned int idrs_since_skip_ {};
+
 public:
   const TCPSocket& socket() { return socket_; }
 
@@ -62,8 +78,21 @@ public:
 
   void push_NAL( const string_view s )
   {
-    muxer_.write( s, video_frame_count_, video_frame_count_ );
-    video_frame_count_++;
+    if ( MP4Writer::is_idr( s ) ) {
+      frames_since_idr_ = 0;
+      skipping_ = false;
+      idrs_since_skip_++;
+    } else {
+      frames_since_idr_++;
+    }
+
+    if ( skipping_ and frames_since_idr_ >= 47 ) {
+      cerr << "skip " << frames_since_idr_ << "\n";
+      idrs_since_skip_ = 0;
+    } else {
+      muxer_.write( s, video_frame_count_, video_frame_count_ );
+      video_frame_count_++;
+    }
   }
 
   ClientConnection( const EventCategories& categories,
@@ -134,7 +163,14 @@ public:
       [this] {
         ws_server_.endpoint().read( inbound_, outbound_ );
         if ( ws_server_.endpoint().ready() ) {
-          cerr << "got WS message: " << ws_server_.endpoint().message() << "\n";
+          parse_message( ws_server_.endpoint().message() );
+
+          if ( last_buffer_ > 0.11 and mean_buffer_ > 0.11 and idrs_since_skip_ > 1 ) {
+            skipping_ = true;
+          }
+
+          cerr << skipping_ << " " << idrs_since_skip_ << " " << last_buffer_ << " " << mean_buffer_ << "\n";
+
           ws_server_.endpoint().pop_message();
         }
       },

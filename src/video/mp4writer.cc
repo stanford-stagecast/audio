@@ -94,6 +94,19 @@ MP4Writer::~MP4Writer()
   }
 }
 
+bool MP4Writer::is_idr( const string_view nal )
+{
+  if ( nal.at( 0 ) != 0 or nal.at( 1 ) != 0 or nal.at( 2 ) != 0 or nal.at( 3 ) != 1 ) {
+    throw runtime_error( "invalid NALU" );
+  }
+
+  if ( nal.at( 4 ) == 0x67 or nal.at( 4 ) == 0x68 ) {
+    return true;
+  }
+
+  return false;
+}
+
 void MP4Writer::write( const string_view nal, const uint32_t presentation_no, const uint32_t display_no )
 {
   AVPacket packet {};
@@ -107,11 +120,7 @@ void MP4Writer::write( const string_view nal, const uint32_t presentation_no, co
   packet.duration = MP4_TIMEBASE / frame_rate_;
   packet.pos = -1;
 
-  if ( nal.at( 0 ) != 0 or nal.at( 1 ) != 0 or nal.at( 2 ) != 0 or nal.at( 3 ) != 1 ) {
-    throw runtime_error( "invalid NALU" );
-  }
-
-  if ( nal.at( 4 ) == 0x67 or nal.at( 4 ) == 0x68 ) {
+  if ( is_idr( nal ) ) {
     extradata_ = nal;
     video_stream_->codecpar->extradata = reinterpret_cast<uint8_t*>( extradata_.data() );
     video_stream_->codecpar->extradata_size = extradata_.size();

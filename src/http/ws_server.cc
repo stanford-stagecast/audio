@@ -48,7 +48,10 @@ void WebSocketEndpoint::read( RingBuffer& in, RingBuffer& out )
     reader_.emplace( move( this_frame_ ) );
   }
 
-  in.pop( reader_->read( in.readable_region() ) );
+  while ( ( !reader_->finished() ) and ( !reader_->error() ) and ( !in.readable_region().empty() ) ) {
+    in.pop( reader_->read( in.readable_region() ) );
+  }
+
   if ( reader_->error() ) {
     error_ = true;
     reader_->clear_error();

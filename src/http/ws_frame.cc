@@ -35,13 +35,22 @@ size_t WebSocketFrameReader::read( const string_view orig_input )
     }
   } else if ( payload_reader_.has_value() and not payload_reader_->finished() ) {
     input.remove_prefix( payload_reader_->read( input ) );
+
+    if ( payload_reader_->finished() and not finished() ) {
+      complete();
+    }
   } else if ( payload_reader_.has_value() and payload_reader_->finished() and not finished() ) {
-    target_.payload = payload_reader_->release();
-    apply_mask();
-    finished_ = true;
+    complete();
   }
 
   return orig_input.size() - input.size();
+}
+
+void WebSocketFrameReader::complete()
+{
+  target_.payload = payload_reader_->release();
+  apply_mask();
+  finished_ = true;
 }
 
 void WebSocketFrameReader::process_bytes12()

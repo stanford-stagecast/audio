@@ -88,6 +88,8 @@ class WebSocketFrameReader
   void process_len64();
   void apply_mask();
 
+  void complete();
+
 public:
   WebSocketFrame release() { return std::move( target_ ); }
 
