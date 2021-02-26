@@ -143,6 +143,7 @@ void Client::summary( ostream& out ) const
     out << " (" << connection_.destination().to_string() << ") ";
   }
   internal_feed_.summary( out );
+  quality_feed_.summary( out );
   //  connection_.summary( out );
 }
 
