@@ -31,8 +31,11 @@ void NetworkMultiServer::add_key( const LongLivedKey& key )
   cerr << "Added key #" << int( next_id ) << " for: " << key.name() << " on channels " << int( ch1 ) << ":"
        << int( ch2 ) << "\n";
 
-  board_.set_name( ch1, string( key.name() ) + "-CH1" );
-  board_.set_name( ch2, string( key.name() ) + "-CH2" );
+  internal_board_.set_name( ch1, string( key.name() ) + "-CH1" );
+  internal_board_.set_name( ch2, string( key.name() ) + "-CH2" );
+
+  quality_board_.set_name( ch1, string( key.name() ) + "-HQ-CH1" );
+  quality_board_.set_name( ch2, string( key.name() ) + "-HQ-CH2" );
 }
 
 void NetworkMultiServer::initialize_clock()
@@ -45,7 +48,8 @@ NetworkMultiServer::NetworkMultiServer( const uint8_t num_clients, EventLoop& lo
   , global_ns_timestamp_at_creation_( Timer::timestamp_ns() )
   , next_cursor_sample_( server_clock() + opus_frame::NUM_SAMPLES_MINLATENCY )
   , num_clients_( num_clients )
-  , board_( 2 * num_clients )
+  , internal_board_( 2 * num_clients )
+  , quality_board_( 2 * num_clients )
 {
   socket_.set_blocking( false );
   socket_.bind( { "0", 9101 } );
@@ -76,7 +80,7 @@ NetworkMultiServer::NetworkMultiServer( const uint8_t num_clients, EventLoop& lo
       /* decode all audio */
       for ( auto& client : clients_ ) {
         if ( client ) {
-          client.client().decode_audio( next_cursor_sample_, board_ );
+          client.client().decode_audio( next_cursor_sample_, internal_board_, quality_board_ );
           if ( client.client().connection().sender_stats().last_good_ack_ts + CLIENT_TIMEOUT_NS < ts_now ) {
             client.clear_current_session();
           }
@@ -86,11 +90,11 @@ NetworkMultiServer::NetworkMultiServer( const uint8_t num_clients, EventLoop& lo
       /* mix all audio */
       for ( auto& client : clients_ ) {
         if ( client ) {
-          client.client().mix_and_encode( client.gains(), board_, next_cursor_sample_ );
+          client.client().mix_and_encode( client.gains(), internal_board_, next_cursor_sample_ );
         }
       }
 
-      program_audio_.mix_and_write( board_, next_cursor_sample_ );
+      program_audio_.mix_and_write( quality_board_, next_cursor_sample_ );
 
       /* send audio to clients */
       for ( auto& client : clients_ ) {
@@ -100,7 +104,8 @@ NetworkMultiServer::NetworkMultiServer( const uint8_t num_clients, EventLoop& lo
       }
 
       if ( next_cursor_sample_ > 240 ) {
-        board_.pop_samples_until( next_cursor_sample_ - 240 );
+        internal_board_.pop_samples_until( next_cursor_sample_ - 240 );
+        quality_board_.pop_samples_until( next_cursor_sample_ - 240 );
       }
 
       next_cursor_sample_ += opus_frame::NUM_SAMPLES_MINLATENCY;

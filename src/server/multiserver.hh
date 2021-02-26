@@ -18,7 +18,7 @@ class NetworkMultiServer : public Summarizable
 
   uint8_t num_clients_;
 
-  AudioBoard board_;
+  AudioBoard internal_board_, quality_board_;
   std::vector<KnownClient> clients_ {};
 
   struct Stats

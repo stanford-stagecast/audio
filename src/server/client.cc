@@ -32,7 +32,7 @@ AudioFeed::AudioFeed( const uint32_t target_lag_samples,
 Client::Client( const uint8_t node_id, const uint8_t ch1_num, const uint8_t ch2_num, CryptoSession&& crypto )
   : connection_( 0, node_id, move( crypto ) )
   , internal_feed_( 240, 120, 480, true )
-  , quality_feed_( 4800, 4800 - 960, 4800 + 960, false )
+  , quality_feed_( 4800, 4800 - 240, 4800 + 240, false )
   , ch1_num_( ch1_num )
   , ch2_num_( ch2_num )
 {}
@@ -68,16 +68,23 @@ void AudioFeed::decode_into( const PartialFrameStore<AudioFrame>& frames,
   }
 }
 
-void Client::decode_audio( const uint64_t cursor_sample, AudioBoard& board )
+void Client::decode_audio( const uint64_t cursor_sample, AudioBoard& internal_board, AudioBoard& quality_board )
 {
   internal_feed_.decode_into( connection_.frames(),
                               cursor_sample,
                               connection_.unreceived_beyond_this_frame_index() * opus_frame::NUM_SAMPLES_MINLATENCY,
-                              board.channel( ch1_num_ ),
-                              board.channel( ch2_num_ ) );
+                              internal_board.channel( ch1_num_ ),
+                              internal_board.channel( ch2_num_ ) );
 
-  connection_.pop_frames( min( internal_feed_.ok_to_pop( connection_.frames() ),
-                               connection_.next_frame_needed() - connection_.frames().range_begin() ) );
+  quality_feed_.decode_into( connection_.frames(),
+                             cursor_sample,
+                             connection_.unreceived_beyond_this_frame_index() * opus_frame::NUM_SAMPLES_MINLATENCY,
+                             quality_board.channel( ch1_num_ ),
+                             quality_board.channel( ch2_num_ ) );
+
+  connection_.pop_frames(
+    min( min( internal_feed_.ok_to_pop( connection_.frames() ), quality_feed_.ok_to_pop( connection_.frames() ) ),
+         connection_.next_frame_needed() - connection_.frames().range_begin() ) );
 }
 
 void Client::mix_and_encode( const vector<mix_gain>& gains, const AudioBoard& board, const uint64_t cursor_sample )

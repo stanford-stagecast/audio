@@ -57,7 +57,7 @@ public:
   using mix_gain = std::pair<float, float>;
 
   bool receive_packet( const Address& source, const Ciphertext& ciphertext, const uint64_t clock_sample );
-  void decode_audio( const uint64_t cursor_sample, AudioBoard& board );
+  void decode_audio( const uint64_t cursor_sample, AudioBoard& internal_board, AudioBoard& quality_board );
   void mix_and_encode( const std::vector<mix_gain>& gains, const AudioBoard& board, const uint64_t cursor_sample );
   void send_packet( UDPSocket& socket );
 
