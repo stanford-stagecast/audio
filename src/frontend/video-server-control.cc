@@ -22,7 +22,7 @@ void send( const Message& message )
   socket.sendto( { "127.0.0.1", video_server_control_port() }, buf );
 }
 
-void program_body( const string& control, const string& name, const string& value __attribute( ( unused ) ) )
+void program_body( const string& control, const string& name )
 {
   ios::sync_with_stdio( false );
 
@@ -42,12 +42,12 @@ int main( int argc, char* argv[] )
       abort();
     }
 
-    if ( argc != 4 ) {
+    if ( argc != 3 ) {
       cerr << "Usage: " << argv[0] << " live name\n";
       return EXIT_FAILURE;
     }
 
-    program_body( argv[1], argv[2], argv[3] );
+    program_body( argv[1], argv[2] );
   } catch ( const exception& e ) {
     cerr << "Exception: " << e.what() << "\n";
     return EXIT_FAILURE;
