@@ -76,17 +76,7 @@ MP4Writer::MP4Writer( const unsigned int frame_rate, const unsigned int width, c
                          + to_string( video_stream_->time_base.den ) );
   }
 
-  static constexpr char filename[] = "/tmp/stagecast-video.init";
-  FileDescriptor init_ { CheckSystemCall( "open( "s + filename + " )",
-                                          open( filename, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR ) ) };
-
   avio_flush( context_->pb );
-  buf_.pop_to_fd( init_ );
-  init_.close();
-
-  if ( buf_.readable_region().size() ) {
-    throw runtime_error( "did not write entire init segment" );
-  }
 }
 
 MP4Writer::~MP4Writer()

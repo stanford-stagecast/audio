@@ -30,7 +30,7 @@ private:
 public:
   struct EncodedNAL
   {
-    span<uint8_t> NAL;
+    std::string_view NAL;
     int64_t pts;
     int64_t dts;
   };

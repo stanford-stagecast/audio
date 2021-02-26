@@ -72,5 +72,6 @@ void H264Encoder::encode( RasterYUV420& raster )
     encoded_.reset();
   }
 
-  encoded_.emplace( EncodedNAL { { nal->p_payload, size_t( frame_size ) }, pic_out_.i_pts, pic_out_.i_dts } );
+  encoded_.emplace( EncodedNAL {
+    { reinterpret_cast<char*>( nal->p_payload ), size_t( frame_size ) }, pic_out_.i_pts, pic_out_.i_dts } );
 }
