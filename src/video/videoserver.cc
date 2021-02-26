@@ -109,3 +109,12 @@ void VideoServer::summary( ostream& out ) const
     }
   }
 }
+
+void VideoServer::set_live( const string_view name )
+{
+  for ( unsigned int i = 0; i < clients_.size(); i++ ) {
+    if ( clients_.at( i ).name() == name ) {
+      camera_feed_live_no_ = i;
+    }
+  }
+}

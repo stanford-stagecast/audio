@@ -147,7 +147,7 @@ void Camera::get_next_frame( RasterYUV422& raster )
   CheckSystemCall( "dequeue buffer", ioctl( camera_fd_.fd_num(), VIDIOC_DQBUF, &buffer_info ) );
   camera_fd_.buffer_dequeued();
 
-  if ( buffer_info.bytesused > 32 and not( buffer_info.flags & V4L2_BUF_FLAG_ERROR ) ) {
+  if ( buffer_info.bytesused > 2048 and not( buffer_info.flags & V4L2_BUF_FLAG_ERROR ) ) {
     const MMap_Region& mmap_region = kernel_v4l2_buffers_.at( next_buffer_index );
 
     if ( frame_count_ > 5 ) {

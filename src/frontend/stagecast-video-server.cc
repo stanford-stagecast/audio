@@ -35,6 +35,8 @@ void program_body( const vector<string>& keyfiles )
   StatsPrinterTask stats_printer { loop };
   stats_printer.add( server );
 
+  VideoServerController controller { server, *loop };
+
   /* Start audio device and event loop */
   while ( loop->wait_next_event( 1 ) != EventLoop::Result::Exit ) {
   }
