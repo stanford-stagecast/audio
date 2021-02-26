@@ -9,17 +9,20 @@
 
 using namespace std;
 
-int write_helper( void* rb_opaque, uint8_t* buf, int buf_size )
+int write_helper( void* muxer_opaque, uint8_t* buf, int buf_size )
 {
   if ( buf_size <= 0 ) {
     throw runtime_error( "buf_size <= 0" );
   }
   const size_t u_buf_size = buf_size;
-  RingBuffer* rb = reinterpret_cast<RingBuffer*>( notnull( "rb_opaque", rb_opaque ) );
-  if ( rb->writable_region().length() < u_buf_size ) {
-    throw runtime_error( "write_helper had no room to write" );
+  MP4Writer* muxer = reinterpret_cast<MP4Writer*>( notnull( "muxer_opaque", muxer_opaque ) );
+  if ( muxer->output().writable_region().length() < u_buf_size ) {
+    cerr << "Pausing Muxer output\n";
+    muxer->unhit_idr();
+  } else {
+    muxer->output().push_from_const_str( { reinterpret_cast<const char*>( notnull( "buf", buf ) ), u_buf_size } );
   }
-  rb->push_from_const_str( { reinterpret_cast<const char*>( notnull( "buf", buf ) ), u_buf_size } );
+
   return buf_size;
 }
 
@@ -41,7 +44,7 @@ MP4Writer::MP4Writer( const unsigned int frame_rate, const unsigned int width, c
   buffer_.reset( static_cast<uint8_t*>( notnull( "av_malloc", av_malloc( BUF_SIZE ) ) ) );
   context_->pb
     = notnull( "avio_alloc_context",
-               avio_alloc_context( buffer_.get(), BUF_SIZE, true, &buf_, nullptr, write_helper, nullptr ) );
+               avio_alloc_context( buffer_.get(), BUF_SIZE, true, this, nullptr, write_helper, nullptr ) );
 
   /* allocate video stream */
   video_stream_ = notnull( "avformat_new_stream", avformat_new_stream( context_.get(), nullptr ) );
@@ -113,12 +116,15 @@ void MP4Writer::write( const string_view nal, const uint32_t presentation_no, co
     extradata_ = nal;
     video_stream_->codecpar->extradata = reinterpret_cast<uint8_t*>( extradata_.data() );
     video_stream_->codecpar->extradata_size = extradata_.size();
+    idr_hit_ = true;
   } else {
     video_stream_->codecpar->extradata = nullptr;
     video_stream_->codecpar->extradata_size = 0;
   }
 
-  av_check( av_write_frame( context_.get(), &packet ) );
-  av_check( av_write_frame( context_.get(), nullptr ) );
-  avio_flush( context_->pb );
+  if ( idr_hit_ ) {
+    av_check( av_write_frame( context_.get(), &packet ) );
+    av_check( av_write_frame( context_.get(), nullptr ) );
+    avio_flush( context_->pb );
+  }
 }

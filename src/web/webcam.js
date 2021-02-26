@@ -39,11 +39,17 @@ function sourceOpenVideo(e) {
             videoSourceBuffer.appendBuffer(videoqueue.shift());
 
 	    if ( videoSourceBuffer.buffered.length > 0 ) {
-		if ( videoSourceBuffer.buffered.end(0) > (video.currentTime + 0.5)
-		     && videoSourceBuffer.buffered.start(0) <= (videoSourceBuffer.buffered.end(0) - 0.4) ) {
-		    video.currentTime = videoSourceBuffer.buffered.end(0) - 0.4;
+		var buffer_duration = (videoSourceBuffer.buffered.end(0) - video.currentTime);
+		document.getElementById('videobuffer').innerHTML = "buffer: " + buffer_duration;
+
+		if ( buffer_duration > 5 ) {
+		    videoSourceBuffer.remove(0, videoSourceBuffer.buffered.end(0) - 5.0);
+		}
+		
+		if ( buffer_duration > 0.5 ) {
+		    video.currentTime = videoSourceBuffer.buffered.end(0) - 0.25;
 		    resets++;
-		    document.getElementById('videobuffer').innerHTML = "resets: " + resets;
+		    document.getElementById('videoresets').innerHTML = "resets: " + resets;
 		}
 	    }
 	}

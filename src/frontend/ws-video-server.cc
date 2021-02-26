@@ -178,8 +178,7 @@ public:
       [this] { return good() and not ssl_session_.inbound_plaintext().readable_region().empty(); } ) );
   }
 
-  bool handshake_complete() const {
-      return ws_server_.handshake_complete(); }
+  bool handshake_complete() const { return ws_server_.handshake_complete(); }
 
   ~ClientConnection()
   {
@@ -188,18 +187,16 @@ public:
     }
   }
 
-  SSLSession& session() {
-      return ssl_session_; }
+  SSLSession& session() { return ssl_session_; }
 
-  bool good() const {
-      return good_; }
+  bool good() const { return good_; }
 
   ClientConnection( const ClientConnection& other ) noexcept = delete;
   ClientConnection& operator=( const ClientConnection& other ) noexcept = delete;
 
   ClientConnection( ClientConnection&& other ) noexcept = delete;
   ClientConnection& operator=( ClientConnection&& other ) noexcept = delete;
-  };
+};
 
 void program_body( const string origin, const string cert_filename, const string privkey_filename )
 {

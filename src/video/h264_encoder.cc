@@ -25,7 +25,7 @@ H264Encoder::H264Encoder( const uint16_t width,
   params_.i_fps_den = 1;
   params_.b_annexb = 1;
   params_.b_repeat_headers = 1;
-  params_.i_keyint_max = 1;
+  params_.i_keyint_max = 2 * fps_;
   //  params_.b_intra_refresh = true;
 
   params_.rc.i_qp_constant = 30;

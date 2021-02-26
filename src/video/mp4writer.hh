@@ -30,6 +30,7 @@ class MP4Writer
 
   std::string extradata_ {};
   AVStream* video_stream_;
+  bool idr_hit_ {};
 
   static constexpr unsigned int BUF_SIZE = 1048576;
   RingBuffer buf_ { BUF_SIZE };
@@ -50,4 +51,6 @@ public:
 
   MP4Writer( const MP4Writer& other ) = delete;
   MP4Writer& operator=( const MP4Writer& other ) = delete;
+
+  void unhit_idr() { idr_hit_ = 0; }
 };
