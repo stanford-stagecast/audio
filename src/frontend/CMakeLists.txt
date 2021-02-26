@@ -217,3 +217,21 @@ target_link_libraries ("webcam-demo" ${AVFormat_LDFLAGS_OTHER})
 
 target_link_libraries ("webcam-demo" ${X264_LDFLAGS})
 target_link_libraries ("webcam-demo" ${X264_LDFLAGS_OTHER})
+
+add_executable (webcam-demo-ws "webcam-demo-ws.cc")
+target_link_libraries ("webcam-demo-ws" stats)
+target_link_libraries ("webcam-demo-ws" video)
+target_link_libraries ("webcam-demo-ws" http)
+target_link_libraries ("webcam-demo-ws" util)
+
+target_link_libraries ("webcam-demo-ws" ${CryptoPP_LDFLAGS})
+target_link_libraries ("webcam-demo-ws" ${CryptoPP_LDFLAGS_OTHER})
+
+target_link_libraries ("webcam-demo-ws" ${V4L_LDFLAGS})
+target_link_libraries ("webcam-demo-ws" ${V4L_LDFLAGS_OTHER})
+
+target_link_libraries ("webcam-demo-ws" ${AVFormat_LDFLAGS})
+target_link_libraries ("webcam-demo-ws" ${AVFormat_LDFLAGS_OTHER})
+
+target_link_libraries ("webcam-demo-ws" ${X264_LDFLAGS})
+target_link_libraries ("webcam-demo-ws" ${X264_LDFLAGS_OTHER})

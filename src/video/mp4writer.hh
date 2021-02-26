@@ -28,6 +28,7 @@ class MP4Writer
   };
   std::unique_ptr<uint8_t, av_deleter> buffer_ {};
 
+  std::string extradata_ {};
   AVStream* video_stream_;
 
   static constexpr unsigned int BUF_SIZE = 1048576;

@@ -63,9 +63,10 @@ MP4Writer::MP4Writer( const unsigned int frame_rate, const unsigned int width, c
   video_stream_->codecpar->video_delay = 0;
   video_stream_->codecpar->initial_padding = 0;
   video_stream_->codecpar->trailing_padding = 0;
+  video_stream_->duration = 0;
 
   AVDictionary* flags = nullptr;
-  av_check( av_dict_set( &flags, "movflags", "empty_moov+default_base_moof", 0 ) );
+  av_check( av_dict_set( &flags, "movflags", "default_base_moof+faststart+frag_custom", 0 ) );
 
   /* now write the header */
   av_check( avformat_write_header( context_.get(), &flags ) );
@@ -103,6 +104,19 @@ void MP4Writer::write( const string_view nal, const uint32_t presentation_no, co
   packet.flags = AV_PKT_FLAG_KEY;
   packet.duration = MP4_TIMEBASE / frame_rate_;
   packet.pos = -1;
+
+  if ( nal.at( 0 ) != 0 or nal.at( 1 ) != 0 or nal.at( 2 ) != 0 or nal.at( 3 ) != 1 ) {
+    throw runtime_error( "invalid NALU" );
+  }
+
+  if ( nal.at( 4 ) == 0x67 or nal.at( 4 ) == 0x68 ) {
+    extradata_ = nal;
+    video_stream_->codecpar->extradata = reinterpret_cast<uint8_t*>( extradata_.data() );
+    video_stream_->codecpar->extradata_size = extradata_.size();
+  } else {
+    video_stream_->codecpar->extradata = nullptr;
+    video_stream_->codecpar->extradata_size = 0;
+  }
 
   av_check( av_write_frame( context_.get(), &packet ) );
   av_check( av_write_frame( context_.get(), nullptr ) );
