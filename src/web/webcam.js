@@ -57,9 +57,14 @@ function sourceOpenVideo(e) {
     ws = new WebSocket("ws://localhost:8400");
     ws.binaryType = 'arraybuffer';
     ws.onmessage = function( e ) {
-        videoqueue.push(e.data);
+	var is_message = new DataView(e.data, 0, 1).getUint8(0);
+	var rest = e.data.slice(1);
+	if ( is_message ) {
+	    document.getElementById('message').innerHTML = new TextDecoder("utf-8").decode(rest);
+	    return;
+	}
 
-//	console.log("buffered: " + videoSourceBuffer.buffered.start(0) + " to " + videoSourceBuffer.buffered.end(0) );
+	videoqueue.push(rest);
 
 	if ( firstplay && videoSourceBuffer.buffered.length > 0 ) {
             video.currentTime = videoSourceBuffer.buffered.start(0);

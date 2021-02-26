@@ -70,6 +70,7 @@ class ClientConnection
   bool skipping_ {};
   unsigned int frames_since_idr_ {};
   unsigned int idrs_since_skip_ {};
+  uint64_t next_status_update_ {};
 
 public:
   const TCPSocket& socket() { return socket_; }
@@ -142,19 +143,39 @@ public:
     rules_.push_back( loop.add_rule(
       categories.ws_send,
       [this] {
-        ws_frame_.payload.resize( min( muxer_.output().readable_region().size(),
-                                       outbound_.writable_region().size() - WebSocketFrame::max_overhead() ) );
-        memcpy( ws_frame_.payload.data(), muxer_.output().readable_region().data(), ws_frame_.payload.size() );
+        ws_frame_.payload.resize( min( muxer_.output().readable_region().size() + 1,
+                                       outbound_.writable_region().size() - WebSocketFrame::max_overhead() - 1 ) );
+        ws_frame_.payload.at( 0 ) = 0;
+        memcpy(
+          ws_frame_.payload.data() + 1, muxer_.output().readable_region().data(), ws_frame_.payload.size() - 1 );
 
-        muxer_.output().pop( ws_frame_.payload.size() );
+        muxer_.output().pop( ws_frame_.payload.size() - 1 );
 
         Serializer s { outbound_.writable_region() };
         s.object( ws_frame_ );
         outbound_.push( s.bytes_written() );
       },
       [&] {
-        return outbound_.writable_region().size() > WebSocketFrame::max_overhead()
+        return outbound_.writable_region().size() > ( 1 + WebSocketFrame::max_overhead() )
                and muxer_.output().readable_region().size() and ws_server_.handshake_complete();
+      } ) );
+
+    rules_.push_back( loop.add_rule(
+      categories.ws_send,
+      [this] {
+        const auto now = Timer::timestamp_ns();
+        ws_frame_.payload = " time = " + to_string( now );
+        ws_frame_.payload.at( 0 ) = 1;
+
+        next_status_update_ = now + BILLION;
+
+        Serializer s { outbound_.writable_region() };
+        s.object( ws_frame_ );
+        outbound_.push( s.bytes_written() );
+      },
+      [&] {
+        return ws_server_.handshake_complete() and Timer::timestamp_ns() > next_status_update_
+               and outbound_.writable_region().size() > 100;
       } ) );
 
     rules_.push_back( loop.add_rule(
@@ -168,7 +189,8 @@ public:
             skipping_ = true;
           }
 
-          //          cerr << skipping_ << " " << idrs_since_skip_ << " " << last_buffer_ << " " << mean_buffer_ <<
+          //          cerr << skipping_ << " " << idrs_since_skip_ << " " << last_buffer_ << " " << mean_buffer_
+          //          <<
           //          "\n";
 
           ws_server_.endpoint().pop_message();
