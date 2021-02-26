@@ -4,6 +4,7 @@
 #include <csignal>
 
 #include "eventloop.hh"
+#include "ewma.hh"
 #include "mmap.hh"
 #include "mp4writer.hh"
 #include "secure_socket.hh"
@@ -33,10 +34,10 @@ class ClientConnection
 {
   SSLSession ssl_session_;
   WebSocketServer ws_server_;
-  MP4Writer mp4_writer_ { 24, 1280, 720 };
+  MP4Writer muxer_ { 24, 1280, 720 };
   WebSocketFrame ws_frame_;
 
-  uint32_t frame_count_ {};
+  uint32_t video_frame_count_ {};
 
   vector<EventLoop::RuleHandle> rules_;
 
@@ -61,13 +62,43 @@ class ClientConnection
     rules_.clear();
   }
 
+  float mean_buffer_ = 0.0;
+  float last_buffer_ = 0.0;
+  void parse_message( const string_view s )
+  {
+    if ( ( s.size() > 7 ) and ( s.substr( 0, 7 ) == "buffer " ) ) {
+      string_view num = s.substr( 8 );
+      last_buffer_ = stof( string( num ) );
+      ewma_update( mean_buffer_, last_buffer_, 0.05 );
+    }
+  }
+
+  bool skipping_ {};
+  unsigned int frames_since_idr_ {};
+  unsigned int idrs_since_skip_ {};
+  uint64_t next_status_update_ {};
+
 public:
   const TCPSocket& socket() const { return ssl_session_.socket(); }
 
-  void mux_NAL( const string_view s )
+  bool good() const { return good_; }
+
+  void push_NAL( const string_view s )
   {
-    mp4_writer_.write( s, frame_count_, frame_count_ );
-    frame_count_++;
+    if ( MP4Writer::is_idr( s ) ) {
+      frames_since_idr_ = 0;
+      skipping_ = false;
+      idrs_since_skip_++;
+    } else {
+      frames_since_idr_++;
+    }
+
+    if ( skipping_ and frames_since_idr_ >= 47 ) {
+      idrs_since_skip_ = 0;
+    } else {
+      muxer_.write( s, video_frame_count_, video_frame_count_ );
+      video_frame_count_++;
+    }
   }
 
   bool can_send( const size_t len ) const
@@ -148,22 +179,39 @@ public:
       categories.ws_send,
       [this] {
         ws_frame_.payload.resize(
-          min( mp4_writer_.output().readable_region().size(),
-               ssl_session_.outbound_plaintext().writable_region().size() - WebSocketFrame::max_overhead() ) );
+          min( muxer_.output().readable_region().size() + 1,
+               ssl_session_.outbound_plaintext().writable_region().size() - WebSocketFrame::max_overhead() - 1 ) );
+        ws_frame_.payload.at( 0 ) = 0;
+        memcpy(
+          ws_frame_.payload.data() + 1, muxer_.output().readable_region().data(), ws_frame_.payload.size() - 1 );
 
-        memcpy( ws_frame_.payload.data(), mp4_writer_.output().readable_region().data(), ws_frame_.payload.size() );
-        /* XXX could remove this copy later */
+        muxer_.output().pop( ws_frame_.payload.size() - 1 );
 
-        mp4_writer_.output().pop( ws_frame_.payload.size() );
-
-        /* serialize the WebSocket frame */
         Serializer s { ssl_session_.outbound_plaintext().writable_region() };
         s.object( ws_frame_ );
         ssl_session_.outbound_plaintext().push( s.bytes_written() );
       },
       [&] {
-        return ( ssl_session_.outbound_plaintext().writable_region().size() > WebSocketFrame::max_overhead() )
-               and ( mp4_writer_.output().readable_region().size() > 0 );
+        return ssl_session_.outbound_plaintext().writable_region().size() > ( 1 + WebSocketFrame::max_overhead() )
+               and muxer_.output().readable_region().size() and ws_server_.handshake_complete();
+      } ) );
+
+    rules_.push_back( loop.add_rule(
+      categories.ws_send,
+      [this] {
+        const auto now = Timer::timestamp_ns();
+        ws_frame_.payload = " time = " + to_string( now );
+        ws_frame_.payload.at( 0 ) = 1;
+
+        next_status_update_ = now + BILLION;
+
+        Serializer s { ssl_session_.outbound_plaintext().writable_region() };
+        s.object( ws_frame_ );
+        ssl_session_.outbound_plaintext().push( s.bytes_written() );
+      },
+      [&] {
+        return ws_server_.handshake_complete() and Timer::timestamp_ns() > next_status_update_
+               and ssl_session_.outbound_plaintext().writable_region().size() > 100;
       } ) );
 
     rules_.push_back( loop.add_rule(
@@ -171,14 +219,21 @@ public:
       [this] {
         ws_server_.endpoint().read( ssl_session_.inbound_plaintext(), ssl_session_.outbound_plaintext() );
         if ( ws_server_.endpoint().ready() ) {
-          cerr << "got message: " << ws_server_.endpoint().message() << "\n";
+          parse_message( ws_server_.endpoint().message() );
+
+          if ( last_buffer_ > 0.11 and mean_buffer_ > 0.11 and idrs_since_skip_ > 0 ) {
+            skipping_ = true;
+          }
+
+          //          cerr << skipping_ << " " << idrs_since_skip_ << " " << last_buffer_ << " " << mean_buffer_
+          //          <<
+          //          "\n";
+
           ws_server_.endpoint().pop_message();
         }
       },
-      [this] { return good() and not ssl_session_.inbound_plaintext().readable_region().empty(); } ) );
+      [this] { return good() and ssl_session_.inbound_plaintext().readable_region().size(); } ) );
   }
-
-  bool handshake_complete() const { return ws_server_.handshake_complete(); }
 
   ~ClientConnection()
   {
@@ -188,8 +243,6 @@ public:
   }
 
   SSLSession& session() { return ssl_session_; }
-
-  bool good() const { return good_; }
 
   ClientConnection( const ClientConnection& other ) noexcept = delete;
   ClientConnection& operator=( const ClientConnection& other ) noexcept = delete;
@@ -218,7 +271,7 @@ void program_body( const string origin, const string cert_filename, const string
   web_listen_socket.set_reuseaddr();
   web_listen_socket.set_blocking( false );
   web_listen_socket.set_tcp_nodelay( true );
-  web_listen_socket.bind( { "0", 8081 } );
+  web_listen_socket.bind( { "0", 8400 } );
   web_listen_socket.listen();
 
   struct ClientList : public Summarizable
@@ -239,10 +292,6 @@ void program_body( const string origin, const string cert_filename, const string
   };
   auto clients = make_shared<ClientList>();
 
-  if ( SIG_ERR == signal( SIGPIPE, SIG_IGN ) ) {
-    throw unix_error( "signal" );
-  }
-
   /* set up event loop */
   auto loop = make_shared<EventLoop>();
   EventCategories categories { *loop };
@@ -256,7 +305,7 @@ void program_body( const string origin, const string cert_filename, const string
     buf.resize( stream_receiver.recv( src, buf.mutable_buffer() ) );
 
     for ( auto& client : clients->clients ) {
-      client.mux_NAL( buf );
+      client.push_NAL( buf );
     }
   } );
 
