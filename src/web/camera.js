@@ -54,7 +54,7 @@ function sourceOpenVideo(e) {
 	}
     }
 
-    ws = new WebSocket("ws://localhost:8400");
+    ws = new WebSocket("wss://stagecast.org:8400");
     ws.binaryType = 'arraybuffer';
     ws.onmessage = function( e ) {
 	var is_message = new DataView(e.data, 0, 1).getUint8(0);
