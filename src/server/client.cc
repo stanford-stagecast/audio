@@ -80,6 +80,30 @@ void AudioFeed::decode_into( const PartialFrameStore<AudioFrame>& frames,
   }
 }
 
+void AudioFeed::decode_into( const PartialFrameStore<AudioFrame>& frames,
+                             const uint64_t cursor_sample,
+                             const uint64_t frontier_sample_index,
+                             AudioChannel& ch1,
+                             AudioChannel& ch2,
+                             AudioChannel& ch1dup,
+                             AudioChannel& ch2dup )
+{
+  cursor_.setup( cursor_sample, frontier_sample_index );
+
+  Cursor::AudioSlice audio;
+
+  while ( cursor_.initialized() and cursor_sample > cursor_.num_samples_output() ) {
+    cursor_.sample( frames, frontier_sample_index, decoder_, stretcher_, audio );
+
+    if ( audio.good ) {
+      ch1.region( audio.sample_index, audio.length ).copy( audio.ch1_span() );
+      ch2.region( audio.sample_index, audio.length ).copy( audio.ch2_span() );
+      ch1dup.region( audio.sample_index, audio.length ).copy( audio.ch1_span() );
+      ch2dup.region( audio.sample_index, audio.length ).copy( audio.ch2_span() );
+    }
+  }
+}
+
 void Client::decode_audio( const uint64_t cursor_sample,
                            AudioBoard& internal_board,
                            AudioBoard& quality_board,
@@ -95,11 +119,7 @@ void Client::decode_audio( const uint64_t cursor_sample,
                              cursor_sample,
                              connection_.unreceived_beyond_this_frame_index() * opus_frame::NUM_SAMPLES_MINLATENCY,
                              quality_board.channel( ch1_num_ ),
-                             quality_board.channel( ch2_num_ ) );
-
-  quality_feed_.decode_into( connection_.frames(),
-                             cursor_sample,
-                             connection_.unreceived_beyond_this_frame_index() * opus_frame::NUM_SAMPLES_MINLATENCY,
+                             quality_board.channel( ch2_num_ ),
                              quality_board2.channel( ch1_num_ ),
                              quality_board2.channel( ch2_num_ ) );
 

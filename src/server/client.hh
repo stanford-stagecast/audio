@@ -34,6 +34,14 @@ public:
                     AudioChannel& ch1,
                     AudioChannel& ch2 );
 
+  void decode_into( const PartialFrameStore<AudioFrame>& frames,
+                    uint64_t cursor_sample,
+                    const uint64_t frontier_sample_index,
+                    AudioChannel& ch1,
+                    AudioChannel& ch2,
+                    AudioChannel& ch1dup,
+                    AudioChannel& ch2dup );
+
   size_t ok_to_pop( const PartialFrameStore<AudioFrame>& frames ) const { return cursor_.ok_to_pop( frames ); }
 
   const std::string& name() const { return name_; }
