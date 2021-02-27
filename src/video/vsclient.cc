@@ -7,7 +7,12 @@ using Option = RubberBand::RubberBandStretcher::Option;
 
 VSClient::VSClient( const uint8_t node_id, CryptoSession&& crypto )
   : connection_( 0, node_id, move( crypto ) )
-{}
+{
+  zoom_.x = 0;
+  zoom_.y = 0;
+  zoom_.width = 3840;
+  zoom_.height = 2160;
+}
 
 bool VSClient::receive_packet( const Address& source, const Ciphertext& ciphertext )
 {
@@ -38,6 +43,18 @@ bool VSClient::receive_packet( const Address& source, const Ciphertext& cipherte
 void VSClient::send_packet( UDPSocket& socket )
 {
   if ( connection_.has_destination() ) {
+
+    const uint64_t now = Timer::timestamp_ns();
+    if ( now > next_zoom_update_ ) {
+      NetString update;
+      Serializer s { update.mutable_buffer() };
+      s.object( zoom_ );
+      update.resize( s.bytes_written() );
+
+      connection_.set_outbound_unreliable_data( update );
+      next_zoom_update_ = now + 25'000'000;
+    }
+
     connection_.send_packet( socket );
   }
 }

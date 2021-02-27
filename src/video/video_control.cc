@@ -27,10 +27,20 @@ VideoServerController::VideoServerController( shared_ptr<VideoServer> server, Ev
         set_live my_set_live;
         parser.object( my_set_live );
         if ( parser.error() ) {
+          parser.clear_error();
           return;
         }
         server_->set_live( my_set_live.name );
       } break;
+      case video_control::id:
+        video_control my_video_control;
+        parser.object( my_video_control );
+        if ( parser.error() ) {
+          parser.clear_error();
+          return;
+        }
+        server->set_zoom( my_video_control );
+        break;
     }
   } );
 }

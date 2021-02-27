@@ -36,6 +36,9 @@ public:
   const VideoNetworkConnection& connection() const { return connection_; }
 
   RasterYUV420& raster() { return raster_; }
+
+  video_control zoom_ {};
+  uint64_t next_zoom_update_ = 0;
 };
 
 class KnownVideoClient

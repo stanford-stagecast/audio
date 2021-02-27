@@ -20,6 +20,16 @@ void VideoClient::NetworkSession::transmit_frame( VideoSource& source, UDPSocket
 void VideoClient::NetworkSession::network_receive( const Ciphertext& ciphertext )
 {
   connection.receive_packet( ciphertext );
+
+  if ( connection.has_inbound_unreliable_data() ) {
+    Parser p { connection.inbound_unreliable_data() };
+    control.emplace();
+    p.object( control.value() );
+    if ( p.error() ) {
+      p.clear_error();
+    }
+    connection.pop_inbound_unreliable_data();
+  }
 }
 
 void VideoClient::NetworkSession::summary( std::ostream& out ) const

@@ -44,5 +44,7 @@ public:
 
   void set_live( const std::string_view name );
 
+  void set_zoom( const video_control& control );
+
   void initialize_clock();
 };

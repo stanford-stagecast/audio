@@ -64,6 +64,11 @@ void program_body( const string& device, const string& host, const string& servi
   loop->add_rule(
     "scale frame",
     [&] {
+      if ( client->has_control() ) {
+        scaler.setup( client->control().x, client->control().y, client->control().width, client->control().height );
+        client->pop_control();
+      }
+
       scaler.scale( camera_raster, output_raster );
       frames_scaled_++;
     },

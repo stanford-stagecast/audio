@@ -24,20 +24,28 @@ void send( const Message& message )
 
 void program_body( const string& control,
                    const string& name,
-                   const string& feed,
-                   const string& target,
-                   const string& min,
-                   const string& max )
+                   const string& a,
+                   const string& b,
+                   const string& c,
+                   const string& d )
 {
   ios::sync_with_stdio( false );
 
   if ( control == "cursor" ) {
     set_cursor_lag instruction;
     instruction.name = NetString( name );
-    instruction.feed = NetString( feed );
-    instruction.target_samples = stoi( target );
-    instruction.min_samples = stoi( min );
-    instruction.max_samples = stoi( max );
+    instruction.feed = NetString( a );
+    instruction.target_samples = stoi( b );
+    instruction.min_samples = stoi( c );
+    instruction.max_samples = stoi( d );
+    send( instruction );
+  } else if ( control == "zoom" ) {
+    video_control instruction;
+    instruction.name = NetString( name );
+    instruction.x = stoi( a );
+    instruction.y = stoi( b );
+    instruction.width = stoi( c );
+    instruction.height = stoi( d );
     send( instruction );
   } else {
     throw runtime_error( "unknown control" );
@@ -53,6 +61,7 @@ int main( int argc, char* argv[] )
 
     if ( argc != 7 ) {
       cerr << "Usage: " << argv[0] << " cursor name feed target_lag min_lag max_lag\n";
+      cerr << "Usage: " << argv[0] << " zoom name x y width height\n";
       return EXIT_FAILURE;
     }
 

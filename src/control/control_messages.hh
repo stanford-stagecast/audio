@@ -126,3 +126,29 @@ struct client_report : public control_message<3>
     p.floating( self_gain );
   }
 };
+
+struct video_control : public control_message<4>
+{
+  NetString name {};
+  uint16_t x {}, y {}, width {}, height {};
+
+  uint32_t serialized_length() const { return name.serialized_length() + 4 * sizeof( uint16_t ); }
+
+  void serialize( Serializer& s ) const
+  {
+    s.object( name );
+    s.integer( x );
+    s.integer( y );
+    s.integer( width );
+    s.integer( height );
+  }
+
+  void parse( Parser& p )
+  {
+    p.object( name );
+    p.integer( x );
+    p.integer( y );
+    p.integer( width );
+    p.integer( height );
+  }
+};

@@ -3,6 +3,7 @@
 #include <chrono>
 
 #include "connection.hh"
+#include "control_messages.hh"
 #include "keys.hh"
 #include "video_source.hh"
 
@@ -20,6 +21,8 @@ class VideoClient : public Summarizable
     void network_receive( const Ciphertext& ciphertext );
     void decode();
     void summary( std::ostream& out ) const;
+
+    std::optional<video_control> control {};
   };
 
   UDPSocket socket_ {};
@@ -50,4 +53,8 @@ public:
   void summary( std::ostream& out ) const override;
 
   uint64_t wait_time_ms( const uint64_t now ) const { return source_->wait_time_ms( now ); }
+
+  bool has_control() const { return session_.has_value() and session_.value().control.has_value(); }
+  const video_control& control() { return session_.value().control.value(); }
+  void pop_control() { session_.value().control.reset(); }
 };
