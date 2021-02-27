@@ -111,8 +111,8 @@ void MP4Writer::write( const string_view nal, const uint32_t presentation_no, co
 {
   AVPacket packet {};
   packet.buf = nullptr;
-  packet.pts = presentation_no * MP4_TIMEBASE / frame_rate_;
-  packet.dts = display_no * MP4_TIMEBASE / frame_rate_;
+  packet.pts = uint64_t( presentation_no ) * uint64_t( MP4_TIMEBASE ) / uint64_t( frame_rate_ );
+  packet.dts = uint64_t( display_no ) * uint64_t( MP4_TIMEBASE ) / uint64_t( frame_rate_ );
   packet.data = const_cast<uint8_t*>(
     reinterpret_cast<const uint8_t*>( nal.data() ) ); /* hope that av_write_frame doesn't change contents */
   packet.size = nal.size();
