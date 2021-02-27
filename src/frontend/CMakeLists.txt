@@ -248,3 +248,15 @@ target_link_libraries ("webcam-demo-ws" ${AVFormat_LDFLAGS_OTHER})
 
 target_link_libraries ("webcam-demo-ws" ${X264_LDFLAGS})
 target_link_libraries ("webcam-demo-ws" ${X264_LDFLAGS_OTHER})
+
+add_executable (ws-control-server "ws-control-server.cc")
+target_link_libraries ("ws-control-server" stats)
+target_link_libraries ("ws-control-server" playback)
+target_link_libraries ("ws-control-server" http)
+target_link_libraries ("ws-control-server" util)
+
+target_link_libraries ("ws-control-server" ${SSL_LDFLAGS})
+target_link_libraries ("ws-control-server" ${SSL_LDFLAGS_OTHER})
+
+target_link_libraries ("ws-control-server" ${CryptoPP_LDFLAGS})
+target_link_libraries ("ws-control-server" ${CryptoPP_LDFLAGS_OTHER})
