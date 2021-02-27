@@ -54,7 +54,9 @@ function sourceOpen(e) {
     ws = new WebSocket("wss://stagecast.org:8081");
     ws.binaryType = 'arraybuffer';
     ws.onmessage = function( e ) {
-        queue.push(e.data);
+
+	var rest = e.data.slice(1);
+	queue.push(rest);
 
 //	console.log("buffered: " + sourceBuffer.buffered.start(0) + " to " + sourceBuffer.buffered.end(0) );
 
