@@ -36,6 +36,14 @@ function sourceOpen(e) {
 
     var resets = 0.0;
     document.getElementById('buffer').innerHTML = "resets: " + resets;
+
+    setInterval(function(){
+	if ( sourceBuffer.buffered.length > 0 ) {
+	    var buffer_duration = sourceBuffer.buffered.end(0) - audio.currentTime;
+	    ws.send("buffer " + buffer_duration.toFixed(3));
+	    document.getElementById('buffer').innerHTML = "Buffer: " + (24*buffer_duration).toFixed(0) + " video frames";
+	}
+    }, 50);
     
     bump = function() {
         if (queue.length > 0 && !sourceBuffer.updating) {
@@ -43,10 +51,6 @@ function sourceOpen(e) {
 
 	    if ( sourceBuffer.buffered.length > 0 ) {
 		var buffer_duration = sourceBuffer.buffered.end(0) - audio.currentTime;
-
-		document.getElementById('buffer').innerHTML = "Buffer: " + (24*buffer_duration).toFixed(0) + " video frames";
-		
-		ws.send("buffer " + buffer_duration.toFixed(3));
 
 		if ( buffer_duration > 0.6 ) {
 		    audio.currentTime = sourceBuffer.buffered.end(0) - 0.3;

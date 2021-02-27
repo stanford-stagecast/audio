@@ -64,14 +64,18 @@ public:
   }
 
 private:
-  float mean_buffer_ = 0.0;
-  float last_buffer_ = 0.0;
+  unsigned int updates_since_small_buffer_ {};
   void parse_message( const string_view s )
   {
     if ( ( s.size() > 7 ) and ( s.substr( 0, 7 ) == "buffer " ) ) {
       string_view num = s.substr( 8 );
-      last_buffer_ = stof( string( num ) );
-      ewma_update( mean_buffer_, last_buffer_, 0.05 );
+      float last_buffer = stof( string( num ) );
+      if ( last_buffer < 0.1 ) {
+        updates_since_small_buffer_ = 0;
+      } else {
+        updates_since_small_buffer_++;
+      }
+      cerr << last_buffer << ":" << updates_since_small_buffer_ << "\n";
     }
   }
 
@@ -184,7 +188,7 @@ public:
         if ( ws_server_.endpoint().ready() ) {
           parse_message( ws_server_.endpoint().message() );
 
-          if ( last_buffer_ > 0.12 and mean_buffer_ > 0.12 and frames_since_skip_ > 100 ) {
+          if ( updates_since_small_buffer_ > 10 ) {
             skipping_ = true;
           }
 
