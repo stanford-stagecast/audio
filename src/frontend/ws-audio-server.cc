@@ -184,7 +184,7 @@ public:
         if ( ws_server_.endpoint().ready() ) {
           parse_message( ws_server_.endpoint().message() );
 
-          if ( last_buffer_ > 0.11 and mean_buffer_ > 0.11 and frames_since_skip_ > 50 ) {
+          if ( last_buffer_ > 0.12 and mean_buffer_ > 0.12 and frames_since_skip_ > 100 ) {
             skipping_ = true;
           }
 
@@ -209,15 +209,13 @@ public:
 
   void push_opus_frame( const string_view s )
   {
-    if ( not s.empty() ) {
-      if ( skipping_ ) {
-        skipping_ = false;
-        frames_since_skip_ = 0;
-      } else {
-        muxer_.write( s, audio_frame_count_ * opus_frame::NUM_SAMPLES_MINLATENCY );
-        audio_frame_count_++;
-        frames_since_skip_++;
-      }
+    if ( skipping_ ) {
+      skipping_ = false;
+      frames_since_skip_ = 0;
+    } else {
+      muxer_.write( s, audio_frame_count_ * opus_frame::NUM_SAMPLES_MINLATENCY );
+      audio_frame_count_++;
+      frames_since_skip_++;
     }
   }
 
@@ -279,6 +277,9 @@ void program_body( const string origin, const string cert_filename, const string
 
   loop->add_rule( "new audio segment", stream_receiver, Direction::In, [&] {
     buf.resize( stream_receiver.recv( buf.mutable_buffer() ) );
+    if ( buf.length() == 0 ) {
+      return;
+    }
 
     for ( auto& client : clients->clients ) {
       try {

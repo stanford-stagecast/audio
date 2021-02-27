@@ -3,6 +3,7 @@ queue = [];
 
 window.onload = async function(e){
     audio = document.getElementById('audio');
+    audio.latencyHint = 0;
     if (window.MediaSource) {
         var mediaSource = new MediaSource();
         mediaSource.addEventListener('sourceopen', sourceOpen);
@@ -47,8 +48,8 @@ function sourceOpen(e) {
 		
 		ws.send("buffer " + buffer_duration.toFixed(3));
 
-		if ( buffer_duration > 0.5 ) {
-		    audio.currentTime = sourceBuffer.buffered.end(0) - 0.25;
+		if ( buffer_duration > 0.6 ) {
+		    audio.currentTime = sourceBuffer.buffered.end(0) - 0.3;
 		    resets++;
 		    document.getElementById('resets').innerHTML = "resets: " + resets;
 		}
