@@ -27,6 +27,7 @@ class Cursor
     float mean_margin_to_frontier, quality, mean_time_ratio;
     unsigned int compress_starts, compress_stops;
     unsigned int expand_starts, expand_stops;
+    unsigned int fades_in;
   } stats_ {};
 
   std::optional<size_t> num_samples_output_ {};

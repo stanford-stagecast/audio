@@ -38,6 +38,8 @@ void Cursor::sample( const PartialFrameStore<AudioFrame>& frames,
                      RubberBand::RubberBandStretcher& stretcher,
                      AudioSlice& output )
 {
+  bool fade_in_ {};
+
   if ( not initialized() ) {
     throw runtime_error( "Cursor::sample() called on uninitialized Cursor" );
   }
@@ -59,6 +61,7 @@ void Cursor::sample( const PartialFrameStore<AudioFrame>& frames,
       throw runtime_error( "internal error" );
     }
     stats_.resets++;
+    fade_in_ = true;
   }
 
   /* sample statistics */
@@ -123,6 +126,14 @@ void Cursor::sample( const PartialFrameStore<AudioFrame>& frames,
     }
   }
 
+  if ( fade_in_ ) {
+    for ( uint16_t i = 0; i < opus_frame::NUM_SAMPLES_MINLATENCY; i++ ) {
+      ch1_decoded[i] *= double( i ) / double( opus_frame::NUM_SAMPLES_MINLATENCY );
+      ch2_decoded[i] *= double( i ) / double( opus_frame::NUM_SAMPLES_MINLATENCY );
+    }
+    stats_.fades_in++;
+  }
+
   /* time-stretch */
   array<float*, 2> decoded_audio_for_stretcher = { ch1_scratch.data(), ch2_scratch.data() };
   stretcher.process( decoded_audio_for_stretcher.data(), opus_frame::NUM_SAMPLES_MINLATENCY, false );
@@ -161,6 +172,7 @@ void Cursor::summary( ostream& out ) const
   out << " expansions=" << stats_.expand_starts << "+" << stats_.expand_stops;
   out << " rate=" << int( rate_ );
   out << " resets=" << stats_.resets;
+  out << " fades=" << stats_.fades_in;
   out << "\n";
 }
 
