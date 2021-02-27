@@ -9,6 +9,7 @@
 #include "socket.hh"
 #include "stackbuffer.hh"
 #include "stats_printer.hh"
+#include "webmwriter.hh"
 #include "ws_server.hh"
 
 using namespace std;
@@ -16,7 +17,7 @@ using namespace std::chrono;
 
 struct EventCategories
 {
-  size_t close, SSL_read, SSL_write, ws_handshake, ws_receive, send_init_segment;
+  size_t close, SSL_read, SSL_write, ws_handshake, ws_receive, ws_send;
 
   EventCategories( EventLoop& loop )
     : close( loop.add_category( "close" ) )
@@ -24,7 +25,7 @@ struct EventCategories
     , SSL_write( loop.add_category( "SSL_write" ) )
     , ws_handshake( loop.add_category( "WebSocket handshake" ) )
     , ws_receive( loop.add_category( "WebSocket receive" ) )
-    , send_init_segment( loop.add_category( "sent initial segment" ) )
+    , ws_send( loop.add_category( "WebSocket send" ) )
   {}
 };
 
@@ -32,8 +33,8 @@ class ClientConnection
 {
   SSLSession ssl_session_;
   WebSocketServer ws_server_;
-  string_view init_segment_;
-  bool init_segment_sent_ {};
+  WebMWriter muxer_ { 96000, 24000, 2 };
+  WebSocketFrame ws_frame_;
 
   vector<EventLoop::RuleHandle> rules_;
 
@@ -42,6 +43,9 @@ class ClientConnection
 
   shared_ptr<bool> cull_needed_;
 
+  uint64_t audio_frame_count_ {};
+
+public:
   void cull( const string_view s )
   {
     *cull_needed_ = true;
@@ -58,7 +62,6 @@ class ClientConnection
     rules_.clear();
   }
 
-public:
   const TCPSocket& socket() const { return ssl_session_.socket(); }
 
   void send_all( const string_view s ) { ws_server_.endpoint().send_all( s, ssl_session_.outbound_plaintext() ); }
@@ -72,8 +75,7 @@ public:
                     TCPSocket& listening_socket,
                     const string& origin,
                     EventLoop& loop,
-                    shared_ptr<bool> cull_needed,
-                    const string_view init_segment )
+                    shared_ptr<bool> cull_needed )
     : ssl_session_( context.make_SSL_handle(),
                     [&] {
                       auto sock = listening_socket.accept();
@@ -82,13 +84,13 @@ public:
                       return sock;
                     }() )
     , ws_server_( origin )
-    , init_segment_( init_segment )
+    , ws_frame_()
     , rules_()
     , cull_needed_( cull_needed )
   {
     cerr << "New connection from " << ssl_session_.socket().peer_address().to_string() << "\n";
 
-    rules_.reserve( 6 );
+    rules_.reserve( 10 );
 
     rules_.push_back( loop.add_rule(
       categories.close,
@@ -134,17 +136,29 @@ public:
                and ( not ws_server_.handshake_complete() );
       } ) );
 
+    ws_frame_.fin = true;
+    ws_frame_.opcode = WebSocketFrame::opcode_t::Binary;
+
     rules_.push_back( loop.add_rule(
-      categories.send_init_segment,
+      categories.ws_send,
       [this] {
-        init_segment_sent_ = true;
-        if ( can_send( init_segment_.size() ) ) {
-          send_all( init_segment_ );
-        } else {
-          cull( "can't send initial segment" );
-        }
+        ws_frame_.payload.resize(
+          min( muxer_.output().readable_region().size() + 1,
+               ssl_session_.outbound_plaintext().writable_region().size() - WebSocketFrame::max_overhead() - 1 ) );
+        ws_frame_.payload.at( 0 ) = 0;
+        memcpy(
+          ws_frame_.payload.data() + 1, muxer_.output().readable_region().data(), ws_frame_.payload.size() - 1 );
+
+        muxer_.output().pop( ws_frame_.payload.size() - 1 );
+
+        Serializer s { ssl_session_.outbound_plaintext().writable_region() };
+        s.object( ws_frame_ );
+        ssl_session_.outbound_plaintext().push( s.bytes_written() );
       },
-      [this] { return good() and ws_server_.handshake_complete() and not init_segment_sent_; } ) );
+      [&] {
+        return ssl_session_.outbound_plaintext().writable_region().size() > ( 1 + WebSocketFrame::max_overhead() )
+               and muxer_.output().readable_region().size() and ws_server_.handshake_complete();
+      } ) );
 
     rules_.push_back( loop.add_rule(
       categories.ws_receive,
@@ -171,6 +185,12 @@ public:
 
   bool good() const { return good_; }
 
+  void push_opus_frame( const string_view s )
+  {
+    muxer_.write( s, audio_frame_count_ * opus_frame::NUM_SAMPLES_MINLATENCY );
+    audio_frame_count_++;
+  }
+
   ClientConnection( const ClientConnection& other ) noexcept = delete;
   ClientConnection& operator=( const ClientConnection& other ) noexcept = delete;
 
@@ -187,16 +207,6 @@ void program_body( const string origin, const string cert_filename, const string
   }
 
   SSLServerContext ssl_context { cert_filename, privkey_filename };
-
-  /* read init segment */
-  const ReadOnlyFile init_segment_file { "/tmp/stagecast-audio.init" };
-  WebSocketFrame init_segment_frame;
-  init_segment_frame.fin = true;
-  init_segment_frame.opcode = WebSocketFrame::opcode_t::Binary;
-  init_segment_frame.payload = init_segment_file;
-  string init_segment;
-  init_segment.resize( init_segment_frame.serialized_length() );
-  init_segment_frame.serialize( init_segment );
 
   /* receive new additions to stream */
   UnixDatagramSocket stream_receiver;
@@ -229,37 +239,28 @@ void program_body( const string origin, const string cert_filename, const string
   };
   auto clients = make_shared<ClientList>();
 
-  if ( SIG_ERR == signal( SIGPIPE, SIG_IGN ) ) {
-    throw unix_error( "signal" );
-  }
-
   /* set up event loop */
   auto loop = make_shared<EventLoop>();
   EventCategories categories { *loop };
 
   auto cull_needed = make_shared<bool>( false );
 
-  WebSocketFrame frame_segment;
-  frame_segment.fin = true;
-  frame_segment.opcode = WebSocketFrame::opcode_t::Binary;
-
-  string frame_segment_serialized;
+  StackBuffer<0, uint32_t, 1048576> buf;
 
   loop->add_rule( "new audio segment", stream_receiver, Direction::In, [&] {
-    frame_segment.payload.resize( 1048576 );
-    frame_segment.payload.resize( stream_receiver.recv( string_span::from_view( frame_segment.payload ) ) );
-    frame_segment.serialize( frame_segment_serialized );
+    buf.resize( stream_receiver.recv( buf.mutable_buffer() ) );
 
     for ( auto& client : clients->clients ) {
-      if ( client.handshake_complete() and client.can_send( frame_segment_serialized.length() ) ) {
-        client.send_all( frame_segment_serialized );
+      try {
+        client.push_opus_frame( buf );
+      } catch ( const exception& e ) {
+        client.cull( "Muxer exception" );
       }
     }
   } );
 
   loop->add_rule( "new TCP connection", web_listen_socket, Direction::In, [&] {
-    clients->clients.emplace_back(
-      categories, ssl_context, web_listen_socket, origin, *loop, cull_needed, init_segment );
+    clients->clients.emplace_back( categories, ssl_context, web_listen_socket, origin, *loop, cull_needed );
   } );
 
   /* cull old connections */

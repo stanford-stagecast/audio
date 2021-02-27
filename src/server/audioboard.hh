@@ -4,7 +4,7 @@
 
 #include "audio_buffer.hh"
 #include "encoder_task.hh"
-#include "webmwriter.hh"
+#include "socket.hh"
 
 #include <json/json.h>
 
@@ -47,7 +47,9 @@ class AudioWriter
   uint64_t mix_cursor_ {};
 
   OpusEncoderProcess encoder_ { 96000, 48000 };
-  WebMWriter webm_writer_;
+
+  Address destination_;
+  UnixDatagramSocket socket_ {};
 
 public:
   AudioWriter( const std::string_view socket_path );

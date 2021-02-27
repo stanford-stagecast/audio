@@ -39,17 +39,11 @@ int write_helper( void* rb_opaque, uint8_t* buf, int buf_size )
   return buf_size;
 }
 
-WebMWriter::WebMWriter( const int bit_rate,
-                        const uint32_t sample_rate,
-                        const uint8_t num_channels,
-                        const string_view socket_path )
+WebMWriter::WebMWriter( const int bit_rate, const uint32_t sample_rate, const uint8_t num_channels )
   : audio_stream_()
-  , stream_destination_( Address::abstract_unix( socket_path ) )
   , header_written_( false )
   , sample_rate_( sample_rate )
 {
-  stream_socket_.set_blocking( false );
-
   {
     AVFormatContext* tmp_context;
     av_check( avformat_alloc_output_context2( &tmp_context, nullptr, "webm", nullptr ) );
@@ -112,17 +106,7 @@ WebMWriter::WebMWriter( const int bit_rate,
     throw runtime_error( "audio stream time base mismatch" );
   }
 
-  static constexpr char filename[] = "/tmp/stagecast-audio.init";
-  FileDescriptor init_ { CheckSystemCall( "open( "s + filename + " )",
-                                          open( filename, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR ) ) };
-
   avio_flush( context_->pb );
-  buf_.pop_to_fd( init_ );
-  init_.close();
-
-  if ( buf_.readable_region().size() ) {
-    throw runtime_error( "did not write entire init segment" );
-  }
 }
 
 WebMWriter::~WebMWriter()
@@ -136,13 +120,14 @@ WebMWriter::~WebMWriter()
   }
 }
 
-void WebMWriter::write( opus_frame& frame, const uint64_t starting_sample_number )
+void WebMWriter::write( const std::string_view frame, const uint64_t starting_sample_number )
 {
   AVPacket packet {};
   packet.buf = nullptr;
-  packet.pts = WEBM_TIMEBASE * starting_sample_number / sample_rate_;
-  packet.dts = WEBM_TIMEBASE * starting_sample_number / sample_rate_;
-  packet.data = frame.mutable_unsigned_data_ptr();
+  packet.pts = uint64_t( WEBM_TIMEBASE ) * uint64_t( starting_sample_number ) / uint64_t( sample_rate_ );
+  packet.dts = uint64_t( WEBM_TIMEBASE ) * uint64_t( starting_sample_number ) / uint64_t( sample_rate_ );
+  packet.data = const_cast<uint8_t*>(
+    reinterpret_cast<const uint8_t*>( frame.data() ) ); /* hope that av_write_frame doesn't change contents */
   packet.size = frame.length();
   packet.stream_index = 0;
   packet.flags = AV_PKT_FLAG_KEY;
@@ -152,6 +137,4 @@ void WebMWriter::write( opus_frame& frame, const uint64_t starting_sample_number
   av_check( av_write_frame( context_.get(), &packet ) );
   av_check( av_write_frame( context_.get(), nullptr ) );
   avio_flush( context_->pb );
-  stream_socket_.sendto_ignore_errors( stream_destination_, buf_.readable_region() );
-  buf_.pop( buf_.readable_region().size() );
 }

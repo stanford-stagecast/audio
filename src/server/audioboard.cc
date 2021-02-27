@@ -72,7 +72,7 @@ void AudioWriter::mix_and_write( const AudioBoard& board, const uint64_t cursor_
 
     encoder_.encode_one_frame( mixed_audio_.ch1(), mixed_audio_.ch2() );
     auto frame_mutable = encoder_.front( 0 );
-    webm_writer_.write( frame_mutable.frame1, mix_cursor_ );
+    socket_.sendto_ignore_errors( destination_, frame_mutable.frame1 );
     encoder_.pop_frame();
     mix_cursor_ += opus_frame::NUM_SAMPLES_MINLATENCY;
     mixed_audio_.pop_before( mix_cursor_ );
@@ -80,5 +80,5 @@ void AudioWriter::mix_and_write( const AudioBoard& board, const uint64_t cursor_
 }
 
 AudioWriter::AudioWriter( const string_view socket_path )
-  : webm_writer_( 96000, 48000, 2, socket_path )
+  : destination_( Address::abstract_unix( socket_path ) )
 {}

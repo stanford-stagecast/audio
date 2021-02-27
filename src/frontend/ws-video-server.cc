@@ -354,7 +354,7 @@ void program_body( const string origin,
   auto cull_needed = make_shared<bool>( false );
 
   Address src { nullptr, 0 };
-  StackBuffer<0, uint16_t, 65535> buf;
+  StackBuffer<0, uint32_t, 1048576> buf;
 
   loop->add_rule( "new video segment", stream_receiver, Direction::In, [&] {
     buf.resize( stream_receiver.recv( src, buf.mutable_buffer() ) );
