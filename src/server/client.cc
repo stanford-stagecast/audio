@@ -33,7 +33,7 @@ AudioFeed::AudioFeed( const string_view name,
 
 Client::Client( const uint8_t node_id, const uint8_t ch1_num, const uint8_t ch2_num, CryptoSession&& crypto )
   : connection_( 0, node_id, move( crypto ) )
-  , internal_feed_( "internal", 240, 120, 480, true )
+  , internal_feed_( "internal", 960, 120, 1920, true )
   , quality_feed_( "quality", 4800, 4800 - 240, 4800 + 240, false )
   , ch1_num_( ch1_num )
   , ch2_num_( ch2_num )

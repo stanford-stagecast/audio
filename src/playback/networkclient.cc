@@ -10,7 +10,7 @@ NetworkClient::NetworkSession::NetworkSession( const uint8_t node_id,
                                                const KeyPair& session_key,
                                                const Address& destination )
   : connection( node_id, 0, CryptoSession( session_key.uplink, session_key.downlink ), destination )
-  , cursor( 240, 120, 480 )
+  , cursor( 960, 120, 1920 )
 {}
 
 void NetworkClient::NetworkSession::transmit_frame( OpusEncoderProcess& source, UDPSocket& socket )
