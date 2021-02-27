@@ -1,8 +1,6 @@
 #include "audioboard.hh"
 #include "ewma.hh"
 
-#include <json/json.h>
-
 using namespace std;
 
 AudioBoard::AudioBoard( const string_view name, const uint8_t num_channels )
@@ -40,9 +38,8 @@ void AudioBoard::pop_samples_until( const uint64_t sample )
   }
 }
 
-string AudioBoard::json_summary() const
+void AudioBoard::json_summary( Json::Value& root ) const
 {
-  Json::Value root;
   root["name"] = name_;
   for ( unsigned int i = 0; i < num_channels(); i++ ) {
     root["channels"][channels_.at( i ).first]["amplitude"] = float_to_dbfs( sqrt( power_.at( i ) ) );
@@ -50,11 +47,6 @@ string AudioBoard::json_summary() const
     root["channels"][channels_.at( i ).first]["gain"] = float_to_dbfs( gain_sum );
     root["channels"][channels_.at( i ).first]["pan"] = 2 * ( ( gains_.at( i ).second / gain_sum ) - 0.5 );
   }
-
-  ostringstream str;
-  str << root;
-
-  return str.str();
 }
 
 void AudioWriter::mix_and_write( const AudioBoard& board, const uint64_t cursor_sample )

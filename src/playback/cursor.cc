@@ -164,6 +164,18 @@ void Cursor::summary( ostream& out ) const
   out << "\n";
 }
 
+void Cursor::json_summary( Json::Value& root ) const
+{
+  root["target_lag"] = target_lag_samples_;
+  root["actual_lag"] = stats_.mean_margin_to_frontier;
+  root["quality"] = stats_.quality;
+  root["min_lag"] = min_lag_samples_;
+  root["max_lag"] = max_lag_samples_;
+  root["resets"] = stats_.resets;
+  root["compressions"] = stats_.compress_starts;
+  root["expansions"] = stats_.expand_starts;
+}
+
 size_t Cursor::ok_to_pop( const PartialFrameStore<AudioFrame>& frames ) const
 {
   if ( not frame_cursor_.has_value() ) {

@@ -6,6 +6,8 @@
 #include "encoder_task.hh"
 #include "webmwriter.hh"
 
+#include <json/json.h>
+
 class AudioBoard
 {
   std::string name_;
@@ -35,7 +37,7 @@ public:
 
   const std::pair<float, float>& gain( const uint8_t ch_num ) const { return gains_.at( ch_num ); }
 
-  std::string json_summary() const;
+  void json_summary( Json::Value& root ) const;
 };
 
 class AudioWriter

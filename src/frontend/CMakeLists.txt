@@ -22,6 +22,9 @@ target_link_libraries ("stagecast-client" ${Opus_LDFLAGS_OTHER})
 target_link_libraries ("stagecast-client" ${Rubberband_LDFLAGS})
 target_link_libraries ("stagecast-client" ${Rubberband_LDFLAGS_OTHER})
 
+target_link_libraries ("stagecast-client" ${JSON_LDFLAGS})
+target_link_libraries ("stagecast-client" ${JSON_LDFLAGS_OTHER})
+
 add_executable (stagecast-client-embedded "stagecast-client-embedded.cc")
 target_link_libraries ("stagecast-client-embedded" stats)
 target_link_libraries ("stagecast-client-embedded" control)
@@ -41,6 +44,9 @@ target_link_libraries ("stagecast-client-embedded" ${Opus_LDFLAGS_OTHER})
 
 target_link_libraries ("stagecast-client-embedded" ${Rubberband_LDFLAGS})
 target_link_libraries ("stagecast-client-embedded" ${Rubberband_LDFLAGS_OTHER})
+
+target_link_libraries ("stagecast-client-embedded" ${JSON_LDFLAGS})
+target_link_libraries ("stagecast-client-embedded" ${JSON_LDFLAGS_OTHER})
 
 target_link_libraries ("stagecast-client-embedded" "-pthread -Wl,-Bdynamic")
 

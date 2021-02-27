@@ -4,6 +4,7 @@
 #include "decoder_process.hh"
 #include "opus.hh"
 
+#include <json/json.h>
 #include <rubberband/RubberBandStretcher.h>
 
 class Cursor
@@ -75,4 +76,6 @@ public:
   }
 
   size_t num_samples_output() const { return num_samples_output_.value(); }
+
+  void json_summary( Json::Value& root ) const;
 };
