@@ -48,6 +48,7 @@ class ClientConnection
 
   bool controls_sent_ {};
 
+public:
   void cull( const string_view s )
   {
     *cull_needed_ = true;
@@ -64,6 +65,7 @@ class ClientConnection
     rules_.clear();
   }
 
+private:
   float mean_buffer_ = 0.0;
   float last_buffer_ = 0.0;
   void parse_message( const string_view s )
@@ -324,7 +326,12 @@ void program_body( const string origin, const string cert_filename, const string
     buf.resize( stream_receiver.recv( src, buf.mutable_buffer() ) );
 
     for ( auto& client : clients->clients ) {
-      client.push_NAL( buf );
+      try {
+        client.push_NAL( buf );
+      } catch ( const exception& e ) {
+        cerr << "Muxer exception: " << e.what() << "\n";
+        client.cull( "Muxer exception" );
+      }
     }
   } );
 
