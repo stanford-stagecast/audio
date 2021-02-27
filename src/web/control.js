@@ -36,18 +36,29 @@ ws.onmessage = function( e ) {
 
     for ( board_name in doc["board"] ) {
 	for ( channel_name in doc["board"][board_name]["channels"] ) {
-	    document.getElementById( `amplitude:${board_name}:${channel_name}` ).value = -to_dbfs( doc["board"][board_name]["channels"][channel_name][ "amplitude" ] );
+	    var amplitude_db = to_dbfs( doc["board"][board_name]["channels"][channel_name][ "amplitude" ] );
+	    document.getElementById( `amplitude:${board_name}:${channel_name}` ).value = amplitude_db;
+
+	    text_elem =	document.getElementById( `text:gain:${board_name}:${channel_name}` ); 
+
+	    if ( amplitude_db > -3 ) {
+		console.log( "clipping" );
+		text_elem.style.backgroundColor = "#FF0000";
+	    } else {
+		text_elem.style.backgroundColor = "#FFFFFF";
+	    }
 
 	    var gain_elem = document.getElementById( `gain:${board_name}:${channel_name}` );
 	    var db = to_dbfs( doc["board"][board_name]["channels"][channel_name][ "gain" ] );
 	    if ( ! gain_elem.ignoring ) {
-		document.getElementById( `gain:${board_name}:${channel_name}` ).value = -db;
+		gain_elem.value = db;
 	    }
 	    if ( db > -99 ) {
-		document.getElementById( `text:gain:${board_name}:${channel_name}` ).innerHTML = db.toFixed(0) + " dB gain";
+		text_elem.innerHTML = "gain: " + db.toFixed(0) + " dB<br>" + "&rarr; " + amplitude_db.toFixed(0) + " dB";
 	    } else {
-		document.getElementById( `text:gain:${board_name}:${channel_name}` ).innerHTML = "[mute]";
+		text_elem.innerHTML = "muted";
 	    }
+
 	}
     }
 }
@@ -120,7 +131,7 @@ var make_board = function(name, val) {
 
 var send_control = function(id, value )
 {
-    ws.send( id + ":" + -value );
+    ws.send( id + ":" + value );
 }
 
 var make_channel = function(name, channel_name) {
@@ -128,10 +139,10 @@ var make_channel = function(name, channel_name) {
     ret += `<div style="display: inline-block; width: 100px;">
 <br>${channel_name}<br>
 <div style="display: inline-block; width: 10px; height: 300px;">
-<input id="amplitude:${name}:${channel_name}" type="range" min="-13" max="100" style="width: 300px; height: 10px; appearance: none; background-color: #FFFFFF; transform: rotate(90deg); transform-origin: 20px 20px">
+<input id="amplitude:${name}:${channel_name}" type="range" min="-100" max="13" style="width: 300px; height: 10px; appearance: none; background-color: #FFFFFF; transform: rotate(270deg); transform-origin: 150px 150px">
 </div>
 <div style="display: inline-block; width: 10px; height: 300px;">
-<input id="gain:${name}:${channel_name}" type="range" min="-13" max="100" style="width: 300px; height: 10px; appearance: none; background-color: #DDDDDD; transform: rotate(90deg); transform-origin: 20px 20px"
+<input id="gain:${name}:${channel_name}" type="range" min="-100" max="13" style="width: 300px; height: 10px; appearance: none; background-color: #DDDDDD; transform: rotate(270deg); transform-origin: 150px 150px"
 onmousedown="this.ignoring = true;" onmouseup="this.ignoring = false;" oninput="send_control(this.id, value);">
 </div>
 <p>
