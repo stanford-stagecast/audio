@@ -43,7 +43,7 @@ function sourceOpen(e) {
 	    if ( sourceBuffer.buffered.length > 0 ) {
 		var buffer_duration = sourceBuffer.buffered.end(0) - audio.currentTime;
 
-		document.getElementById('buffer').innerHTML = "Buffer: " + (24*buffer_duration).toFixed(0) + " video frames' worth";
+		document.getElementById('buffer').innerHTML = "Buffer: " + (24*buffer_duration).toFixed(0) + " video frames";
 		
 		ws.send("buffer " + buffer_duration.toFixed(3));
 

@@ -4,6 +4,7 @@
 #include <csignal>
 
 #include "eventloop.hh"
+#include "ewma.hh"
 #include "mmap.hh"
 #include "secure_socket.hh"
 #include "socket.hh"
@@ -62,6 +63,22 @@ public:
     rules_.clear();
   }
 
+private:
+  float mean_buffer_ = 0.0;
+  float last_buffer_ = 0.0;
+  void parse_message( const string_view s )
+  {
+    if ( ( s.size() > 7 ) and ( s.substr( 0, 7 ) == "buffer " ) ) {
+      string_view num = s.substr( 8 );
+      last_buffer_ = stof( string( num ) );
+      ewma_update( mean_buffer_, last_buffer_, 0.05 );
+    }
+  }
+
+  bool skipping_ {};
+  unsigned int frames_since_skip_ {};
+
+public:
   const TCPSocket& socket() const { return ssl_session_.socket(); }
 
   void send_all( const string_view s ) { ws_server_.endpoint().send_all( s, ssl_session_.outbound_plaintext() ); }
@@ -165,7 +182,12 @@ public:
       [this] {
         ws_server_.endpoint().read( ssl_session_.inbound_plaintext(), ssl_session_.outbound_plaintext() );
         if ( ws_server_.endpoint().ready() ) {
-          cerr << "got message: " << ws_server_.endpoint().message() << "\n";
+          parse_message( ws_server_.endpoint().message() );
+
+          if ( last_buffer_ > 0.11 and mean_buffer_ > 0.11 and frames_since_skip_ > 50 ) {
+            skipping_ = true;
+          }
+
           ws_server_.endpoint().pop_message();
         }
       },
@@ -188,8 +210,14 @@ public:
   void push_opus_frame( const string_view s )
   {
     if ( not s.empty() ) {
-      muxer_.write( s, audio_frame_count_ * opus_frame::NUM_SAMPLES_MINLATENCY );
-      audio_frame_count_++;
+      if ( skipping_ ) {
+        skipping_ = false;
+        frames_since_skip_ = 0;
+      } else {
+        muxer_.write( s, audio_frame_count_ * opus_frame::NUM_SAMPLES_MINLATENCY );
+        audio_frame_count_++;
+        frames_since_skip_++;
+      }
     }
   }
 
