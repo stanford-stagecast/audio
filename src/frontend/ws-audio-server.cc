@@ -33,7 +33,7 @@ class ClientConnection
 {
   SSLSession ssl_session_;
   WebSocketServer ws_server_;
-  WebMWriter muxer_ { 96000, 24000, 2 };
+  WebMWriter muxer_ { 96000, 48000, 2 };
   WebSocketFrame ws_frame_;
 
   vector<EventLoop::RuleHandle> rules_;
@@ -187,8 +187,10 @@ public:
 
   void push_opus_frame( const string_view s )
   {
-    muxer_.write( s, audio_frame_count_ * opus_frame::NUM_SAMPLES_MINLATENCY );
-    audio_frame_count_++;
+    if ( not s.empty() ) {
+      muxer_.write( s, audio_frame_count_ * opus_frame::NUM_SAMPLES_MINLATENCY );
+      audio_frame_count_++;
+    }
   }
 
   ClientConnection( const ClientConnection& other ) noexcept = delete;

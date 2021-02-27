@@ -124,8 +124,8 @@ void WebMWriter::write( const std::string_view frame, const uint64_t starting_sa
 {
   AVPacket packet {};
   packet.buf = nullptr;
-  packet.pts = uint64_t( WEBM_TIMEBASE ) * uint64_t( starting_sample_number ) / uint64_t( sample_rate_ );
-  packet.dts = uint64_t( WEBM_TIMEBASE ) * uint64_t( starting_sample_number ) / uint64_t( sample_rate_ );
+  packet.pts = WEBM_TIMEBASE * starting_sample_number / sample_rate_;
+  packet.dts = WEBM_TIMEBASE * starting_sample_number / sample_rate_;
   packet.data = const_cast<uint8_t*>(
     reinterpret_cast<const uint8_t*>( frame.data() ) ); /* hope that av_write_frame doesn't change contents */
   packet.size = frame.length();
