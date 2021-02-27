@@ -190,5 +190,18 @@ public:
 
 inline float float_to_dbfs( const float sample_f )
 {
+  if ( sample_f <= 0.00001 ) {
+    return -100;
+  }
+
   return 20 * log10( sample_f );
+}
+
+inline float dbfs_to_float( const float dbfs )
+{
+  if ( dbfs <= -99 ) {
+    return 0.0;
+  }
+
+  return exp10( dbfs / 20 );
 }

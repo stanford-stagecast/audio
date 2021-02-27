@@ -53,6 +53,10 @@ pkg_check_modules ( X264 REQUIRED x264 )
 include_directories ( ${X264_INCLUDE_DIRS} )
 add_compile_options ( ${X264_CFLAGS_OTHER} )
 
+pkg_check_modules ( JSON REQUIRED jsoncpp )
+include_directories ( SYSTEM ${JSON_INCLUDE_DIRS} )
+add_compile_options ( ${JSON_CFLAGS_OTHER} )
+
 include_directories ("${PROJECT_SOURCE_DIR}/src/util")
 include_directories ("${PROJECT_SOURCE_DIR}/src/crypto")
 include_directories ("${PROJECT_SOURCE_DIR}/src/http")

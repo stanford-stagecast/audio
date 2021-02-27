@@ -68,6 +68,9 @@ target_link_libraries ("stagecast-server" ${AVFormat_LDFLAGS_OTHER})
 target_link_libraries ("stagecast-server" ${Rubberband_LDFLAGS})
 target_link_libraries ("stagecast-server" ${Rubberband_LDFLAGS_OTHER})
 
+target_link_libraries ("stagecast-server" ${JSON_LDFLAGS})
+target_link_libraries ("stagecast-server" ${JSON_LDFLAGS_OTHER})
+
 add_executable (make-key "make-key.cc")
 target_link_libraries ("make-key" network)
 target_link_libraries ("make-key" crypto)

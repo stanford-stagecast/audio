@@ -1,4 +1,7 @@
 #include "audioboard.hh"
+#include "ewma.hh"
+
+#include <json/json.h>
 
 using namespace std;
 
@@ -10,6 +13,7 @@ AudioBoard::AudioBoard( const string_view name, const uint8_t num_channels )
   for ( uint8_t i = 0; i < num_channels; i++ ) {
     channels_.emplace_back( "Unknown " + to_string( i ), AudioChannel { 8192 } );
     gains_.push_back( { 2.0, 2.0 } );
+    power_.push_back( 0.0 );
   }
 }
 
@@ -24,9 +28,33 @@ void AudioBoard::set_gain( const string_view channel_name, const float gain1, co
 
 void AudioBoard::pop_samples_until( const uint64_t sample )
 {
-  for ( auto& buf : channels_ ) {
-    buf.second.pop_before( sample );
+  for ( uint8_t channel_i = 0; channel_i < num_channels(); channel_i++ ) {
+    AudioChannel& channel = channels_.at( channel_i ).second;
+
+    for ( uint64_t index = channel.range_begin(); index < sample; index++ ) {
+      const float mixed_sample_val = channel.at( index ) * ( gain( channel_i ).first + gain( channel_i ).second );
+      ewma_update( power_.at( channel_i ), mixed_sample_val * mixed_sample_val, 0.0002 );
+    }
+
+    channel.pop_before( sample );
   }
+}
+
+string AudioBoard::json_summary() const
+{
+  Json::Value root;
+  root["name"] = name_;
+  for ( unsigned int i = 0; i < num_channels(); i++ ) {
+    root["channels"][channels_.at( i ).first]["amplitude"] = float_to_dbfs( sqrt( power_.at( i ) ) );
+    const float gain_sum = gains_.at( i ).first + gains_.at( i ).second;
+    root["channels"][channels_.at( i ).first]["gain"] = float_to_dbfs( gain_sum );
+    root["channels"][channels_.at( i ).first]["pan"] = 2 * ( ( gains_.at( i ).second / gain_sum ) - 0.5 );
+  }
+
+  ostringstream str;
+  str << root;
+
+  return str.str();
 }
 
 void AudioWriter::mix_and_write( const AudioBoard& board, const uint64_t cursor_sample )
