@@ -15,11 +15,13 @@ uint64_t Client::server_mix_cursor() const
   return mix_cursor_ + outbound_frame_offset_.value() * opus_frame::NUM_SAMPLES_MINLATENCY;
 }
 
-AudioFeed::AudioFeed( const uint32_t target_lag_samples,
+AudioFeed::AudioFeed( const string_view name,
+                      const uint32_t target_lag_samples,
                       const uint32_t min_lag_samples,
                       const uint32_t max_lag_samples,
                       const bool short_window )
-  : cursor_( target_lag_samples, min_lag_samples, max_lag_samples )
+  : name_( name )
+  , cursor_( target_lag_samples, min_lag_samples, max_lag_samples )
   , stretcher_( 48000,
                 2,
                 Option::OptionProcessRealTime | Option::OptionThreadingNever | Option::OptionPitchHighConsistency
@@ -31,8 +33,8 @@ AudioFeed::AudioFeed( const uint32_t target_lag_samples,
 
 Client::Client( const uint8_t node_id, const uint8_t ch1_num, const uint8_t ch2_num, CryptoSession&& crypto )
   : connection_( 0, node_id, move( crypto ) )
-  , internal_feed_( 240, 120, 480, true )
-  , quality_feed_( 4800, 4800 - 240, 4800 + 240, false )
+  , internal_feed_( "internal", 240, 120, 480, true )
+  , quality_feed_( "quality", 4800, 4800 - 240, 4800 + 240, false )
   , ch1_num_( ch1_num )
   , ch2_num_( ch2_num )
 {}
@@ -87,7 +89,7 @@ void Client::decode_audio( const uint64_t cursor_sample, AudioBoard& internal_bo
          connection_.next_frame_needed() - connection_.frames().range_begin() ) );
 }
 
-void Client::mix_and_encode( const vector<mix_gain>& gains, const AudioBoard& board, const uint64_t cursor_sample )
+void Client::mix_and_encode( const AudioBoard& board, const uint64_t cursor_sample )
 {
   if ( not outbound_frame_offset_.has_value() ) {
     return;
@@ -105,8 +107,7 @@ void Client::mix_and_encode( const vector<mix_gain>& gains, const AudioBoard& bo
       const span_view<float> other_channel
         = board.channel( channel_i ).region( server_mix_cursor(), opus_frame::NUM_SAMPLES_MINLATENCY );
 
-      const float gain_into_1 = gains.at( channel_i ).first;
-      const float gain_into_2 = gains.at( channel_i ).second;
+      const auto [gain_into_1, gain_into_2] = board.gain( channel_i );
       for ( uint8_t sample_i = 0; sample_i < opus_frame::NUM_SAMPLES_MINLATENCY; sample_i++ ) {
         const float value = other_channel[sample_i];
         const float orig_1 = ch1_target[sample_i];
@@ -187,7 +188,6 @@ bool KnownClient::try_keyrequest( const Address& src, const Ciphertext& cipherte
 }
 
 KnownClient::KnownClient( const uint8_t node_id,
-                          const uint8_t num_channels,
                           const uint8_t ch1_num,
                           const uint8_t ch2_num,
                           const LongLivedKey& key )
@@ -198,12 +198,7 @@ KnownClient::KnownClient( const uint8_t node_id,
   , next_session_( CryptoSession { next_keys_.downlink, next_keys_.uplink } )
   , ch1_num_( ch1_num )
   , ch2_num_( ch2_num )
-{
-  /* set default gains */
-  for ( uint8_t channel_i = 0; channel_i < num_channels; channel_i++ ) {
-    gains_.push_back( { 2.0, 2.0 } );
-  }
-}
+{}
 
 void KnownClient::receive_packet( const Address& src, const Ciphertext& ciphertext, const uint64_t clock_sample )
 {
@@ -222,5 +217,22 @@ void KnownClient::receive_packet( const Address& src, const Ciphertext& cipherte
 
     /* actually use packet */
     current_session_->receive_packet( src, ciphertext, clock_sample );
+  }
+}
+
+void Client::set_cursor_lag( const string_view feed,
+                             const uint16_t target_samples,
+                             const uint16_t min_samples,
+                             const uint16_t max_samples )
+{
+  AudioFeed* target = nullptr;
+  if ( internal_feed_.name() == feed ) {
+    target = &internal_feed_;
+  } else if ( quality_feed_.name() == feed ) {
+    target = &quality_feed_;
+  }
+
+  if ( target ) {
+    target->cursor().set_target_lag( target_samples, min_samples, max_samples );
   }
 }

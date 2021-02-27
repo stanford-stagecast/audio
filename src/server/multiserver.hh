@@ -18,7 +18,7 @@ class NetworkMultiServer : public Summarizable
 
   uint8_t num_clients_;
 
-  AudioBoard internal_board_, quality_board_;
+  AudioBoard internal_board_, program_board_;
   std::vector<KnownClient> clients_ {};
 
   struct Stats
@@ -34,8 +34,15 @@ public:
   NetworkMultiServer( const uint8_t num_clients, EventLoop& loop );
   void add_key( const LongLivedKey& key );
 
-  void set_cursor_lag( const std::string_view name, const uint16_t num_samples );
-  void set_gain( const std::string_view name, const float gain );
+  void set_cursor_lag( const std::string_view name,
+                       const std::string_view feed,
+                       const uint16_t target_samples,
+                       const uint16_t min_samples,
+                       const uint16_t max_samples );
+  void set_gain( const std::string_view board_name,
+                 const std::string_view channel_name,
+                 const float gain1,
+                 const float gain2 );
 
   void initialize_clock();
 };

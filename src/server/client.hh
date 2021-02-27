@@ -13,12 +13,14 @@
 
 class AudioFeed
 {
+  std::string name_;
   Cursor cursor_;
   OpusDecoderProcess decoder_ { true };
   RubberBand::RubberBandStretcher stretcher_;
 
 public:
-  AudioFeed( const uint32_t target_lag_samples,
+  AudioFeed( const std::string_view name,
+             const uint32_t target_lag_samples,
              const uint32_t min_lag_samples,
              const uint32_t max_lag_samples,
              const bool short_window );
@@ -32,6 +34,10 @@ public:
                     AudioChannel& ch2 );
 
   size_t ok_to_pop( const PartialFrameStore<AudioFrame>& frames ) const { return cursor_.ok_to_pop( frames ); }
+
+  const std::string& name() const { return name_; }
+
+  Cursor& cursor() { return cursor_; }
 };
 
 class Client
@@ -58,7 +64,7 @@ public:
 
   bool receive_packet( const Address& source, const Ciphertext& ciphertext, const uint64_t clock_sample );
   void decode_audio( const uint64_t cursor_sample, AudioBoard& internal_board, AudioBoard& quality_board );
-  void mix_and_encode( const std::vector<mix_gain>& gains, const AudioBoard& board, const uint64_t cursor_sample );
+  void mix_and_encode( const AudioBoard& board, const uint64_t cursor_sample );
   void send_packet( UDPSocket& socket );
 
   void summary( std::ostream& out ) const;
@@ -68,7 +74,10 @@ public:
 
   const AudioNetworkConnection& connection() const { return connection_; }
 
-  void set_cursor_lag( const uint16_t ) {} /* XXX */
+  void set_cursor_lag( const std::string_view feed,
+                       const uint16_t target_samples,
+                       const uint16_t min_samples,
+                       const uint16_t max_samples );
 };
 
 class KnownClient
@@ -89,16 +98,10 @@ class KnownClient
     unsigned int key_requests, key_responses, new_sessions;
   } stats_ {};
 
-  std::vector<Client::mix_gain> gains_ {};
-
   uint8_t ch1_num_, ch2_num_;
 
 public:
-  KnownClient( const uint8_t node_id,
-               const uint8_t num_channels,
-               const uint8_t ch1_num,
-               const uint8_t ch2_num,
-               const LongLivedKey& key );
+  KnownClient( const uint8_t node_id, const uint8_t ch1_num, const uint8_t ch2_num, const LongLivedKey& key );
   bool try_keyrequest( const Address& src, const Ciphertext& ciphertext, UDPSocket& socket );
   void receive_packet( const Address& src, const Ciphertext& ciphertext, const uint64_t clock_sample );
 
@@ -111,6 +114,4 @@ public:
   void clear_current_session() { current_session_.reset(); }
 
   void summary( std::ostream& out ) const;
-
-  const std::vector<Client::mix_gain>& gains() const { return gains_; }
 };

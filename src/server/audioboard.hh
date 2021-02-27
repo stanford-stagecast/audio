@@ -8,12 +8,21 @@
 
 class AudioBoard
 {
+  std::string name_;
   std::vector<std::pair<std::string, AudioChannel>> channels_ {};
+  std::vector<std::pair<float, float>> gains_ {};
 
 public:
-  AudioBoard( const uint8_t num_channels );
+  AudioBoard( const std::string_view name, const uint8_t num_channels );
 
-  void set_name( const uint8_t ch_num, const std::string_view name ) { channels_.at( ch_num ).first = name; }
+  const std::string& name() const { return name_; }
+
+  void set_gain( const std::string_view channel_name, const float gain1, const float gain2 );
+
+  void set_channel_name( const uint8_t ch_num, const std::string_view name )
+  {
+    channels_.at( ch_num ).first = name;
+  }
 
   const AudioChannel& channel( const uint8_t ch_num ) const { return channels_.at( ch_num ).second; }
   AudioChannel& channel( const uint8_t ch_num ) { return channels_.at( ch_num ).second; }
@@ -22,6 +31,8 @@ public:
 
   uint8_t num_channels() const { return channels_.size(); }
   const std::string& channel_name( const uint8_t num ) const { return channels_.at( num ).first; }
+
+  const std::pair<float, float>& gain( const uint8_t ch_num ) const { return gains_.at( ch_num ); }
 };
 
 class AudioWriter

@@ -32,7 +32,8 @@ ClientController::ClientController( shared_ptr<NetworkClient> client,
         if ( parser.error() ) {
           return;
         }
-        client_->set_cursor_lag( my_cursor_lag.num_samples );
+        client_->set_cursor_lag(
+          my_cursor_lag.target_samples, my_cursor_lag.min_samples, my_cursor_lag.max_samples );
       } break;
 
       case set_gain::id: {
@@ -41,7 +42,7 @@ ClientController::ClientController( shared_ptr<NetworkClient> client,
         if ( parser.error() ) {
           return;
         }
-        audio_device_->set_loopback_gain( my_gain.gain );
+        audio_device_->set_loopback_gain( my_gain.gain1 );
       } break;
     }
   } );

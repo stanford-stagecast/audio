@@ -183,10 +183,11 @@ void NetworkClient::summary( ostream& out ) const
   }
 }
 
-void NetworkClient::set_cursor_lag( const uint16_t num_samples )
+void NetworkClient::set_cursor_lag( const uint16_t target_samples,
+                                    const uint16_t min_samples,
+                                    const uint16_t max_samples )
 {
   if ( session_.has_value() ) {
-    session_->cursor.set_target_lag( num_samples );
-    session_->cursor.reset();
+    session_->cursor.set_target_lag( target_samples, min_samples, max_samples );
   }
 }

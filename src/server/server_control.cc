@@ -29,7 +29,11 @@ ServerController::ServerController( shared_ptr<NetworkMultiServer> server, Event
         if ( parser.error() ) {
           return;
         }
-        server_->set_cursor_lag( my_cursor_lag.name, my_cursor_lag.num_samples );
+        server_->set_cursor_lag( my_cursor_lag.name,
+                                 my_cursor_lag.feed,
+                                 my_cursor_lag.min_samples,
+                                 my_cursor_lag.target_samples,
+                                 my_cursor_lag.max_samples );
       } break;
 
       case set_gain::id: {
@@ -38,7 +42,7 @@ ServerController::ServerController( shared_ptr<NetworkMultiServer> server, Event
         if ( parser.error() ) {
           return;
         }
-        server_->set_gain( my_gain.name, my_gain.gain );
+        server_->set_gain( my_gain.board_name, my_gain.channel_name, my_gain.gain1, my_gain.gain2 );
       } break;
     }
   } );

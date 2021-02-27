@@ -65,9 +65,14 @@ public:
 
   size_t ok_to_pop( const PartialFrameStore<AudioFrame>& frames ) const;
 
-  void set_target_lag( const unsigned int num_samples ) { target_lag_samples_ = num_samples; }
-
-  void reset() { frame_cursor_.reset(); }
+  void set_target_lag( const unsigned int target_samples,
+                       const unsigned int min_samples,
+                       const unsigned int max_samples )
+  {
+    target_lag_samples_ = target_samples;
+    min_lag_samples_ = min_samples;
+    max_lag_samples_ = max_samples;
+  }
 
   size_t num_samples_output() const { return num_samples_output_.value(); }
 };

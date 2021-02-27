@@ -59,5 +59,5 @@ public:
 
   void summary( std::ostream& out ) const override;
 
-  void set_cursor_lag( const uint16_t num_samples );
+  void set_cursor_lag( const uint16_t target_samples, const uint16_t min_samples, const uint16_t max_samples );
 };

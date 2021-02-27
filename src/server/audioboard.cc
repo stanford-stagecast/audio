@@ -2,11 +2,23 @@
 
 using namespace std;
 
-AudioBoard::AudioBoard( const uint8_t num_channels )
+AudioBoard::AudioBoard( const string_view name, const uint8_t num_channels )
+  : name_( name )
 {
   channels_.reserve( num_channels );
+  gains_.reserve( num_channels );
   for ( uint8_t i = 0; i < num_channels; i++ ) {
     channels_.emplace_back( "Unknown " + to_string( i ), AudioChannel { 8192 } );
+    gains_.push_back( { 2.0, 2.0 } );
+  }
+}
+
+void AudioBoard::set_gain( const string_view channel_name, const float gain1, const float gain2 )
+{
+  for ( uint8_t channel_i = 0; channel_i < num_channels(); channel_i++ ) {
+    if ( channels_.at( channel_i ).first == channel_name ) {
+      gains_.at( channel_i ) = { gain1, gain2 };
+    }
   }
 }
 
@@ -27,8 +39,7 @@ void AudioWriter::mix_and_write( const AudioBoard& board, const uint64_t cursor_
       const span_view<float> other_channel
         = board.channel( channel_i ).region( mix_cursor_, opus_frame::NUM_SAMPLES_MINLATENCY );
 
-      const float gain_into_1 = 2.0;
-      const float gain_into_2 = 2.0;
+      const auto [gain_into_1, gain_into_2] = board.gain( channel_i );
       for ( uint8_t sample_i = 0; sample_i < opus_frame::NUM_SAMPLES_MINLATENCY; sample_i++ ) {
         const float value = other_channel[sample_i];
         const float orig_1 = ch1_target[sample_i];
