@@ -148,6 +148,18 @@ void Client::summary( ostream& out ) const
   //  connection_.summary( out );
 }
 
+void Client::json_summary( Json::Value& root ) const
+{
+  internal_feed_.cursor().json_summary( root["feed"][internal_feed_.name()] );
+  quality_feed_.cursor().json_summary( root["feed"][quality_feed_.name()] );
+}
+
+void Client::default_json_summary( Json::Value& root )
+{
+  Cursor::default_json_summary( root["feed"]["internal"] );
+  Cursor::default_json_summary( root["feed"]["quality"] );
+}
+
 void KnownClient::summary( ostream& out ) const
 {
   out << name_ << ":";

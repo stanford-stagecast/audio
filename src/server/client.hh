@@ -38,6 +38,7 @@ public:
   const std::string& name() const { return name_; }
 
   Cursor& cursor() { return cursor_; }
+  const Cursor& cursor() const { return cursor_; }
 };
 
 class Client
@@ -60,14 +61,14 @@ class Client
 public:
   Client( const uint8_t node_id, const uint8_t ch1, const uint8_t ch2, CryptoSession&& crypto );
 
-  using mix_gain = std::pair<float, float>;
-
   bool receive_packet( const Address& source, const Ciphertext& ciphertext, const uint64_t clock_sample );
   void decode_audio( const uint64_t cursor_sample, AudioBoard& internal_board, AudioBoard& quality_board );
   void mix_and_encode( const AudioBoard& board, const uint64_t cursor_sample );
   void send_packet( UDPSocket& socket );
 
   void summary( std::ostream& out ) const;
+  void json_summary( Json::Value& root ) const;
+  static void default_json_summary( Json::Value& root );
 
   uint8_t node_id() const { return connection().node_id(); }
   uint8_t peer_id() const { return connection().peer_id(); }

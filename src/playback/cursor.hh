@@ -78,4 +78,5 @@ public:
   size_t num_samples_output() const { return num_samples_output_.value(); }
 
   void json_summary( Json::Value& root ) const;
+  static void default_json_summary( Json::Value& root );
 };

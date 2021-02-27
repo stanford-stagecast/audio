@@ -124,6 +124,20 @@ void NetworkMultiServer::summary( ostream& out ) const
   }
 }
 
+void NetworkMultiServer::json_summary( Json::Value& root ) const
+{
+  internal_board_.json_summary( root["board"][internal_board_.name()] );
+  program_board_.json_summary( root["board"][program_board_.name()] );
+
+  for ( const auto& client : clients_ ) {
+    if ( client ) {
+      client.client().json_summary( root["client"][client.name()] );
+    } else {
+      Client::default_json_summary( root["client"][client.name()] );
+    }
+  }
+}
+
 void NetworkMultiServer::set_cursor_lag( const string_view name,
                                          const string_view feed,
                                          const uint16_t target_samples,

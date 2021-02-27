@@ -2,6 +2,8 @@
 
 #include <ostream>
 
+#include <json/json.h>
+
 #include "client.hh"
 #include "summarize.hh"
 
@@ -26,8 +28,6 @@ class NetworkMultiServer : public Summarizable
     unsigned int bad_packets;
   } stats_ {};
 
-  void summary( std::ostream& out ) const override;
-
   AudioWriter program_audio_ { "stagecast-program-audio" };
 
 public:
@@ -45,4 +45,7 @@ public:
                  const float gain2 );
 
   void initialize_clock();
+
+  void summary( std::ostream& out ) const override;
+  void json_summary( Json::Value& root ) const;
 };

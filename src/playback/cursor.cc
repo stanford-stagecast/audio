@@ -176,6 +176,18 @@ void Cursor::json_summary( Json::Value& root ) const
   root["expansions"] = stats_.expand_starts;
 }
 
+void Cursor::default_json_summary( Json::Value& root )
+{
+  root["target_lag"] = 0;
+  root["actual_lag"] = 0;
+  root["quality"] = 0;
+  root["min_lag"] = 0;
+  root["max_lag"] = 0;
+  root["resets"] = 0;
+  root["compressions"] = 0;
+  root["expansions"] = 0;
+}
+
 size_t Cursor::ok_to_pop( const PartialFrameStore<AudioFrame>& frames ) const
 {
   if ( not frame_cursor_.has_value() ) {
