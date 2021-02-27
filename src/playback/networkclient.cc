@@ -183,6 +183,15 @@ void NetworkClient::summary( ostream& out ) const
   }
 }
 
+void NetworkClient::json_summary( Json::Value& root ) const
+{
+  if ( session_.has_value() ) {
+    session_->json_summary( root[name_]["client"]["feed"] );
+  } else {
+    Cursor::default_json_summary( root[name_]["client"]["feed"] );
+  }
+}
+
 void NetworkClient::set_cursor_lag( const uint16_t target_samples,
                                     const uint16_t min_samples,
                                     const uint16_t max_samples )

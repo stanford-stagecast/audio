@@ -64,6 +64,30 @@ void program_body( const string& host, const string& service, const string& key_
   stats_printer.add( uac2 );
   stats_printer.add( network_client );
 
+  /* JSON updates */
+  UnixDatagramSocket json_updates;
+  json_updates.set_blocking( false );
+  Address json_update_address { Address::abstract_unix( "stagecast-client-audio-json" ) };
+  const uint64_t json_update_interval = 25'000'000;
+  uint64_t next_json_update = Timer::timestamp_ns() + json_update_interval;
+  Json::Value root;
+  ostringstream json_str;
+  loop->add_rule(
+    "JSON update",
+    json_updates,
+    Direction::Out,
+    [&] {
+      root.clear();
+      json_str.str( "" );
+      json_str.clear();
+      network_client->json_summary( root );
+      root["self_gain"] = uac2->loopback_gain();
+      json_str << root;
+      json_updates.sendto_ignore_errors( json_update_address, json_str.str() );
+      next_json_update = Timer::timestamp_ns() + json_update_interval;
+    },
+    [&] { return Timer::timestamp_ns() > next_json_update; } );
+
   /* Start audio device and event loop */
   uac2->device().start();
   while ( loop->wait_next_event( -1 ) != EventLoop::Result::Exit ) {

@@ -25,6 +25,7 @@ class NetworkClient : public Summarizable
                  RubberBand::RubberBandStretcher& stretcher,
                  ChannelPair& output );
     void summary( std::ostream& out ) const;
+    void json_summary( Json::Value& root ) const { cursor.json_summary( root ); }
   };
 
   UDPSocket socket_ {};
@@ -58,6 +59,7 @@ public:
                  EventLoop& loop );
 
   void summary( std::ostream& out ) const override;
+  void json_summary( Json::Value& root ) const;
 
   void set_cursor_lag( const uint16_t target_samples, const uint16_t min_samples, const uint16_t max_samples );
 };

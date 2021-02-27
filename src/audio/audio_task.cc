@@ -97,3 +97,8 @@ void AudioDeviceTask::set_loopback_gain( const float gain )
   config.ch2_loopback_gain = { gain, gain };
   device_.set_config( config );
 }
+
+float AudioDeviceTask::loopback_gain() const
+{
+  return device_.config().ch1_loopback_gain.at( 0 );
+}

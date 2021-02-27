@@ -31,4 +31,5 @@ public:
   size_t cursor() const { return device().cursor(); }
 
   void set_loopback_gain( const float gain );
+  float loopback_gain() const;
 };

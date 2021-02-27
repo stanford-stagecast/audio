@@ -39,25 +39,28 @@ void program_body( const vector<string>& keyfiles )
 
   server->initialize_clock();
 
-//  UnixDatagramSocket json_updates;
-//  Address json_update_address { Address::abstract_unix( "stagecast-audio-json" ) };
-#if 0
+  /* JSON updates */
+  UnixDatagramSocket json_updates;
+  json_updates.set_blocking( false );
+  Address json_update_address { Address::abstract_unix( "stagecast-server-audio-json" ) };
   const uint64_t json_update_interval = 25'000'000;
   uint64_t next_json_update = Timer::timestamp_ns() + json_update_interval;
   Json::Value root;
   ostringstream json_str;
   loop->add_rule(
     "JSON update",
+    json_updates,
+    Direction::Out,
     [&] {
       root.clear();
-      server->json_summary( root );
+      json_str.str( "" );
       json_str.clear();
+      server->json_summary( root );
       json_str << root;
-      cerr << json_str.str() << "\n\n\n";
+      json_updates.sendto_ignore_errors( json_update_address, json_str.str() );
       next_json_update = Timer::timestamp_ns() + json_update_interval;
     },
     [&] { return Timer::timestamp_ns() > next_json_update; } );
-#endif
 
   /* Start audio device and event loop */
   while ( loop->wait_next_event( 1 ) != EventLoop::Result::Exit ) {
