@@ -75,13 +75,29 @@ private:
       } else {
         updates_since_small_buffer_++;
       }
+    } else if ( ( s.size() > 5 ) and ( s.substr( 0, 5 ) == "live " ) ) {
+      feed_ = s.substr( 5 );
+      cerr << "switching to " << feed_ << "\n";
+
+      if ( handshake_complete() ) {
+        ws_frame_.payload = " now playing: " + feed_;
+        ws_frame_.payload.at( 0 ) = 1;
+
+        Serializer ser { ssl_session_.outbound_plaintext().writable_region() };
+        ser.object( ws_frame_ );
+        ssl_session_.outbound_plaintext().push( ser.bytes_written() );
+      }
     }
   }
 
   bool skipping_ {};
   unsigned int frames_since_skip_ {};
 
+  string feed_ { "program" };
+
 public:
+  const string& feed() const { return feed_; }
+
   const TCPSocket& socket() const { return ssl_session_.socket(); }
 
   void send_all( const string_view s ) { ws_server_.endpoint().send_all( s, ssl_session_.outbound_plaintext() ); }
@@ -241,9 +257,14 @@ void program_body( const string origin, const string cert_filename, const string
   SSLServerContext ssl_context { cert_filename, privkey_filename };
 
   /* receive new additions to stream */
-  UnixDatagramSocket stream_receiver;
-  stream_receiver.set_blocking( false );
-  stream_receiver.bind( Address::abstract_unix( "stagecast-program-audio" ) );
+  UnixDatagramSocket internal_receiver, preview_receiver, program_receiver;
+  internal_receiver.set_blocking( false );
+  preview_receiver.set_blocking( false );
+  program_receiver.set_blocking( false );
+
+  internal_receiver.bind( Address::abstract_unix( "stagecast-internal-audio" ) );
+  preview_receiver.bind( Address::abstract_unix( "stagecast-preview-audio" ) );
+  program_receiver.bind( Address::abstract_unix( "stagecast-program-audio" ) );
 
   /* start listening for HTTP connections */
   TCPSocket web_listen_socket;
@@ -279,17 +300,53 @@ void program_body( const string origin, const string cert_filename, const string
 
   StackBuffer<0, uint32_t, 1048576> buf;
 
-  loop->add_rule( "new audio segment", stream_receiver, Direction::In, [&] {
-    buf.resize( stream_receiver.recv( buf.mutable_buffer() ) );
+  loop->add_rule( "new internal segment", internal_receiver, Direction::In, [&] {
+    buf.resize( internal_receiver.recv( buf.mutable_buffer() ) );
     if ( buf.length() == 0 ) {
       return;
     }
 
     for ( auto& client : clients->clients ) {
-      try {
-        client.push_opus_frame( buf );
-      } catch ( const exception& e ) {
-        client.cull( "Muxer exception" );
+      if ( client.feed() == "internal" ) {
+        try {
+          client.push_opus_frame( buf );
+        } catch ( const exception& e ) {
+          client.cull( "Muxer exception" );
+        }
+      }
+    }
+  } );
+
+  loop->add_rule( "new preview segment", preview_receiver, Direction::In, [&] {
+    buf.resize( preview_receiver.recv( buf.mutable_buffer() ) );
+    if ( buf.length() == 0 ) {
+      return;
+    }
+
+    for ( auto& client : clients->clients ) {
+      if ( client.feed() == "preview" ) {
+        try {
+          client.push_opus_frame( buf );
+        } catch ( const exception& e ) {
+          client.cull( "Muxer exception" );
+        }
+      }
+    }
+  } );
+
+  loop->add_rule( "new program segment", program_receiver, Direction::In, [&] {
+    buf.resize( program_receiver.recv( buf.mutable_buffer() ) );
+    if ( buf.length() == 0 ) {
+      return;
+    }
+
+    for ( auto& client : clients->clients ) {
+      if ( client.feed() == "program" ) {
+        try {
+          client.push_opus_frame( buf );
+        } catch ( const exception& e ) {
+          client.cull( "Muxer exception" );
+        }
       }
     }
   } );

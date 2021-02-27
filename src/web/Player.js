@@ -64,8 +64,14 @@ function sourceOpen(e) {
     ws = new WebSocket("wss://stagecast.org:8081");
     ws.binaryType = 'arraybuffer';
     ws.onmessage = function( e ) {
-
+	var type_byte = new DataView(e.data, 0, 1).getUint8(0);
 	var rest = e.data.slice(1);
+
+	if ( type_byte == 1 ) {
+	    document.getElementById('playing').innerHTML = new TextDecoder("utf-8").decode(rest);
+	    return;
+	}
+	
 	queue.push(rest);
 
 //	console.log("buffered: " + sourceBuffer.buffered.start(0) + " to " + sourceBuffer.buffered.end(0) );
@@ -98,4 +104,8 @@ function sourceOpen(e) {
 	    });
 	} 
     }
+}
+
+function select(feed) {
+    ws.send("live " + feed );
 }

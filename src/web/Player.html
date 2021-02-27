@@ -6,11 +6,19 @@
     <body id="main">
         <p>Stagecast rehearsal audio feed</p>
 	<p>Please unmute below to begin playing. Works best in Firefox, Chromium, or Chrome (does not work in Safari or on iOS).</p>
-        <audio controls autoplay muted id="audio">  
+        <span id="playing"></span><p>
+
+	<audio controls autoplay muted id="audio">  
         </audio>
 
 	<p>
-	
+
+	  Listen to: <button type='button' onclick='select("internal");'>Internal Audio</button>
+
+	  <button type='button' onclick='select("preview");'>Preview Audio</button>
+
+	  <button type='button' onclick='select("program");'>Program Audio</button>
+	  
 	<span id="buffer">buffer here</span>, 
 	<span id="resets">resets here</span>
 	
