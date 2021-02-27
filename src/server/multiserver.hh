@@ -20,7 +20,7 @@ class NetworkMultiServer : public Summarizable
 
   uint8_t num_clients_;
 
-  AudioBoard internal_board_, program_board_;
+  AudioBoard internal_board_, preview_board_, program_board_;
   std::vector<KnownClient> clients_ {};
 
   struct Stats
@@ -28,6 +28,8 @@ class NetworkMultiServer : public Summarizable
     unsigned int bad_packets;
   } stats_ {};
 
+  AudioWriter internal_audio_ { "stagecast-internal-audio" };
+  AudioWriter preview_audio_ { "stagecast-preview-audio" };
   AudioWriter program_audio_ { "stagecast-program-audio" };
 
 public:
@@ -47,5 +49,5 @@ public:
   void initialize_clock();
 
   void summary( std::ostream& out ) const override;
-  void json_summary( Json::Value& root ) const;
+  void json_summary( Json::Value& root, const bool include_second_channels ) const;
 };

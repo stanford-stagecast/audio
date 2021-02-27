@@ -39,6 +39,8 @@ void program_body( const vector<string>& keyfiles )
 
   server->initialize_clock();
 
+  const bool include_second_channels = getenv( "STAGECAST_REPORT_SECOND_CHANNELS" );
+
   /* JSON updates */
   UnixDatagramSocket json_updates;
   json_updates.set_blocking( false );
@@ -55,7 +57,7 @@ void program_body( const vector<string>& keyfiles )
       root.clear();
       json_str.str( "" );
       json_str.clear();
-      server->json_summary( root );
+      server->json_summary( root, include_second_channels );
       json_str << root;
       json_updates.sendto_ignore_errors( json_update_address, json_str.str() );
       next_json_update = Timer::timestamp_ns() + json_update_interval;

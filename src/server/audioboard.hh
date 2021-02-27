@@ -37,7 +37,7 @@ public:
 
   const std::pair<float, float>& gain( const uint8_t ch_num ) const { return gains_.at( ch_num ); }
 
-  void json_summary( Json::Value& root ) const;
+  void json_summary( Json::Value& root, const bool include_second_channels ) const;
 };
 
 class AudioWriter

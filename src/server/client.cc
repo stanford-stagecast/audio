@@ -80,7 +80,10 @@ void AudioFeed::decode_into( const PartialFrameStore<AudioFrame>& frames,
   }
 }
 
-void Client::decode_audio( const uint64_t cursor_sample, AudioBoard& internal_board, AudioBoard& quality_board )
+void Client::decode_audio( const uint64_t cursor_sample,
+                           AudioBoard& internal_board,
+                           AudioBoard& quality_board,
+                           AudioBoard& quality_board2 )
 {
   internal_feed_.decode_into( connection_.frames(),
                               cursor_sample,
@@ -93,6 +96,12 @@ void Client::decode_audio( const uint64_t cursor_sample, AudioBoard& internal_bo
                              connection_.unreceived_beyond_this_frame_index() * opus_frame::NUM_SAMPLES_MINLATENCY,
                              quality_board.channel( ch1_num_ ),
                              quality_board.channel( ch2_num_ ) );
+
+  quality_feed_.decode_into( connection_.frames(),
+                             cursor_sample,
+                             connection_.unreceived_beyond_this_frame_index() * opus_frame::NUM_SAMPLES_MINLATENCY,
+                             quality_board2.channel( ch1_num_ ),
+                             quality_board2.channel( ch2_num_ ) );
 
   connection_.pop_frames(
     min( min( internal_feed_.ok_to_pop( connection_.frames() ), quality_feed_.ok_to_pop( connection_.frames() ) ),

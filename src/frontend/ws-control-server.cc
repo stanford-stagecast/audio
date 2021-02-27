@@ -3,6 +3,7 @@
 
 #include <csignal>
 
+#include "control_messages.hh"
 #include "eventloop.hh"
 #include "ewma.hh"
 #include "mmap.hh"
@@ -15,6 +16,40 @@
 
 using namespace std;
 using namespace std::chrono;
+
+template<class Message>
+void send_control( const Message& message )
+{
+  StackBuffer<0, uint8_t, 255> buf;
+  Serializer s { buf.mutable_buffer() };
+  s.integer( Message::id );
+  s.object( message );
+  buf.resize( s.bytes_written() );
+
+  UDPSocket socket;
+  socket.sendto( { "127.0.0.1", server_control_port() }, buf );
+}
+
+void split_on_char( const string_view str, const char ch_to_find, vector<string_view>& ret )
+{
+  ret.clear();
+
+  bool in_double_quoted_string = false;
+  unsigned int field_start = 0; // start of next token
+  for ( unsigned int i = 0; i < str.size(); i++ ) {
+    const char ch = str[i];
+    if ( ch == '"' ) {
+      in_double_quoted_string = !in_double_quoted_string;
+    } else if ( in_double_quoted_string ) {
+      continue;
+    } else if ( ch == ch_to_find ) {
+      ret.emplace_back( str.substr( field_start, i - field_start ) );
+      field_start = i + 1;
+    }
+  }
+
+  ret.emplace_back( str.substr( field_start ) );
+}
 
 struct EventCategories
 {
@@ -61,7 +96,32 @@ public:
   }
 
 private:
-  void parse_message( const string_view s __attribute( ( unused ) ) ) {}
+  vector<string_view> fields_ {};
+  void parse_message( const string_view s )
+  {
+    split_on_char( s, ':', fields_ );
+
+    if ( fields_.size() != 4 ) {
+      return;
+    }
+
+    if ( fields_[0] == "gain" ) {
+      const string_view board_name = fields_[1];
+      const string_view channel_name = fields_[2];
+      const string_view db_gain = fields_[3];
+
+      try {
+        const float absolute_gain = dbfs_to_float( stof( string( db_gain ) ) );
+        set_gain instruction;
+        instruction.board_name = board_name;
+        instruction.channel_name = channel_name;
+        instruction.gain1 = absolute_gain;
+        instruction.gain2 = absolute_gain;
+        send_control( instruction );
+      } catch ( const exception& e ) {
+      }
+    }
+  }
 
 public:
   const TCPSocket& socket() const { return ssl_session_.socket(); }

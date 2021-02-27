@@ -38,10 +38,13 @@ void AudioBoard::pop_samples_until( const uint64_t sample )
   }
 }
 
-void AudioBoard::json_summary( Json::Value& root ) const
+void AudioBoard::json_summary( Json::Value& root, const bool include_second_channels ) const
 {
   root["name"] = name_;
   for ( unsigned int i = 0; i < num_channels(); i++ ) {
+    if ( ( i % 2 ) and not include_second_channels ) {
+      continue;
+    }
     root["channels"][channels_.at( i ).first]["amplitude"] = sqrt( power_.at( i ) );
     const float gain_mean = ( gains_.at( i ).first + gains_.at( i ).second ) / 2.0;
     root["channels"][channels_.at( i ).first]["gain"] = gain_mean;
