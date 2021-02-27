@@ -100,7 +100,8 @@ void VideoServer::summary( ostream& out ) const
   out << "bad packets: " << stats_.bad_packets;
   out << " camera frames encoded: " << camera_feed_.frames_encoded();
   out << " live now: "
-      << ( clients_.at( camera_feed_live_no_ ) ? clients_.at( camera_feed_live_no_ ).name() : "none" );
+      << ( clients_.at( camera_feed_live_no_ ) ? clients_.at( camera_feed_live_no_ ).name()
+                                               : "none " + to_string( camera_feed_live_no_ ) );
   out << "\n";
   for ( const auto& client : clients_ ) {
     if ( client ) {

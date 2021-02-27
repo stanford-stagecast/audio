@@ -3,8 +3,10 @@
 
 #include <csignal>
 
+#include "control_messages.hh"
 #include "eventloop.hh"
 #include "ewma.hh"
+#include "keys.hh"
 #include "mmap.hh"
 #include "mp4writer.hh"
 #include "secure_socket.hh"
@@ -15,6 +17,19 @@
 
 using namespace std;
 using namespace std::chrono;
+
+template<class Message>
+void send_control( const Message& message )
+{
+  StackBuffer<0, uint8_t, 255> buf;
+  Serializer s { buf.mutable_buffer() };
+  s.integer( Message::id );
+  s.object( message );
+  buf.resize( s.bytes_written() );
+
+  UDPSocket socket;
+  socket.sendto( { "127.0.0.1", video_server_control_port() }, buf );
+}
 
 struct EventCategories
 {
@@ -32,6 +47,7 @@ struct EventCategories
 
 class ClientConnection
 {
+  shared_ptr<vector<string>> camera_names_;
   SSLSession ssl_session_;
   WebSocketServer ws_server_;
   MP4Writer muxer_ { 24, 1280, 720 };
@@ -46,7 +62,7 @@ class ClientConnection
 
   shared_ptr<bool> cull_needed_;
 
-  bool controls_sent_ {};
+  unsigned int controls_sent_ {};
 
 public:
   void cull( const string_view s )
@@ -74,6 +90,11 @@ private:
       string_view num = s.substr( 8 );
       last_buffer_ = stof( string( num ) );
       ewma_update( mean_buffer_, last_buffer_, 0.05 );
+    } else if ( ( s.size() > 5 ) and ( s.substr( 0, 5 ) == "live " ) ) {
+      set_live instruction;
+      string_view name = s.substr( 5 );
+      instruction.name = NetString( name );
+      send_control( instruction );
     }
   }
 
@@ -111,12 +132,14 @@ public:
   }
 
   ClientConnection( const EventCategories& categories,
+                    const shared_ptr<vector<string>>& camera_names,
                     SSLContext& context,
                     TCPSocket& listening_socket,
                     const string& origin,
                     EventLoop& loop,
                     shared_ptr<bool> cull_needed )
-    : ssl_session_( context.make_SSL_handle(),
+    : camera_names_( camera_names )
+    , ssl_session_( context.make_SSL_handle(),
                     [&] {
                       auto sock = listening_socket.accept();
                       sock.set_blocking( false );
@@ -221,17 +244,17 @@ public:
     rules_.push_back( loop.add_rule(
       categories.ws_send,
       [this] {
-        ws_frame_.payload = " Keith";
+        ws_frame_.payload = " " + camera_names_->at( controls_sent_ );
         ws_frame_.payload.at( 0 ) = 2;
 
         Serializer s { ssl_session_.outbound_plaintext().writable_region() };
         s.object( ws_frame_ );
         ssl_session_.outbound_plaintext().push( s.bytes_written() );
 
-        controls_sent_ = true;
+        controls_sent_++;
       },
       [&] {
-        return ws_server_.handshake_complete() and ( not controls_sent_ )
+        return ws_server_.handshake_complete() and ( controls_sent_ < camera_names_->size() )
                and ssl_session_.outbound_plaintext().writable_region().size() > 100;
       } ) );
 
@@ -272,12 +295,23 @@ public:
   ClientConnection& operator=( ClientConnection&& other ) noexcept = delete;
 };
 
-void program_body( const string origin, const string cert_filename, const string privkey_filename )
+void program_body( const string origin,
+                   const string cert_filename,
+                   const string privkey_filename,
+                   const vector<string>& keyfiles )
 {
   ios::sync_with_stdio( false );
 
   if ( SIG_ERR == signal( SIGPIPE, SIG_IGN ) ) {
     throw unix_error( "signal" );
+  }
+
+  auto names = make_shared<vector<string>>();
+  for ( const auto& filename : keyfiles ) {
+    ReadOnlyFile file { filename };
+    Parser p { file };
+    LongLivedKey k { p };
+    names->push_back( string( k.name() ) );
   }
 
   SSLServerContext ssl_context { cert_filename, privkey_filename };
@@ -336,7 +370,7 @@ void program_body( const string origin, const string cert_filename, const string
   } );
 
   loop->add_rule( "new TCP connection", web_listen_socket, Direction::In, [&] {
-    clients->clients.emplace_back( categories, ssl_context, web_listen_socket, origin, *loop, cull_needed );
+    clients->clients.emplace_back( categories, names, ssl_context, web_listen_socket, origin, *loop, cull_needed );
   } );
 
   /* cull old connections */
@@ -363,12 +397,16 @@ int main( int argc, char* argv[] )
     if ( argc <= 0 ) {
       abort();
     }
-    if ( argc != 4 ) {
-      cerr << "Usage: " << argv[0] << " origin certificate private_key\n";
+    if ( argc < 4 ) {
+      cerr << "Usage: " << argv[0] << " origin certificate private_key keys...\n";
       return EXIT_FAILURE;
     }
+    vector<string> keys;
+    for ( int i = 4; i < argc; i++ ) {
+      keys.push_back( argv[i] );
+    }
 
-    program_body( argv[1], argv[2], argv[3] );
+    program_body( argv[1], argv[2], argv[3], keys );
   } catch ( const exception& e ) {
     cerr << "Exception: " << e.what() << "\n";
     return EXIT_FAILURE;

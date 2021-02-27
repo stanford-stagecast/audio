@@ -54,8 +54,12 @@ function sourceOpenVideo(e) {
 	}
     }
 
+    set_live = function(name) {
+	ws.send("live " + name );
+    }
+    
     add_control = function(name) {
-	document.getElementById('controls').innerHTML += "<input type='button' name='" + name + "'>";
+	document.getElementById('controls').innerHTML += "<button onclick='set_live(this.id)' type='button' id='" + name + "'>" + name + "</button>";
     }
     
     ws = new WebSocket("wss://stagecast.org:8400");
@@ -68,7 +72,7 @@ function sourceOpenVideo(e) {
 	    return;
 	}
 	if ( type_byte == 2 ) {
-	    add_control( rest );
+	    add_control( new TextDecoder("utf-8").decode(rest) );
 	    return;
 	}
 

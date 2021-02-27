@@ -196,6 +196,8 @@ add_executable (ws-video-server "ws-video-server.cc")
 target_link_libraries ("ws-video-server" stats)
 target_link_libraries ("ws-video-server" video)
 target_link_libraries ("ws-video-server" http)
+target_link_libraries ("ws-video-server" network)
+target_link_libraries ("ws-video-server" crypto)
 target_link_libraries ("ws-video-server" util)
 
 target_link_libraries ("ws-video-server" ${SSL_LDFLAGS})
