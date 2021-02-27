@@ -81,4 +81,6 @@ void AudioWriter::mix_and_write( const AudioBoard& board, const uint64_t cursor_
 
 AudioWriter::AudioWriter( const string_view socket_path )
   : destination_( Address::abstract_unix( socket_path ) )
-{}
+{
+  socket_.set_blocking( false );
+}

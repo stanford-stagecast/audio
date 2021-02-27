@@ -40,6 +40,7 @@ VideoServer::VideoServer( const uint8_t num_clients, EventLoop& loop )
   , next_ack_ts_ { Timer::timestamp_ns() }
 {
   socket_.set_blocking( false );
+  camera_broadcast_socket_.set_blocking( false );
   socket_.bind( { "0", 9201 } );
 
   loop.add_rule( "network receive", socket_, Direction::In, [&] {
@@ -86,7 +87,7 @@ VideoServer::VideoServer( const uint8_t num_clients, EventLoop& loop )
                                : default_raster_;
       camera_feed_.encode( output );
       if ( camera_feed_.has_nal() ) {
-        camera_broadcast_socket_.sendto(
+        camera_broadcast_socket_.sendto_ignore_errors(
           camera_destination_,
           { reinterpret_cast<const char*>( camera_feed_.nal().NAL.data() ), camera_feed_.nal().NAL.size() } );
         camera_feed_.reset_nal();

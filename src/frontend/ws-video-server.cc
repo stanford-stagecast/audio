@@ -317,9 +317,9 @@ void program_body( const string origin,
   SSLServerContext ssl_context { cert_filename, privkey_filename };
 
   /* receive new additions to stream */
-  UDPSocket stream_receiver;
+  UnixDatagramSocket stream_receiver;
   stream_receiver.set_blocking( false );
-  stream_receiver.bind( { "127.0.0.1", 9115 } );
+  stream_receiver.bind( Address::abstract_unix( "stagecast-camera-video" ) );
 
   /* start listening for HTTP connections */
   TCPSocket web_listen_socket;
@@ -353,11 +353,10 @@ void program_body( const string origin,
 
   auto cull_needed = make_shared<bool>( false );
 
-  Address src { nullptr, 0 };
   StackBuffer<0, uint32_t, 1048576> buf;
 
   loop->add_rule( "new video segment", stream_receiver, Direction::In, [&] {
-    buf.resize( stream_receiver.recv( src, buf.mutable_buffer() ) );
+    buf.resize( stream_receiver.recv( buf.mutable_buffer() ) );
 
     for ( auto& client : clients->clients ) {
       try {
