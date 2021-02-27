@@ -22,13 +22,26 @@ void send( const Message& message )
   socket.sendto( { "127.0.0.1", video_server_control_port() }, buf );
 }
 
-void program_body( const string& control, const string& name )
+void program_body( const string& control,
+                   const string& name,
+                   const string& a,
+                   const string& b,
+                   const string& c,
+                   const string& d )
 {
   ios::sync_with_stdio( false );
 
   if ( control == "live" ) {
     set_live instruction;
     instruction.name = NetString( name );
+    send( instruction );
+  } else if ( control == "zoom" ) {
+    video_control instruction;
+    instruction.name = NetString( name );
+    instruction.x = stoi( a );
+    instruction.y = stoi( b );
+    instruction.width = stoi( c );
+    instruction.height = stoi( d );
     send( instruction );
   } else {
     throw runtime_error( "unknown control" );
@@ -42,12 +55,13 @@ int main( int argc, char* argv[] )
       abort();
     }
 
-    if ( argc != 3 ) {
-      cerr << "Usage: " << argv[0] << " live name\n";
-      return EXIT_FAILURE;
+    if ( argc == 3 ) {
+      program_body( argv[1], argv[2], "", "", "", "" );
+    } else if ( argc == 7 ) {
+      program_body( argv[1], argv[2], argv[3], argv[4], argv[5], argv[6] );
+    } else {
+      throw runtime_error( "bad usage" );
     }
-
-    program_body( argv[1], argv[2] );
   } catch ( const exception& e ) {
     cerr << "Exception: " << e.what() << "\n";
     return EXIT_FAILURE;

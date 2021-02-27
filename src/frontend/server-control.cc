@@ -39,14 +39,6 @@ void program_body( const string& control,
     instruction.min_samples = stoi( c );
     instruction.max_samples = stoi( d );
     send( instruction );
-  } else if ( control == "zoom" ) {
-    video_control instruction;
-    instruction.name = NetString( name );
-    instruction.x = stoi( a );
-    instruction.y = stoi( b );
-    instruction.width = stoi( c );
-    instruction.height = stoi( d );
-    send( instruction );
   } else {
     throw runtime_error( "unknown control" );
   }
@@ -61,7 +53,6 @@ int main( int argc, char* argv[] )
 
     if ( argc != 7 ) {
       cerr << "Usage: " << argv[0] << " cursor name feed target_lag min_lag max_lag\n";
-      cerr << "Usage: " << argv[0] << " zoom name x y width height\n";
       return EXIT_FAILURE;
     }
 
