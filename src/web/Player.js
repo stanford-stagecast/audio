@@ -45,7 +45,7 @@ function sourceOpen(e) {
 
 		ws.send("buffer " + buffer_duration.toFixed(3));
 
-		if ( playing && (buffer_duration > 0.5) ) {
+		if ( buffer_duration > 0.5 ) {
 		    audio.currentTime = sourceBuffer.buffered.end(0) - 0.25;
 		    resets++;
 		    document.getElementById('buffer').innerHTML = "resets: " + resets;
