@@ -6,6 +6,7 @@
 
 #include "audioboard.hh"
 #include "connection.hh"
+#include "control_messages.hh"
 #include "cursor.hh"
 #include "keys.hh"
 
@@ -57,6 +58,8 @@ class Client
   OpusEncoderProcess encoder_ { 96000, 48000 };
 
   uint8_t ch1_num_, ch2_num_;
+
+  client_report last_client_report_ {};
 
 public:
   Client( const uint8_t node_id, const uint8_t ch1, const uint8_t ch2, CryptoSession&& crypto );

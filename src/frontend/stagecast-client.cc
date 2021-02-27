@@ -5,6 +5,7 @@
 
 #include "alsa_devices.hh"
 #include "audio_task.hh"
+#include "control_messages.hh"
 #include "controller.hh"
 #include "encoder_task.hh"
 #include "eventloop.hh"
@@ -64,29 +65,33 @@ void program_body( const string& host, const string& service, const string& key_
   stats_printer.add( uac2 );
   stats_printer.add( network_client );
 
-  /* JSON updates */
-  UnixDatagramSocket json_updates;
-  json_updates.set_blocking( false );
-  Address json_update_address { Address::abstract_unix( "stagecast-client-audio-json" ) };
-  const uint64_t json_update_interval = 25'000'000;
-  uint64_t next_json_update = Timer::timestamp_ns() + json_update_interval;
-  Json::Value root;
-  ostringstream json_str;
+  /* Send statistics to server */
+  const uint64_t update_interval = 50'000'000;
+  uint64_t next_update = Timer::timestamp_ns() + update_interval;
+  NetString update_str;
   loop->add_rule(
-    "JSON update",
-    json_updates,
-    Direction::Out,
+    "stats update",
     [&] {
-      root.clear();
-      json_str.str( "" );
-      json_str.clear();
-      network_client->json_summary( root );
-      root["self_gain"] = uac2->loopback_gain();
-      json_str << root;
-      json_updates.sendto_ignore_errors( json_update_address, json_str.str() );
-      next_json_update = Timer::timestamp_ns() + json_update_interval;
+      client_report report;
+      report.resets = network_client->cursor().stats().resets;
+      report.target_lag
+        = min( uint32_t( numeric_limits<uint16_t>::max() ), network_client->cursor().target_lag_samples() );
+      report.min_lag
+        = min( uint32_t( numeric_limits<uint16_t>::max() ), network_client->cursor().min_lag_samples() );
+      report.max_lag
+        = min( uint32_t( numeric_limits<uint16_t>::max() ), network_client->cursor().max_lag_samples() );
+      report.actual_lag = network_client->cursor().stats().mean_margin_to_frontier;
+      report.quality = network_client->cursor().stats().quality;
+      report.self_gain = uac2->loopback_gain();
+
+      Serializer s { update_str.mutable_buffer() };
+      s.object( report );
+      update_str.resize( s.bytes_written() );
+
+      network_client->queue_update( update_str );
+      next_update = Timer::timestamp_ns() + update_interval;
     },
-    [&] { return Timer::timestamp_ns() > next_json_update; } );
+    [&] { return network_client->has_session() and ( Timer::timestamp_ns() > next_update ); } );
 
   /* Start audio device and event loop */
   uac2->device().start();

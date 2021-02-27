@@ -30,6 +30,9 @@ class NetworkConnection : public Summarizable
     unsigned int decryption_failures {}, invalid {};
   } stats_ {};
 
+  std::optional<NetString> pending_outbound_unreliable_data_ {};
+  std::optional<NetString> inbound_unreliable_data_ {};
+
 public:
   NetworkConnection( const char node_id, const char peer_id, CryptoSession&& crypto );
   NetworkConnection( const char node_id, const char peer_id, CryptoSession&& crypto, const Address& destination );
@@ -54,6 +57,12 @@ public:
 
   const typename NetworkSender<FrameType>::Statistics& sender_stats() const { return sender_.stats(); }
   const typename NetworkReceiver<FrameType>::Statistics& receiver_stats() const { return receiver_.stats(); }
+
+  bool has_inbound_unreliable_data() const { return inbound_unreliable_data_.has_value(); }
+  const NetString& inbound_unreliable_data() const { return inbound_unreliable_data_.value(); }
+  void pop_inbound_unreliable_data() { inbound_unreliable_data_.reset(); }
+
+  void set_outbound_unreliable_data( const NetString& str ) { pending_outbound_unreliable_data_.emplace( str ); }
 };
 
 using AudioNetworkConnection = NetworkConnection<AudioFrame, OpusEncoderProcess>;

@@ -40,6 +40,12 @@ void NetworkConnection<FrameType, SourceType>::send_packet( UDPSocket& socket )
   sender_.set_sender_section( pack.sender_section );
   receiver_.set_receiver_section( pack.receiver_section );
 
+  /* do we have room for an unreliable update? */
+  if ( pending_outbound_unreliable_data_.has_value() and ( pack.serialized_length() < 1200 ) ) {
+    pack.unreliable_data_ = pending_outbound_unreliable_data_.value();
+    pending_outbound_unreliable_data_.reset();
+  }
+
   /* serialize */
   Plaintext plaintext;
   Serializer s { plaintext.mutable_buffer() };
@@ -96,6 +102,10 @@ bool NetworkConnection<FrameType, SourceType>::receive_packet( const Ciphertext&
   /* act on packet contents */
   sender_.receive_receiver_section( packet.receiver_section );
   receiver_.receive_sender_section( packet.sender_section );
+
+  if ( packet.unreliable_data_.length() > 0 ) {
+    inbound_unreliable_data_.emplace( packet.unreliable_data_ );
+  }
 
   return true;
 }

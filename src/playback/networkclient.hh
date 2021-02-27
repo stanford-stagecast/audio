@@ -62,4 +62,14 @@ public:
   void json_summary( Json::Value& root ) const;
 
   void set_cursor_lag( const uint16_t target_samples, const uint16_t min_samples, const uint16_t max_samples );
+
+  bool has_session() const { return session_.has_value(); }
+  const Cursor& cursor() const { return session_->cursor; }
+
+  void queue_update( const NetString& update )
+  {
+    if ( session_.has_value() ) {
+      session_->connection.set_outbound_unreliable_data( update );
+    }
+  }
 };

@@ -45,6 +45,16 @@ bool Client::receive_packet( const Address& source, const Ciphertext& ciphertext
     if ( ( not outbound_frame_offset_.has_value() ) and connection_.has_destination() ) {
       outbound_frame_offset_ = clock_sample / opus_frame::NUM_SAMPLES_MINLATENCY;
     }
+
+    if ( connection_.has_inbound_unreliable_data() ) {
+      Parser p { connection_.inbound_unreliable_data() };
+      p.object( last_client_report_ );
+      if ( p.error() ) {
+        p.clear_error();
+      }
+      connection_.pop_inbound_unreliable_data();
+    }
+
     return true;
   }
   return false;
@@ -152,12 +162,28 @@ void Client::json_summary( Json::Value& root ) const
 {
   internal_feed_.cursor().json_summary( root["feed"][internal_feed_.name()] );
   quality_feed_.cursor().json_summary( root["feed"][quality_feed_.name()] );
+
+  root["client"]["resets"] = last_client_report_.resets;
+  root["client"]["target_lag"] = last_client_report_.target_lag;
+  root["client"]["min_lag"] = last_client_report_.min_lag;
+  root["client"]["max_lag"] = last_client_report_.max_lag;
+  root["client"]["actual_lag"] = last_client_report_.actual_lag;
+  root["client"]["quality"] = last_client_report_.quality;
+  root["client"]["self_gain"] = last_client_report_.self_gain;
 }
 
 void Client::default_json_summary( Json::Value& root )
 {
   Cursor::default_json_summary( root["feed"]["internal"] );
   Cursor::default_json_summary( root["feed"]["quality"] );
+
+  root["client"]["resets"] = 0;
+  root["client"]["target_lag"] = 0;
+  root["client"]["min_lag"] = 0;
+  root["client"]["max_lag"] = 0;
+  root["client"]["actual_lag"] = 0;
+  root["client"]["quality"] = 0;
+  root["client"]["self_gain"] = 0;
 }
 
 void KnownClient::summary( ostream& out ) const

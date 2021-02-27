@@ -80,4 +80,9 @@ public:
 
   void json_summary( Json::Value& root ) const;
   static void default_json_summary( Json::Value& root );
+
+  const Statistics& stats() const { return stats_; }
+  uint32_t target_lag_samples() const { return target_lag_samples_; }
+  uint32_t min_lag_samples() const { return min_lag_samples_; }
+  uint32_t max_lag_samples() const { return max_lag_samples_; }
 };

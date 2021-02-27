@@ -157,6 +157,8 @@ struct Packet
     NetArray<NetInteger<uint32_t>, 32> packets_received {};
   } receiver_section {};
 
+  NetString unreliable_data_ {};
+
   uint32_t serialized_length() const;
   void serialize( Serializer& s ) const;
   void parse( Parser& p );

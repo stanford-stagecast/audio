@@ -66,7 +66,8 @@ template<class FrameType>
 uint32_t Packet<FrameType>::serialized_length() const
 {
   return sizeof( sender_section.sequence_number ) + sender_section.frames.serialized_length()
-         + sizeof( receiver_section.next_frame_needed ) + receiver_section.packets_received.serialized_length();
+         + sizeof( receiver_section.next_frame_needed ) + receiver_section.packets_received.serialized_length()
+         + unreliable_data_.serialized_length();
 }
 
 template<class FrameType>
@@ -77,6 +78,8 @@ void Packet<FrameType>::serialize( Serializer& s ) const
 
   s.integer( receiver_section.next_frame_needed );
   s.object( receiver_section.packets_received );
+
+  s.object( unreliable_data_ );
 }
 
 template<class FrameType>
@@ -87,6 +90,8 @@ void Packet<FrameType>::parse( Parser& p )
 
   p.integer( receiver_section.next_frame_needed );
   p.object( receiver_section.packets_received );
+
+  p.object( unreliable_data_ );
 }
 
 template<class FrameType>

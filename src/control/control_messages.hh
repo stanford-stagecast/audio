@@ -91,3 +91,38 @@ struct set_live : public control_message<2>
   void serialize( Serializer& s ) const { s.object( name ); }
   void parse( Parser& p ) { p.object( name ); }
 };
+
+struct client_report : public control_message<3>
+{
+  uint32_t resets;
+  uint16_t target_lag, min_lag, max_lag;
+  float actual_lag;
+  float quality;
+  float self_gain;
+
+  static constexpr uint32_t serialized_length()
+  {
+    return sizeof( uint32_t ) + 4 * sizeof( uint16_t ) + 2 * sizeof( float );
+  }
+
+  void serialize( Serializer& s ) const
+  {
+    s.integer( resets );
+    s.integer( target_lag );
+    s.integer( min_lag );
+    s.integer( max_lag );
+    s.floating( actual_lag );
+    s.floating( quality );
+    s.floating( self_gain );
+  }
+  void parse( Parser& p )
+  {
+    p.integer( resets );
+    p.integer( target_lag );
+    p.integer( min_lag );
+    p.integer( max_lag );
+    p.floating( actual_lag );
+    p.floating( quality );
+    p.floating( self_gain );
+  }
+};
