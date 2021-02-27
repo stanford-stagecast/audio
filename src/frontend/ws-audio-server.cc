@@ -70,13 +70,11 @@ private:
     if ( ( s.size() > 7 ) and ( s.substr( 0, 7 ) == "buffer " ) ) {
       string_view num = s.substr( 8 );
       float last_buffer = stof( string( num ) );
-      if ( last_buffer < 0.1 ) {
+      if ( last_buffer < 0.15 ) {
         updates_since_small_buffer_ = 0;
       } else {
         updates_since_small_buffer_++;
       }
-      cerr << setprecision( 3 ) << fixed << last_buffer << ":" << updates_since_small_buffer_ << frames_since_skip_
-           << "\n";
     }
   }
 
@@ -189,7 +187,7 @@ public:
         if ( ws_server_.endpoint().ready() ) {
           parse_message( ws_server_.endpoint().message() );
 
-          if ( updates_since_small_buffer_ > 10 ) {
+          if ( updates_since_small_buffer_ > 10 and frames_since_skip_ > 50 ) {
             skipping_ = true;
           }
 
@@ -217,6 +215,7 @@ public:
     if ( skipping_ ) {
       skipping_ = false;
       frames_since_skip_ = 0;
+      updates_since_small_buffer_ = 0;
     } else {
       muxer_.write( s, audio_frame_count_ * opus_frame::NUM_SAMPLES_MINLATENCY );
       audio_frame_count_++;
