@@ -75,7 +75,8 @@ private:
       } else {
         updates_since_small_buffer_++;
       }
-      cerr << last_buffer << ":" << updates_since_small_buffer_ << "\n";
+      cerr << setprecision( 3 ) << fixed << last_buffer << ":" << updates_since_small_buffer_ << frames_since_skip_
+           << "\n";
     }
   }
 
