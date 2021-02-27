@@ -41,9 +41,12 @@ function sourceOpen(e) {
             sourceBuffer.appendBuffer(queue.shift());
 
 	    if ( sourceBuffer.buffered.length > 0 ) {
-		if ( sourceBuffer.buffered.end(0) > (audio.currentTime + 0.5)
-		     && sourceBuffer.buffered.start(0) <= (sourceBuffer.buffered.end(0) - 0.4) ) {
-		    audio.currentTime = sourceBuffer.buffered.end(0) - 0.4;
+		var buffer_duration = sourceBuffer.buffered.end(0) - audio.currentTime;
+
+		ws.send("buffer " + buffer_duration.toFixed(3));
+
+		if ( playing && (buffer_duration > 0.5) ) {
+		    audio.currentTime = sourceBuffer.buffered.end(0) - 0.25;
 		    resets++;
 		    document.getElementById('buffer').innerHTML = "resets: " + resets;
 		}
