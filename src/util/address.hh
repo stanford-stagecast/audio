@@ -41,6 +41,8 @@ public:
 
   Address();
 
+  static Address abstract_unix( const std::string_view name );
+
   //! Equality comparison.
   bool operator==( const Address& other ) const;
   bool operator!=( const Address& other ) const { return not operator==( other ); }

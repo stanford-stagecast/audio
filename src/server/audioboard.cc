@@ -78,3 +78,7 @@ void AudioWriter::mix_and_write( const AudioBoard& board, const uint64_t cursor_
     mixed_audio_.pop_before( mix_cursor_ );
   }
 }
+
+AudioWriter::AudioWriter( const string_view socket_path )
+  : webm_writer_( 96000, 48000, 2, socket_path )
+{}

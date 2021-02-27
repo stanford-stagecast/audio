@@ -33,8 +33,8 @@ class WebMWriter
 
   AVStream* audio_stream_;
 
-  Address stream_destination_ { "127.0.0.1", 9015 };
-  UDPSocket stream_socket_ {};
+  Address stream_destination_ {};
+  UnixDatagramSocket stream_socket_ {};
 
   static constexpr unsigned int BUF_SIZE = 65536;
   RingBuffer buf_ { BUF_SIZE };
@@ -47,7 +47,10 @@ class WebMWriter
   static int av_check( const int retval );
 
 public:
-  WebMWriter( const int bit_rate, const uint32_t sample_rate, const uint8_t num_channels );
+  WebMWriter( const int bit_rate,
+              const uint32_t sample_rate,
+              const uint8_t num_channels,
+              const std::string_view socket_path );
 
   ~WebMWriter();
 

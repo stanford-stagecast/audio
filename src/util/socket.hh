@@ -80,6 +80,17 @@ public:
   void send( const std::string_view payload );
 };
 
+class UnixDatagramSocket : public Socket
+{
+public:
+  UnixDatagramSocket()
+    : Socket( AF_UNIX, SOCK_DGRAM )
+  {}
+
+  void sendto_ignore_errors( const Address& destination, const std::string_view payload );
+  size_t recv( string_span payload );
+};
+
 //! A wrapper around [TCP sockets](\ref man7::tcp)
 class TCPSocket : public Socket
 {

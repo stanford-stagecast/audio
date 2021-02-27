@@ -199,9 +199,9 @@ void program_body( const string origin, const string cert_filename, const string
   init_segment_frame.serialize( init_segment );
 
   /* receive new additions to stream */
-  UDPSocket stream_receiver;
+  UnixDatagramSocket stream_receiver;
   stream_receiver.set_blocking( false );
-  stream_receiver.bind( { "127.0.0.1", 9015 } );
+  stream_receiver.bind( Address::abstract_unix( "stagecast-program-audio" ) );
 
   /* start listening for HTTP connections */
   TCPSocket web_listen_socket;
@@ -239,7 +239,6 @@ void program_body( const string origin, const string cert_filename, const string
 
   auto cull_needed = make_shared<bool>( false );
 
-  Address src { nullptr, 0 };
   WebSocketFrame frame_segment;
   frame_segment.fin = true;
   frame_segment.opcode = WebSocketFrame::opcode_t::Binary;
@@ -247,8 +246,8 @@ void program_body( const string origin, const string cert_filename, const string
   string frame_segment_serialized;
 
   loop->add_rule( "new audio segment", stream_receiver, Direction::In, [&] {
-    frame_segment.payload.resize( 65536 );
-    frame_segment.payload.resize( stream_receiver.recv( src, string_span::from_view( frame_segment.payload ) ) );
+    frame_segment.payload.resize( 1048576 );
+    frame_segment.payload.resize( stream_receiver.recv( string_span::from_view( frame_segment.payload ) ) );
     frame_segment.serialize( frame_segment_serialized );
 
     for ( auto& client : clients->clients ) {

@@ -28,7 +28,7 @@ class NetworkMultiServer : public Summarizable
 
   void summary( std::ostream& out ) const override;
 
-  AudioWriter program_audio_ {};
+  AudioWriter program_audio_ { "stagecast-program-audio" };
 
 public:
   NetworkMultiServer( const uint8_t num_clients, EventLoop& loop );

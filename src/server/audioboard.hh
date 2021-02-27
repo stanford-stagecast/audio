@@ -47,8 +47,9 @@ class AudioWriter
   uint64_t mix_cursor_ {};
 
   OpusEncoderProcess encoder_ { 96000, 48000 };
-  WebMWriter webm_writer_ { 96000, 48000, 2 };
+  WebMWriter webm_writer_;
 
 public:
+  AudioWriter( const std::string_view socket_path );
   void mix_and_write( const AudioBoard& board, const uint64_t cursor_sample );
 };

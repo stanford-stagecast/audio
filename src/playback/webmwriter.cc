@@ -39,11 +39,17 @@ int write_helper( void* rb_opaque, uint8_t* buf, int buf_size )
   return buf_size;
 }
 
-WebMWriter::WebMWriter( const int bit_rate, const uint32_t sample_rate, const uint8_t num_channels )
+WebMWriter::WebMWriter( const int bit_rate,
+                        const uint32_t sample_rate,
+                        const uint8_t num_channels,
+                        const string_view socket_path )
   : audio_stream_()
+  , stream_destination_( Address::abstract_unix( socket_path ) )
   , header_written_( false )
   , sample_rate_( sample_rate )
 {
+  stream_socket_.set_blocking( false );
+
   {
     AVFormatContext* tmp_context;
     av_check( avformat_alloc_output_context2( &tmp_context, nullptr, "webm", nullptr ) );
@@ -146,6 +152,6 @@ void WebMWriter::write( opus_frame& frame, const uint64_t starting_sample_number
   av_check( av_write_frame( context_.get(), &packet ) );
   av_check( av_write_frame( context_.get(), nullptr ) );
   avio_flush( context_->pb );
-  stream_socket_.sendto( stream_destination_, buf_.readable_region() );
+  stream_socket_.sendto_ignore_errors( stream_destination_, buf_.readable_region() );
   buf_.pop( buf_.readable_region().size() );
 }
