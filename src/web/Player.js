@@ -43,12 +43,14 @@ function sourceOpen(e) {
 	    if ( sourceBuffer.buffered.length > 0 ) {
 		var buffer_duration = sourceBuffer.buffered.end(0) - audio.currentTime;
 
+		document.getElementById('buffer').innerHTML = "Buffer: " + (24*buffer_duration).toFixed(0) + " video frames' worth";
+		
 		ws.send("buffer " + buffer_duration.toFixed(3));
 
 		if ( buffer_duration > 0.5 ) {
 		    audio.currentTime = sourceBuffer.buffered.end(0) - 0.25;
 		    resets++;
-		    document.getElementById('buffer').innerHTML = "resets: " + resets;
+		    document.getElementById('resets').innerHTML = "resets: " + resets;
 		}
 	    }
 	}
