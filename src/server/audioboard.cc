@@ -43,9 +43,9 @@ void AudioBoard::json_summary( Json::Value& root ) const
   root["name"] = name_;
   for ( unsigned int i = 0; i < num_channels(); i++ ) {
     root["channels"][channels_.at( i ).first]["amplitude"] = sqrt( power_.at( i ) );
-    const float gain_sum = gains_.at( i ).first + gains_.at( i ).second;
-    root["channels"][channels_.at( i ).first]["gain"] = gain_sum;
-    root["channels"][channels_.at( i ).first]["pan"] = 2 * ( ( gains_.at( i ).second / gain_sum ) - 0.5 );
+    const float gain_mean = ( gains_.at( i ).first + gains_.at( i ).second ) / 2.0;
+    root["channels"][channels_.at( i ).first]["gain"] = gain_mean;
+    root["channels"][channels_.at( i ).first]["pan"] = 2 * ( ( gains_.at( i ).second / ( 2 * gain_mean ) ) - 0.5 );
   }
 }
 

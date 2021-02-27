@@ -43,7 +43,7 @@ void program_body( const vector<string>& keyfiles )
   UnixDatagramSocket json_updates;
   json_updates.set_blocking( false );
   Address json_update_address { Address::abstract_unix( "stagecast-server-audio-json" ) };
-  const uint64_t json_update_interval = 25'000'000;
+  const uint64_t json_update_interval = 50'000'000;
   uint64_t next_json_update = Timer::timestamp_ns() + json_update_interval;
   Json::Value root;
   ostringstream json_str;
