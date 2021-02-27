@@ -46,6 +46,8 @@ class ClientConnection
 
   shared_ptr<bool> cull_needed_;
 
+  bool controls_sent_ {};
+
   void cull( const string_view s )
   {
     *cull_needed_ = true;
@@ -211,6 +213,23 @@ public:
       },
       [&] {
         return ws_server_.handshake_complete() and Timer::timestamp_ns() > next_status_update_
+               and ssl_session_.outbound_plaintext().writable_region().size() > 100;
+      } ) );
+
+    rules_.push_back( loop.add_rule(
+      categories.ws_send,
+      [this] {
+        ws_frame_.payload = " Keith";
+        ws_frame_.payload.at( 0 ) = 2;
+
+        Serializer s { ssl_session_.outbound_plaintext().writable_region() };
+        s.object( ws_frame_ );
+        ssl_session_.outbound_plaintext().push( s.bytes_written() );
+
+        controls_sent_ = true;
+      },
+      [&] {
+        return ws_server_.handshake_complete() and ( not controls_sent_ )
                and ssl_session_.outbound_plaintext().writable_region().size() > 100;
       } ) );
 

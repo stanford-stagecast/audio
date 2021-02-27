@@ -54,13 +54,21 @@ function sourceOpenVideo(e) {
 	}
     }
 
+    add_control = function(name) {
+	document.getElementById('controls').innerHTML += "<input type='button' name='" + name + "'>";
+    }
+    
     ws = new WebSocket("wss://stagecast.org:8400");
     ws.binaryType = 'arraybuffer';
     ws.onmessage = function( e ) {
-	var is_message = new DataView(e.data, 0, 1).getUint8(0);
+	var type_byte = new DataView(e.data, 0, 1).getUint8(0);
 	var rest = e.data.slice(1);
-	if ( is_message ) {
+	if ( type_byte == 1 ) {
 	    document.getElementById('message').innerHTML = new TextDecoder("utf-8").decode(rest);
+	    return;
+	}
+	if ( type_byte == 2 ) {
+	    add_control( rest );
 	    return;
 	}
 

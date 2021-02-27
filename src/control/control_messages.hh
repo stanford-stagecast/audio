@@ -83,7 +83,7 @@ struct set_gain : public control_message<1>
   }
 };
 
-struct set_live : public control_message<0>
+struct set_live : public control_message<2>
 {
   NetString name {};
 
