@@ -57,17 +57,30 @@ function sourceOpenVideo(e) {
     set_live = function(name) {
 	ws.send("live " + name );
     }
+
+    reset = function(name) {
+	var x_elem = document.getElementById( name + ":zoom:x" );
+ 	var y_elem = document.getElementById( name + ":zoom:y" );
+	var zoom_elem = document.getElementById( name + ":zoom:zoom" );
+
+	x.elem.value = 0;
+	y.elem.value = 0;
+	zoom.elem.value = 1;
+
+	ws.send( `zoom ${name} ${x_elem.value} ${y_elem.value} ${3840.0 / zoom_elem.value} ${2160.0 / zoom_elem.value}`);
+    }
     
     add_control = function(name) {
 	var div = document.getElementById('controls');
 	div.innerHTML += "<button onclick='set_live(this.id)' type='button' id='" + name + "'>" + name + "</button><p>";
+	div.innerHTML += "<button onclick='reset(this.id)' type='button' id='" + name + "'>reset</button><p>";
 	div.innerHTML += `<span style="float: left; width: 100px;" id="text:${name}:zoom:x">x</span><input type="range" min="0" max="3840" id="${name}:zoom:x"
 onmousedown="this.ignoring = true;" onmouseup="this.ignoring = false;" oninput="send_control(this.id, value);"
 ><br>`;
 	div.innerHTML += `<span style="float: left; width: 100px;" id="text:${name}:zoom:y">y</span><input type="range" min="0" max="3840" id="${name}:zoom:y"
 onmousedown="this.ignoring = true;" onmouseup="this.ignoring = false;" oninput="send_control(this.id, value);"
 ><br>`;
-	div.innerHTML += `<span style="float: left; width: 100px;" id="text:${name}:zoom:zoom">zoom</span><input type="range" min="0" max="3" id="${name}:zoom:zoom"
+	div.innerHTML += `<span style="float: left; width: 100px;" id="text:${name}:zoom:zoom">zoom</span><input type="range" min="1" max="3" step="0.01" id="${name}:zoom:zoom"
 onmousedown="this.ignoring = true;" onmouseup="this.ignoring = false;" oninput="send_control(this.id, value);"
 ><br>`;
 	div.innerHTML += `<p><hr>`;
@@ -108,7 +121,7 @@ onmousedown="this.ignoring = true;" onmouseup="this.ignoring = false;" oninput="
 		    
 		document.getElementById( "text:" + name + ":zoom:x" ).innerHTML = "x: " + doc[name]["zoom"]["x"];
 		document.getElementById( "text:" + name + ":zoom:y" ).innerHTML = "y: " + doc[name]["zoom"]["y"];
-		document.getElementById( "text:" + name + ":zoom:zoom" ).innerHTML = "zoom: " + (3840.0 / doc[name]["zoom"]["width"]).toFixed(0);
+		document.getElementById( "text:" + name + ":zoom:zoom" ).innerHTML = "zoom: " + (3840.0 / doc[name]["zoom"]["width"]).toFixed(2);
 
 		ws.send( `zoom ${name} ${x_elem.value} ${y_elem.value} ${3840.0 / zoom_elem.value} ${2160.0 / zoom_elem.value}`);
 	    }
