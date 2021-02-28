@@ -39,7 +39,7 @@ void program_body( const vector<string>& keyfiles )
 
   server->initialize_clock();
 
-  const bool include_second_channels = getenv( "STAGECAST_REPORT_SECOND_CHANNELS" );
+  const bool include_second_channels = getenv( "STAGECAST_2CH" );
 
   /* JSON updates */
   UnixDatagramSocket json_updates;

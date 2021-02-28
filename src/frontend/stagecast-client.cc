@@ -50,8 +50,10 @@ void program_body( const string& host, const string& service, const string& key_
 
   auto uac2 = make_shared<AudioDeviceTask>( interface_name, *loop );
 
+  const bool send_second_channel = getenv( "STAGECAST_2CH" );
+
   /* Opus encoder task registers itself in EventLoop */
-  auto encoder = make_shared<ClientEncoderTask>( 96000, 600, 48000, uac2, *loop );
+  auto encoder = make_shared<ClientEncoderTask>( 96000, ( send_second_channel ? 96000 : 600 ), 48000, uac2, *loop );
 
   /* Network client registers itself in EventLoop */
   const Address stagecast_server { host, service };
