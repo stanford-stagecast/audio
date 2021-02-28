@@ -165,6 +165,22 @@ public:
     }
   }
 
+  void push_update( const string_view str )
+  {
+    if ( ws_server_.handshake_complete()
+         and ssl_session_.outbound_plaintext().writable_region().size()
+               > str.size() + 1 + WebSocketFrame::max_overhead() ) {
+
+      ws_frame_.payload.resize( 1 + str.size() );
+      ws_frame_.payload.at( 0 ) = 3;
+      memcpy( ws_frame_.payload.data() + 1, str.data(), str.size() );
+
+      Serializer s { ssl_session_.outbound_plaintext().writable_region() };
+      s.object( ws_frame_ );
+      ssl_session_.outbound_plaintext().push( s.bytes_written() );
+    }
+  }
+
   bool can_send( const size_t len ) const
   {
     return ssl_session_.outbound_plaintext().writable_region().size() >= len;
@@ -360,6 +376,11 @@ void program_body( const string origin,
   stream_receiver.set_blocking( false );
   stream_receiver.bind( Address::abstract_unix( "stagecast-camera-video" ) );
 
+  /* receive new metadata  */
+  UnixDatagramSocket json_receiver;
+  json_receiver.set_blocking( false );
+  json_receiver.bind( Address::abstract_unix( "stagecast-server-video-json" ) );
+
   /* start listening for HTTP connections */
   TCPSocket web_listen_socket;
   web_listen_socket.set_reuseaddr();
@@ -409,6 +430,21 @@ void program_body( const string origin,
 
   loop->add_rule( "new TCP connection", web_listen_socket, Direction::In, [&] {
     clients->clients.emplace_back( categories, names, ssl_context, web_listen_socket, origin, *loop, cull_needed );
+  } );
+
+  StackBuffer<0, uint32_t, 1048576> json_buf;
+  loop->add_rule( "new update", json_receiver, Direction::In, [&] {
+    json_buf.resize( json_receiver.recv( json_buf.mutable_buffer() ) );
+    if ( json_buf.length() == 0 ) {
+      return;
+    }
+    for ( auto& client : clients->clients ) {
+      try {
+        client.push_update( json_buf );
+      } catch ( const exception& e ) {
+        client.cull( "JSON exception" );
+      }
+    }
   } );
 
   /* cull old connections */

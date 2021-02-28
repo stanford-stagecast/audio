@@ -47,4 +47,6 @@ public:
   void set_zoom( const video_control& control );
 
   void initialize_clock();
+
+  void json_summary( Json::Value& root ) const;
 };

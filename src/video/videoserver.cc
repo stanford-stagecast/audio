@@ -112,6 +112,18 @@ void VideoServer::summary( ostream& out ) const
   }
 }
 
+void VideoServer::json_summary( Json::Value& root ) const
+{
+  for ( const auto& client : clients_ ) {
+    if ( client ) {
+      root[client.name()]["zoom"]["x"] = client.client().zoom_.x;
+      root[client.name()]["zoom"]["y"] = client.client().zoom_.y;
+      root[client.name()]["zoom"]["width"] = client.client().zoom_.width;
+      root[client.name()]["zoom"]["height"] = client.client().zoom_.height;
+    }
+  }
+}
+
 void VideoServer::set_live( const string_view name )
 {
   for ( unsigned int i = 0; i < clients_.size(); i++ ) {

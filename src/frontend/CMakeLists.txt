@@ -198,6 +198,9 @@ target_link_libraries ("stagecast-video-server" ${Rubberband_LDFLAGS_OTHER})
 target_link_libraries ("stagecast-video-server" ${X264_LDFLAGS})
 target_link_libraries ("stagecast-video-server" ${X264_LDFLAGS_OTHER})
 
+target_link_libraries ("stagecast-video-server" ${JSON_LDFLAGS})
+target_link_libraries ("stagecast-video-server" ${JSON_LDFLAGS_OTHER})
+
 target_link_libraries ("stagecast-video-server" "-pthread")
 
 add_executable (ws-video-server "ws-video-server.cc")

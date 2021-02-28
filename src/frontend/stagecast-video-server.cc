@@ -37,6 +37,29 @@ void program_body( const vector<string>& keyfiles )
 
   VideoServerController controller { server, *loop };
 
+  /* JSON updates */
+  UnixDatagramSocket json_updates;
+  json_updates.set_blocking( false );
+  Address json_update_address { Address::abstract_unix( "stagecast-server-video-json" ) };
+  const uint64_t json_update_interval = 50'000'000;
+  uint64_t next_json_update = Timer::timestamp_ns() + json_update_interval;
+  Json::Value root;
+  ostringstream json_str;
+  loop->add_rule(
+    "JSON update",
+    json_updates,
+    Direction::Out,
+    [&] {
+      root.clear();
+      json_str.str( "" );
+      json_str.clear();
+      server->json_summary( root );
+      json_str << root;
+      json_updates.sendto_ignore_errors( json_update_address, json_str.str() );
+      next_json_update = Timer::timestamp_ns() + json_update_interval;
+    },
+    [&] { return Timer::timestamp_ns() > next_json_update; } );
+
   /* Start audio device and event loop */
   while ( loop->wait_next_event( 1 ) != EventLoop::Result::Exit ) {
   }
