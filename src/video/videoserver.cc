@@ -135,14 +135,48 @@ void VideoServer::set_live( const string_view name )
 
 void VideoServer::set_zoom( const video_control& control )
 {
-  cerr << "client count: " << clients_.size() << "\n";
-  for ( unsigned int i = 0; i < clients_.size(); i++ ) {
-    if ( clients_.at( i ) ) {
-      if ( clients_.at( i ).name() == control.name.as_string_view() ) {
-        auto control2 = control;
-        control2.name.resize( 0 );
-        clients_.at( i ).client().zoom_ = control2;
+  for ( auto& client : clients_ ) {
+    if ( client and ( client.name() == control.name.as_string_view() ) ) {
+      auto control2 = control;
+      control2.name.resize( 0 );
+
+      if ( control2.x < 0 ) {
+        control2.x = 0;
       }
+
+      if ( control2.y < 0 ) {
+        control2.y = 0;
+      }
+
+      if ( control2.x > 3840 - 1280 ) {
+        control2.x = 3840 - 1280;
+      }
+
+      if ( control2.y > 2160 - 720 ) {
+        control2.x = 2160 - 720;
+      }
+
+      if ( control2.width > 3840 ) {
+        control2.width = 3840;
+      }
+
+      control2.height = control2.width * 2160 / 3840;
+
+      if ( control2.height > 2160 ) {
+        control2.height = 2160;
+      }
+
+      if ( control2.x + control2.width > 3840 ) {
+        control2.width = 3840 - control2.x;
+      }
+
+      if ( control2.y + control2.height > 2160 ) {
+        control2.height = 2160 - control2.y;
+      }
+
+      control2.height = control2.width * 2160 / 3840;
+
+      client.client().zoom_ = control2;
     }
   }
 }

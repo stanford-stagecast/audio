@@ -39,7 +39,7 @@ VideoServerController::VideoServerController( shared_ptr<VideoServer> server, Ev
           parser.clear_error();
           return;
         }
-        server->set_zoom( my_video_control );
+        server_->set_zoom( my_video_control );
         break;
     }
   } );
