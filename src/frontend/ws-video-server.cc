@@ -31,6 +31,27 @@ void send_control( const Message& message )
   socket.sendto( { "127.0.0.1", video_server_control_port() }, buf );
 }
 
+void split_on_char( const string_view str, const char ch_to_find, vector<string_view>& ret )
+{
+  ret.clear();
+
+  bool in_double_quoted_string = false;
+  unsigned int field_start = 0; // start of next token
+  for ( unsigned int i = 0; i < str.size(); i++ ) {
+    const char ch = str[i];
+    if ( ch == '"' ) {
+      in_double_quoted_string = !in_double_quoted_string;
+    } else if ( in_double_quoted_string ) {
+      continue;
+    } else if ( ch == ch_to_find ) {
+      ret.emplace_back( str.substr( field_start, i - field_start ) );
+      field_start = i + 1;
+    }
+  }
+
+  ret.emplace_back( str.substr( field_start ) );
+}
+
 struct EventCategories
 {
   size_t close, SSL_read, SSL_write, ws_handshake, ws_receive, ws_send;
@@ -84,6 +105,7 @@ public:
 private:
   float mean_buffer_ = 0.0;
   float last_buffer_ = 0.0;
+  vector<string_view> fields_ {};
   void parse_message( const string_view s )
   {
     if ( ( s.size() > 7 ) and ( s.substr( 0, 7 ) == "buffer " ) ) {
@@ -95,6 +117,23 @@ private:
       string_view name = s.substr( 5 );
       instruction.name = NetString( name );
       send_control( instruction );
+    } else if ( ( s.size() > 5 ) and ( s.substr( 0, 5 ) == "zoom " ) ) {
+      split_on_char( s, ' ', fields_ );
+
+      if ( fields_.size() != 6 ) {
+        return;
+      }
+
+      try {
+        video_control instruction;
+        instruction.name = fields_.at( 1 );
+        instruction.x = stof( string( fields_.at( 2 ) ) );
+        instruction.y = stof( string( fields_.at( 3 ) ) );
+        instruction.width = stof( string( fields_.at( 4 ) ) );
+        instruction.height = stof( string( fields_.at( 5 ) ) );
+        send_control( instruction );
+      } catch ( const exception& e ) {
+      }
     }
   }
 
