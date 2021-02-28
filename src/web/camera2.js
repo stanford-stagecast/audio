@@ -59,9 +59,18 @@ function sourceOpenVideo(e) {
     }
     
     add_control = function(name) {
-	document.getElementById('controls').innerHTML += "<button onclick='set_live(this.id)' type='button' id='" + name + "'>" + name + "</button>";
-
-	
+	var div = document.getElementById('controls');
+	div.innerHTML += "<button onclick='set_live(this.id)' type='button' id='" + name + "'>" + name + "</button><p>";
+	div.innerHTML += `<span style="float: left; width: 100px;" id="text:${name}:zoom:x">x</span><input type="range" min="0" max="3840" id="${name}:zoom:x"
+onmousedown="this.ignoring = true;" onmouseup="this.ignoring = false;" oninput="send_control(this.id, value);"
+><br>`;
+	div.innerHTML += `<span style="float: left; width: 100px;" id="text:${name}:zoom:y">y</span><input type="range" min="0" max="3840" id="${name}:zoom:y"
+onmousedown="this.ignoring = true;" onmouseup="this.ignoring = false;" oninput="send_control(this.id, value);"
+><br>`;
+	div.innerHTML += `<span style="float: left; width: 100px;" id="text:${name}:zoom:zoom">zoom</span><input type="range" min="0" max="3" id="${name}:zoom:zoom"
+onmousedown="this.ignoring = true;" onmouseup="this.ignoring = false;" oninput="send_control(this.id, value);"
+><br>`;
+	div.innerHTML += `<p><hr>`;
     }
     
     ws = new WebSocket("wss://stagecast.org:8400");
@@ -80,9 +89,31 @@ function sourceOpenVideo(e) {
 	}
 	if ( type_byte == 3 ) {
 	    doc = JSON.parse( decoder.decode( rest ) );
-	    for ( x in doc ) {
-		console.log( x );
+	    for ( name in doc ) {
+		var x_elem = document.getElementById( name + ":zoom:x" );
+ 		var y_elem = document.getElementById( name + ":zoom:y" );
+		var zoom_elem = document.getElementById( name + ":zoom:zoom" );
+
+		if ( ! x_elem.ignoring ) {
+		    x_elem.value = doc[name]["zoom"]["x"];
+		}
+
+		if ( ! y_elem.ignoring ) {
+		    y_elem.value = doc[name]["zoom"]["y"];
+		}
+
+		if ( ! zoom_elem.ignoring ) {
+		    zoom_elem.value = 3840.0 / doc[name]["zoom"]["width"];
+		}
+		    
+		document.getElementById( "text:" + name + ":zoom:x" ).innerHTML = "x: " + doc[name]["zoom"]["x"];
+		document.getElementById( "text:" + name + ":zoom:y" ).innerHTML = "y: " + doc[name]["zoom"]["y"];
+		document.getElementById( "text:" + name + ":zoom:zoom" ).innerHTML = "zoom: " + (3840.0 / doc[name]["zoom"]["width"]).toFixed(0);
+
+		ws.send( `zoom ${name} ${x_elem.value} ${y_elem.value} ${3840.0 / zoom_elem.value} ${2160.0 / zoom_elem.value}`);
 	    }
+	    
+	    return;
 	}
 
 	videoqueue.push(rest);

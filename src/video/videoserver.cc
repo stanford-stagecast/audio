@@ -136,7 +136,7 @@ void VideoServer::set_live( const string_view name )
 void VideoServer::set_zoom( const video_control& control )
 {
   for ( auto& client : clients_ ) {
-    if ( client and client.name() == control.name.as_string_view() ) {
+    if ( client and ( client.name() == control.name.as_string_view() ) ) {
       auto control2 = control;
       control2.name.resize( 0 );
       client.client().zoom_ = control2;
