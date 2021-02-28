@@ -140,14 +140,6 @@ void VideoServer::set_zoom( const video_control& control )
       auto control2 = control;
       control2.name.resize( 0 );
 
-      if ( control2.x < 0 ) {
-        control2.x = 0;
-      }
-
-      if ( control2.y < 0 ) {
-        control2.y = 0;
-      }
-
       if ( control2.x > 3840 - 1280 ) {
         control2.x = 3840 - 1280;
       }
