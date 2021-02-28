@@ -66,6 +66,7 @@ function sourceOpenVideo(e) {
     
     ws = new WebSocket("wss://stagecast.org:8400");
     ws.binaryType = 'arraybuffer';
+    var decoder = new TextDecoder("utf-8");
     ws.onmessage = function( e ) {
 	var type_byte = new DataView(e.data, 0, 1).getUint8(0);
 	var rest = e.data.slice(1);
@@ -74,8 +75,14 @@ function sourceOpenVideo(e) {
 	    return;
 	}
 	if ( type_byte == 2 ) {
-	    add_control( new TextDecoder("utf-8").decode(rest) );
+	    add_control( decoder.decode(rest) );
 	    return;
+	}
+	if ( type_byte == 3 ) {
+	    doc = JSON.parse( decoder.decode( rest ) );
+	    for ( x in doc ) {
+		console.log( x );
+	    }
 	}
 
 	videoqueue.push(rest);

@@ -75,6 +75,9 @@ function sourceOpenVideo(e) {
 	    add_control( new TextDecoder("utf-8").decode(rest) );
 	    return;
 	}
+	if ( type_byte == 3 ) {
+	    return;
+	}
 
 	videoqueue.push(rest);
 
