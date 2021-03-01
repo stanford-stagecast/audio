@@ -68,7 +68,7 @@ private:
     if ( ( s.size() > 7 ) and ( s.substr( 0, 7 ) == "buffer " ) ) {
       string_view num = s.substr( 8 );
       float last_buffer = stof( string( num ) );
-      if ( last_buffer < 0.15 ) {
+      if ( last_buffer < 0.25 ) {
         updates_since_small_buffer_ = 0;
       } else {
         updates_since_small_buffer_++;
