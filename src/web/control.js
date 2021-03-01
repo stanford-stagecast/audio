@@ -1,10 +1,33 @@
+var cue_ws = new WebSocket("ws://stagecast.org:9001"); // Where the levels are sent from
+
+// This function gets the levels from the backend when the socket opens
+cue_ws.onopen = function() {
+    var request = {list_id: 0, type: 'get-levels'};
+    cue_ws.send(JSON.stringify(request));
+}
+
+// Whenever the levels change, the backend will notify the controller
+cue_ws.onmessage = function( e ) {
+    doc = JSON.parse( e.data );
+    if (doc.type != "get-levels") {
+        return
+    }
+    console.log(doc.cue.values);
+    // the values attribute is an array with information about every channel
+    // The mute attribute is true when a channel is muted and false otherwise
+    // the value attribute is a float from 0 to 1
+    // with 0 being panned all the way to the left
+    // and 1 being panned all the way to the right
+}
+
+
 var ws = new WebSocket("wss://stagecast.org:8500");
 ws.binaryType = 'arraybuffer';
 
 var decoder = new TextDecoder("utf-8");
 
 var controls_created = false;
-ws.onmessage = function( e ) {  
+ws.onmessage = function( e ) {
     doc = JSON.parse( decoder.decode( e.data ) );
     if (!controls_created) {
 	for ( x in doc["client"] ) {
