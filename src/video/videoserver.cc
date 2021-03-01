@@ -41,6 +41,8 @@ VideoServer::VideoServer( const uint8_t num_clients, EventLoop& loop )
 {
   socket_.set_blocking( false );
   camera_broadcast_socket_.set_blocking( false );
+  preview_broadcast_socket_.set_blocking( false );
+  program_broadcast_socket_.set_blocking( false );
   socket_.bind( { "0", 9201 } );
 
   loop.add_rule( "network receive", socket_, Direction::In, [&] {
@@ -94,6 +96,34 @@ VideoServer::VideoServer( const uint8_t num_clients, EventLoop& loop )
       }
     },
     [&] { return server_clock() >= camera_feed_.frames_encoded() and not camera_feed_.has_nal(); } );
+
+  loop.add_rule(
+    "encode [preview]",
+    [&] {
+      RasterYUV420& output = clients_.at( 0 ) ? clients_.at( 0 ).client().raster() : default_raster_;
+      preview_feed_.encode( output );
+      if ( preview_feed_.has_nal() ) {
+        preview_broadcast_socket_.sendto_ignore_errors(
+          preview_destination_,
+          { reinterpret_cast<const char*>( preview_feed_.nal().NAL.data() ), preview_feed_.nal().NAL.size() } );
+        preview_feed_.reset_nal();
+      }
+    },
+    [&] { return server_clock() >= preview_feed_.frames_encoded() and not preview_feed_.has_nal(); } );
+
+  loop.add_rule(
+    "encode [program]",
+    [&] {
+      RasterYUV420& output = clients_.at( 0 ) ? clients_.at( 0 ).client().raster() : default_raster_;
+      program_feed_.encode( output );
+      if ( program_feed_.has_nal() ) {
+        program_broadcast_socket_.sendto_ignore_errors(
+          program_destination_,
+          { reinterpret_cast<const char*>( program_feed_.nal().NAL.data() ), program_feed_.nal().NAL.size() } );
+        program_feed_.reset_nal();
+      }
+    },
+    [&] { return server_clock() >= program_feed_.frames_encoded() and not program_feed_.has_nal(); } );
 }
 
 void VideoServer::summary( ostream& out ) const

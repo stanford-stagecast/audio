@@ -32,9 +32,16 @@ class VideoServer : public Summarizable
   RasterYUV420 default_raster_ { 1280, 720 };
   H264Encoder camera_feed_ { 1280, 720, 24, "veryfast", "zerolatency" };
   uint8_t camera_feed_live_no_ {};
-
   Address camera_destination_ { Address::abstract_unix( "stagecast-camera-video" ) };
   UnixDatagramSocket camera_broadcast_socket_ {};
+
+  H264Encoder preview_feed_ { 1280, 720, 24, "veryfast", "zerolatency" };
+  Address preview_destination_ { Address::abstract_unix( "stagecast-preview-video" ) };
+  UnixDatagramSocket preview_broadcast_socket_ {};
+
+  H264Encoder program_feed_ { 1280, 720, 24, "veryfast", "zerolatency" };
+  Address program_destination_ { Address::abstract_unix( "stagecast-program-video" ) };
+  UnixDatagramSocket program_broadcast_socket_ {};
 
   void summary( std::ostream& out ) const override;
 
