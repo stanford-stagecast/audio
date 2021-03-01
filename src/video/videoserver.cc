@@ -3,6 +3,7 @@
 
 #include <chrono>
 #include <iostream>
+#include <thread>
 
 using namespace std;
 using namespace std::chrono;
@@ -41,8 +42,6 @@ VideoServer::VideoServer( const uint8_t num_clients, EventLoop& loop )
 {
   socket_.set_blocking( false );
   camera_broadcast_socket_.set_blocking( false );
-  preview_broadcast_socket_.set_blocking( false );
-  program_broadcast_socket_.set_blocking( false );
   socket_.bind( { "0", 9201 } );
 
   loop.add_rule( "network receive", socket_, Direction::In, [&] {
@@ -98,47 +97,26 @@ VideoServer::VideoServer( const uint8_t num_clients, EventLoop& loop )
     [&] { return server_clock() >= camera_feed_.frames_encoded() and not camera_feed_.has_nal(); } );
 
   loop.add_rule(
-    "encode [preview]",
+    "encode [preview & program]",
     [&] {
-      Compositor preview_compositor_;
-      load_cameras( preview_compositor_ );
+      load_cameras( preview_.compositor_ );
+      load_cameras( program_.compositor_ );
 
-      preview_compositor_.apply( preview_scene_, preview_composite_ );
-      converter_.convert( preview_composite_, preview_output_ );
-      preview_feed_.encode( preview_output_ );
-
-      if ( preview_feed_.has_nal() ) {
-        preview_broadcast_socket_.sendto_ignore_errors(
-          preview_destination_,
-          { reinterpret_cast<const char*>( preview_feed_.nal().NAL.data() ), preview_feed_.nal().NAL.size() } );
-        preview_feed_.reset_nal();
+      vector<thread> threads;
+      threads.reserve( 2 );
+      threads.emplace_back( [&] { preview_.composite_and_send(); } );
+      threads.emplace_back( [&] { program_.composite_and_send(); } );
+      for ( auto& x : threads ) {
+        x.join();
       }
+      output_frames_encoded_++;
     },
-    [&] { return server_clock() >= preview_feed_.frames_encoded() and not preview_feed_.has_nal(); } );
+    [&] { return server_clock() >= output_frames_encoded_; } );
 
-  /*
-  loop.add_rule(
-    "encode [program]",
-    [&] {
-      Compositor program_compositor_;
-      program_compositor_.apply( program_scene_, program_composite_, scratch_ );
-      converter_.convert( program_composite_, program_output_ );
-      program_feed_.encode( program_output_ );
-
-      if ( program_feed_.has_nal() ) {
-        program_broadcast_socket_.sendto_ignore_errors(
-          program_destination_,
-          { reinterpret_cast<const char*>( program_feed_.nal().NAL.data() ), program_feed_.nal().NAL.size() } );
-        program_feed_.reset_nal();
-      }
-    },
-    [&] { return server_clock() >= program_feed_.frames_encoded() and not program_feed_.has_nal(); } );
-  */
-
-  preview_scene_.layers.emplace_back( "KeithBox", 0, 0, 640, false );
-  preview_scene_.layers.emplace_back( "KeithBox", 640, 0, 640, false );
-  preview_scene_.layers.emplace_back( "KeithBox", 0, 360, 640, false );
-  preview_scene_.layers.emplace_back( "KeithBox", 640, 360, 640, false );
+  preview_.scene_.layers.emplace_back( "KeithBox", 0, 0, 640, false );
+  preview_.scene_.layers.emplace_back( "KeithBox", 640, 0, 640, false );
+  preview_.scene_.layers.emplace_back( "KeithBox", 0, 360, 640, false );
+  preview_.scene_.layers.emplace_back( "KeithBox", 640, 360, 640, false );
 }
 
 void VideoServer::summary( ostream& out ) const

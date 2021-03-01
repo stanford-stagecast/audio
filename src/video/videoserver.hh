@@ -10,6 +10,38 @@
 #include "summarize.hh"
 #include "vsclient.hh"
 
+struct CompositingGroup
+{
+  std::string name_;
+  Compositor compositor_ {};
+  H264Encoder feed_ { 1280, 720, 24, "veryfast", "zerolatency" };
+  Address destination_ { Address::abstract_unix( "stagecast-" + name_ + "-video" ) };
+  UnixDatagramSocket broadcast_socket_ {};
+  Scene scene_ {};
+  RasterRGBA composite_ { 1280, 720 };
+  ColorspaceConverter converter_ { 1280, 720 };
+  RasterYUV420 output_ { 1280, 720 };
+
+  CompositingGroup( const std::string_view name )
+    : name_( name )
+  {
+    broadcast_socket_.set_blocking( false );
+  }
+
+  void composite_and_send()
+  {
+    compositor_.apply( scene_, composite_ );
+    converter_.convert( composite_, output_ );
+    feed_.encode( output_ );
+
+    if ( feed_.has_nal() ) {
+      broadcast_socket_.sendto_ignore_errors(
+        destination_, { reinterpret_cast<const char*>( feed_.nal().NAL.data() ), feed_.nal().NAL.size() } );
+      feed_.reset_nal();
+    }
+  }
+};
+
 class VideoServer : public Summarizable
 {
   static constexpr uint64_t CLIENT_TIMEOUT_NS = 4'000'000'000;
@@ -36,22 +68,10 @@ class VideoServer : public Summarizable
   Address camera_destination_ { Address::abstract_unix( "stagecast-camera-video" ) };
   UnixDatagramSocket camera_broadcast_socket_ {};
 
-  RasterRGBA scratch_ { 1280, 720 };
-  ColorspaceConverter converter_ { 1280, 720 };
+  uint64_t output_frames_encoded_ {};
 
-  H264Encoder preview_feed_ { 1280, 720, 24, "veryfast", "zerolatency" };
-  Address preview_destination_ { Address::abstract_unix( "stagecast-preview-video" ) };
-  UnixDatagramSocket preview_broadcast_socket_ {};
-  Scene preview_scene_ {};
-  RasterRGBA preview_composite_ { 1280, 720 };
-  RasterYUV420 preview_output_ { 1280, 720 };
-
-  H264Encoder program_feed_ { 1280, 720, 24, "veryfast", "zerolatency" };
-  Address program_destination_ { Address::abstract_unix( "stagecast-program-video" ) };
-  UnixDatagramSocket program_broadcast_socket_ {};
-  Scene program_scene_ {};
-  RasterRGBA program_composite_ { 1280, 720 };
-  RasterYUV420 program_output_ { 1280, 720 };
+  CompositingGroup preview_ { "preview" };
+  CompositingGroup program_ { "program" };
 
   void summary( std::ostream& out ) const override;
 
