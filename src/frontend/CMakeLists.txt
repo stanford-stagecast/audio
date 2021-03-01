@@ -203,22 +203,39 @@ target_link_libraries ("stagecast-video-server" ${JSON_LDFLAGS_OTHER})
 
 target_link_libraries ("stagecast-video-server" "-pthread")
 
-add_executable (ws-video-server "ws-video-server.cc")
-target_link_libraries ("ws-video-server" stats)
-target_link_libraries ("ws-video-server" video)
-target_link_libraries ("ws-video-server" http)
-target_link_libraries ("ws-video-server" network)
-target_link_libraries ("ws-video-server" crypto)
-target_link_libraries ("ws-video-server" util)
+add_executable (ws-camera-server "ws-camera-server.cc")
+target_link_libraries ("ws-camera-server" stats)
+target_link_libraries ("ws-camera-server" video)
+target_link_libraries ("ws-camera-server" http)
+target_link_libraries ("ws-camera-server" network)
+target_link_libraries ("ws-camera-server" crypto)
+target_link_libraries ("ws-camera-server" util)
 
-target_link_libraries ("ws-video-server" ${SSL_LDFLAGS})
-target_link_libraries ("ws-video-server" ${SSL_LDFLAGS_OTHER})
+target_link_libraries ("ws-camera-server" ${SSL_LDFLAGS})
+target_link_libraries ("ws-camera-server" ${SSL_LDFLAGS_OTHER})
 
-target_link_libraries ("ws-video-server" ${CryptoPP_LDFLAGS})
-target_link_libraries ("ws-video-server" ${CryptoPP_LDFLAGS_OTHER})
+target_link_libraries ("ws-camera-server" ${CryptoPP_LDFLAGS})
+target_link_libraries ("ws-camera-server" ${CryptoPP_LDFLAGS_OTHER})
 
-target_link_libraries ("ws-video-server" ${AVFormat_LDFLAGS})
-target_link_libraries ("ws-video-server" ${AVFormat_LDFLAGS_OTHER})
+target_link_libraries ("ws-camera-server" ${AVFormat_LDFLAGS})
+target_link_libraries ("ws-camera-server" ${AVFormat_LDFLAGS_OTHER})
+
+add_executable (ws-switcher-server "ws-switcher-server.cc")
+target_link_libraries ("ws-switcher-server" stats)
+target_link_libraries ("ws-switcher-server" video)
+target_link_libraries ("ws-switcher-server" http)
+target_link_libraries ("ws-switcher-server" network)
+target_link_libraries ("ws-switcher-server" crypto)
+target_link_libraries ("ws-switcher-server" util)
+
+target_link_libraries ("ws-switcher-server" ${SSL_LDFLAGS})
+target_link_libraries ("ws-switcher-server" ${SSL_LDFLAGS_OTHER})
+
+target_link_libraries ("ws-switcher-server" ${CryptoPP_LDFLAGS})
+target_link_libraries ("ws-switcher-server" ${CryptoPP_LDFLAGS_OTHER})
+
+target_link_libraries ("ws-switcher-server" ${AVFormat_LDFLAGS})
+target_link_libraries ("ws-switcher-server" ${AVFormat_LDFLAGS_OTHER})
 
 add_executable (webcam-demo "webcam-demo.cc")
 target_link_libraries ("webcam-demo" stats)

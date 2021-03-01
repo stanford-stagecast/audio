@@ -100,8 +100,12 @@ VideoServer::VideoServer( const uint8_t num_clients, EventLoop& loop )
   loop.add_rule(
     "encode [preview]",
     [&] {
-      RasterYUV420& output = clients_.at( 0 ) ? clients_.at( 0 ).client().raster() : default_raster_;
-      preview_feed_.encode( output );
+      RasterYUV420 scene { 1280, 720 };
+      Compositor::black( scene );
+
+      /* make scene */
+
+      preview_feed_.encode( scene );
       if ( preview_feed_.has_nal() ) {
         preview_broadcast_socket_.sendto_ignore_errors(
           preview_destination_,

@@ -2,6 +2,7 @@
 
 #include <ostream>
 
+#include "compositor.hh"
 #include "crypto.hh"
 #include "eventloop.hh"
 #include "keys.hh"

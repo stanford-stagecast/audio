@@ -155,7 +155,6 @@ private:
   bool skipping_ {};
   unsigned int frames_since_idr_ {};
   unsigned int idrs_since_skip_ {};
-  uint64_t next_status_update_ {};
 
 public:
   const TCPSocket& socket() const { return ssl_session_.socket(); }

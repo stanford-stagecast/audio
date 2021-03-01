@@ -54,6 +54,18 @@ public:
   const std::vector<uint8_t>& Cb() const { return Cb_; }
   const std::vector<uint8_t>& Cr() const { return Cr_; }
 
+  std::vector<uint8_t>& Y() { return Y_; }
+  std::vector<uint8_t>& Cb() { return Cb_; }
+  std::vector<uint8_t>& Cr() { return Cr_; }
+
+  uint8_t& Y( const uint16_t x, const uint16_t y ) { return Y_[y * width() + x]; }
+  uint8_t& Cb( const uint16_t x, const uint16_t y ) { return Cb_[y * chroma_width() + x]; }
+  uint8_t& Cr( const uint16_t x, const uint16_t y ) { return Cr_[y * chroma_width() + x]; }
+
+  uint8_t Y( const uint16_t x, const uint16_t y ) const { return Y_[y * width() + x]; }
+  uint8_t Cb( const uint16_t x, const uint16_t y ) const { return Cb_[y * chroma_width() + x]; }
+  uint8_t Cr( const uint16_t x, const uint16_t y ) const { return Cr_[y * chroma_width() + x]; }
+
   uint8_t* Y_row( const uint16_t y ) { return &Y_.at( y * width() ); }
   uint8_t* Cb_row( const uint16_t y ) { return &Cb_.at( y * chroma_width() ); }
   uint8_t* Cr_row( const uint16_t y ) { return &Cr_.at( y * chroma_width() ); }
