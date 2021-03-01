@@ -198,7 +198,7 @@ void VideoServer::set_zoom( const video_control& control )
     }
   } else if ( control.width != NEG1 ) {
     const uint16_t new_width = max( uint16_t( 1280 ), min( control.width, uint16_t( 3840 ) ) );
-    const uint16_t new_height = 2160 * existing_zoom.width / 3840;
+    const uint16_t new_height = 2160 * new_width / 3840;
 
     const uint16_t old_midpoint_x = existing_zoom.x + ( existing_zoom.width / 2 );
     const uint16_t old_midpoint_y = existing_zoom.y + ( existing_zoom.height / 2 );
