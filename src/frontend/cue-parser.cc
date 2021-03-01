@@ -66,7 +66,7 @@ int main( int argc, char* argv[] )
       }
     }
 
-    cerr << "wget -O " << filename << " " << url << "\n";
+    cout << "wget -O " << filename << " " << url << "\n";
   }
 
   return EXIT_SUCCESS;
