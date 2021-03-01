@@ -88,3 +88,77 @@ void Scaler::scale( const RasterYUV422& source, RasterYUV420& dest )
     throw runtime_error( "unexpected return value from sws_scale(): " + to_string( rows_written ) );
   }
 }
+
+ColorspaceConverter::ColorspaceConverter( const uint16_t width, const uint16_t height )
+{
+  yuv2rgba_ = notnull( "sws_getCachedContext Y'CbCr => R'G'B'A",
+                       sws_getCachedContext( yuv2rgba_,
+                                             width,
+                                             height,
+                                             AV_PIX_FMT_YUV420P,
+                                             width,
+                                             height,
+                                             AV_PIX_FMT_RGBA,
+                                             SWS_BICUBIC,
+                                             nullptr,
+                                             nullptr,
+                                             nullptr ) );
+
+  rgba2yuv_ = notnull( "sws_getCachedContext R'G'B'A => Y'CbCr",
+                       sws_getCachedContext( rgba2yuv_,
+                                             width,
+                                             height,
+                                             AV_PIX_FMT_RGBA,
+                                             width,
+                                             height,
+                                             AV_PIX_FMT_YUV420P,
+                                             SWS_BICUBIC,
+                                             nullptr,
+                                             nullptr,
+                                             nullptr ) );
+}
+
+ColorspaceConverter::~ColorspaceConverter()
+{
+  if ( yuv2rgba_ ) {
+    sws_freeContext( yuv2rgba_ );
+  }
+
+  if ( rgba2yuv_ ) {
+    sws_freeContext( rgba2yuv_ );
+  }
+}
+
+void ColorspaceConverter::convert( const RasterYUV420& yuv, RasterRGBA& output )
+{
+  const array<const uint8_t*, 3> source_planes { yuv.Y_row( 0 ), yuv.Cb_row( 0 ), yuv.Cr_row( 0 ) };
+  const array<const int, 3> source_strides { yuv.width(), yuv.chroma_width(), yuv.chroma_width() };
+
+  const array<uint8_t*, 3> dest_planes { output.data(), nullptr, nullptr };
+  const array<const int, 3> dest_strides { output.width() * 4, 0, 0 };
+
+  sws_scale( yuv2rgba_,
+             source_planes.data(),
+             source_strides.data(),
+             0,
+             yuv.height(),
+             dest_planes.data(),
+             dest_strides.data() );
+}
+
+void ColorspaceConverter::convert( const RasterRGBA& rgba, RasterYUV420& output )
+{
+  const array<const uint8_t*, 3> source_planes { rgba.data(), nullptr, nullptr };
+  const array<const int, 3> source_strides { rgba.width() * 4, 0, 0 };
+
+  const array<uint8_t*, 3> dest_planes { output.Y_row( 0 ), output.Cb_row( 0 ), output.Cr_row( 0 ) };
+  const array<const int, 3> dest_strides { output.width(), output.chroma_width(), output.chroma_width() };
+
+  sws_scale( rgba2yuv_,
+             source_planes.data(),
+             source_strides.data(),
+             0,
+             output.height(),
+             dest_planes.data(),
+             dest_strides.data() );
+}

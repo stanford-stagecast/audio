@@ -5,6 +5,43 @@
 #include <stdexcept>
 #include <vector>
 
+class RasterRGBA
+{
+  uint16_t width_, height_;
+
+public:
+  struct pixel
+  {
+    uint8_t red, green, blue, alpha;
+  };
+
+private:
+  std::vector<pixel> rgba_;
+
+public:
+  RasterRGBA( const uint16_t width, const uint16_t height )
+    : width_( width )
+    , height_( height )
+    , rgba_( width_ * height_ )
+  {}
+
+  uint16_t width() const { return width_; }
+  uint16_t height() const { return height_; }
+
+  pixel& pel( const uint16_t x, const uint16_t y ) { return rgba_[y * width_ + x]; }
+  const pixel& pel( const uint16_t x, const uint16_t y ) const { return rgba_[y * width_ + x]; }
+
+  uint8_t* data() { return &( rgba_.at( 0 ).red ); }
+  const uint8_t* data() const { return &( rgba_.at( 0 ).red ); }
+
+  std::vector<pixel>& pixels() { return rgba_; }
+
+  RasterRGBA( const RasterRGBA& other ) = delete;
+  RasterRGBA& operator=( const RasterRGBA& other ) = delete;
+  RasterRGBA( RasterRGBA&& other ) = default;
+  RasterRGBA& operator=( RasterRGBA&& other ) = default;
+};
+
 class RasterYUV
 {
 private:

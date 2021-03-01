@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <memory>
 #include <ostream>
 #include <vector>
 
@@ -10,6 +11,8 @@
 #include "cursor.hh"
 #include "h264_decoder.hh"
 #include "keys.hh"
+#include "raster.hh"
+#include "scale.hh"
 #include "videoclient.hh"
 
 class VSClient
@@ -21,6 +24,9 @@ public:
 
   H264Decoder decoder_ {};
   RasterYUV420 raster_ { 1280, 720 };
+  std::shared_ptr<RasterRGBA> raster_keyed_;
+  ColorspaceConverter converter_ { 1280, 720 };
+
   StackBuffer<0, uint32_t, 1048576> current_nal_ {};
 
   unsigned int NALs_decoded_ {};

@@ -186,6 +186,9 @@ target_link_libraries ("stagecast-video-server" ${Opus_LDFLAGS_OTHER})
 target_link_libraries ("stagecast-video-server" ${Sndfile_LDFLAGS})
 target_link_libraries ("stagecast-video-server" ${Sndfile_LDFLAGS_OTHER})
 
+target_link_libraries ("stagecast-video-server" ${V4L_LDFLAGS})
+target_link_libraries ("stagecast-video-server" ${V4L_LDFLAGS_OTHER})
+
 target_link_libraries ("stagecast-video-server" ${AVFormat_LDFLAGS})
 target_link_libraries ("stagecast-video-server" ${AVFormat_LDFLAGS_OTHER})
 

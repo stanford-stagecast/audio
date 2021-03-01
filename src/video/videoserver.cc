@@ -100,12 +100,13 @@ VideoServer::VideoServer( const uint8_t num_clients, EventLoop& loop )
   loop.add_rule(
     "encode [preview]",
     [&] {
-      RasterYUV420 scene { 1280, 720 };
-      Compositor::black( scene );
+      Compositor preview_compositor_;
+      load_cameras( preview_compositor_ );
 
-      /* make scene */
+      preview_compositor_.apply( preview_scene_, preview_composite_ );
+      converter_.convert( preview_composite_, preview_output_ );
+      preview_feed_.encode( preview_output_ );
 
-      preview_feed_.encode( scene );
       if ( preview_feed_.has_nal() ) {
         preview_broadcast_socket_.sendto_ignore_errors(
           preview_destination_,
@@ -115,11 +116,15 @@ VideoServer::VideoServer( const uint8_t num_clients, EventLoop& loop )
     },
     [&] { return server_clock() >= preview_feed_.frames_encoded() and not preview_feed_.has_nal(); } );
 
+  /*
   loop.add_rule(
     "encode [program]",
     [&] {
-      RasterYUV420& output = clients_.at( 0 ) ? clients_.at( 0 ).client().raster() : default_raster_;
-      program_feed_.encode( output );
+      Compositor program_compositor_;
+      program_compositor_.apply( program_scene_, program_composite_, scratch_ );
+      converter_.convert( program_composite_, program_output_ );
+      program_feed_.encode( program_output_ );
+
       if ( program_feed_.has_nal() ) {
         program_broadcast_socket_.sendto_ignore_errors(
           program_destination_,
@@ -128,6 +133,12 @@ VideoServer::VideoServer( const uint8_t num_clients, EventLoop& loop )
       }
     },
     [&] { return server_clock() >= program_feed_.frames_encoded() and not program_feed_.has_nal(); } );
+  */
+
+  preview_scene_.layers.emplace_back( "KeithBox", 0, 0, 640, false );
+  preview_scene_.layers.emplace_back( "KeithBox", 640, 0, 640, false );
+  preview_scene_.layers.emplace_back( "KeithBox", 0, 360, 640, false );
+  preview_scene_.layers.emplace_back( "KeithBox", 640, 360, 640, false );
 }
 
 void VideoServer::summary( ostream& out ) const
@@ -273,5 +284,14 @@ void VideoServer::set_zoom( const video_control& control )
     existing_zoom.crop_right = 0;
     existing_zoom.crop_top = 0;
     existing_zoom.crop_bottom = 0;
+  }
+}
+
+void VideoServer::load_cameras( Compositor& compositor )
+{
+  for ( const auto& client : clients_ ) {
+    if ( client ) {
+      compositor.load_image( client.name(), client.client().raster_keyed_ );
+    }
   }
 }

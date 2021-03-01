@@ -39,3 +39,22 @@ public:
   Scaler( const Scaler& other ) = delete;
   Scaler& operator=( const Scaler& other ) = delete;
 };
+
+class ColorspaceConverter
+{
+  SwsContext* yuv2rgba_ { nullptr };
+  SwsContext* rgba2yuv_ { nullptr };
+
+public:
+  ColorspaceConverter( const uint16_t width, const uint16_t height );
+  ~ColorspaceConverter();
+
+  void convert( const RasterYUV420& yuv, RasterRGBA& output );
+  void convert( const RasterRGBA& rgba, RasterYUV420& output );
+
+  ColorspaceConverter( ColorspaceConverter&& other ) = default;
+  ColorspaceConverter& operator=( ColorspaceConverter&& other ) = default;
+
+  ColorspaceConverter( const ColorspaceConverter& other ) = delete;
+  ColorspaceConverter& operator=( const ColorspaceConverter& other ) = delete;
+};

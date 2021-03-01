@@ -7,6 +7,7 @@ using Option = RubberBand::RubberBandStretcher::Option;
 
 VSClient::VSClient( const uint8_t node_id, CryptoSession&& crypto )
   : connection_( 0, node_id, move( crypto ) )
+  , raster_keyed_( make_shared<RasterRGBA>( 1280, 720 ) )
 {
   zoom_.x = 0;
   zoom_.y = 0;
@@ -32,6 +33,7 @@ bool VSClient::receive_packet( const Address& source, const Ciphertext& cipherte
 
     if ( chunk.end_of_nal ) {
       decoder_.decode( current_nal_.as_string_view(), raster_ );
+      converter_.convert( raster_, *raster_keyed_ ); /* XXX do chroma key here */
       NALs_decoded_++;
       current_nal_.resize( 0 );
     }

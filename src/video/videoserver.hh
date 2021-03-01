@@ -36,15 +36,26 @@ class VideoServer : public Summarizable
   Address camera_destination_ { Address::abstract_unix( "stagecast-camera-video" ) };
   UnixDatagramSocket camera_broadcast_socket_ {};
 
+  RasterRGBA scratch_ { 1280, 720 };
+  ColorspaceConverter converter_ { 1280, 720 };
+
   H264Encoder preview_feed_ { 1280, 720, 24, "veryfast", "zerolatency" };
   Address preview_destination_ { Address::abstract_unix( "stagecast-preview-video" ) };
   UnixDatagramSocket preview_broadcast_socket_ {};
+  Scene preview_scene_ {};
+  RasterRGBA preview_composite_ { 1280, 720 };
+  RasterYUV420 preview_output_ { 1280, 720 };
 
   H264Encoder program_feed_ { 1280, 720, 24, "veryfast", "zerolatency" };
   Address program_destination_ { Address::abstract_unix( "stagecast-program-video" ) };
   UnixDatagramSocket program_broadcast_socket_ {};
+  Scene program_scene_ {};
+  RasterRGBA program_composite_ { 1280, 720 };
+  RasterYUV420 program_output_ { 1280, 720 };
 
   void summary( std::ostream& out ) const override;
+
+  void load_cameras( Compositor& compositor );
 
 public:
   VideoServer( const uint8_t num_clients, EventLoop& loop );
