@@ -25,13 +25,13 @@ public:
         memset( raster.Y_row( row ), 111, raster.width() );
         memset( raster.Cb_row( row ), 101, raster.chroma_width() );
         memset( raster.Cr_row( row ), 48, raster.chroma_width() );
-      } else if ( row < raster.height() - std::min( bottom_, raster.height() ) ) {
+      } else if ( row >= raster.height() - std::min( bottom_, raster.height() ) ) {
         memset( raster.Y_row( row ), 111, raster.width() );
         memset( raster.Cb_row( row ), 101, raster.chroma_width() );
         memset( raster.Cr_row( row ), 48, raster.chroma_width() );
       } else {
         memset( raster.Y_row( row ), 111, std::min( raster.width(), left_ ) );
-        memset( raster.Cr_row( row ), 101, std::min( raster.chroma_width(), uint16_t( left_ / 2 ) ) );
+        memset( raster.Cb_row( row ), 101, std::min( raster.chroma_width(), uint16_t( left_ / 2 ) ) );
         memset( raster.Cr_row( row ), 48, std::min( raster.chroma_width(), uint16_t( left_ / 2 ) ) );
 
         const uint16_t right_margin = std::min( raster.width(), right_ );
