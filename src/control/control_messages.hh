@@ -129,9 +129,9 @@ struct client_report : public control_message<3>
 
 struct video_control : public control_message<4>
 {
-  uint16_t x = -1, y = -1, width = -1, height = -1;
+  uint16_t x {}, y {}, width {}, height {};
 
-  uint16_t crop_left = -1, crop_right = -1, crop_top = -1, crop_bottom = -1;
+  uint16_t crop_left {}, crop_right {}, crop_top {}, crop_bottom {};
 
   uint32_t serialized_length() const { return 8 * sizeof( uint16_t ); }
 

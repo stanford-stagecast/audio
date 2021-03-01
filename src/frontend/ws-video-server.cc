@@ -125,6 +125,8 @@ private:
       }
 
       video_control instruction {};
+      instruction.x = instruction.y = instruction.width = instruction.height = instruction.crop_left
+        = instruction.crop_right = instruction.crop_top = instruction.crop_bottom = -1;
 
       try {
         if ( fields_.at( 1 ) == "zoom:x" ) {
