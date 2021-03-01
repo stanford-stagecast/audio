@@ -117,21 +117,29 @@ private:
       string_view name = s.substr( 5 );
       instruction.name = NetString( name );
       send_control( instruction );
-    } else if ( ( s.size() > 5 ) and ( s.substr( 0, 5 ) == "zoom " ) ) {
+    } else if ( ( s.size() > 8 ) and ( s.substr( 0, 8 ) == "control " ) ) {
       split_on_char( s, ' ', fields_ );
 
-      if ( fields_.size() != 6 ) {
+      if ( fields_.size() != 3 ) {
         return;
       }
 
+      video_control instruction;
+      instruction.x = -1;
+      instruction.y = -1;
+      instruction.width = -1;
+
       try {
-        video_control instruction;
-        instruction.name = fields_.at( 1 );
-        instruction.x = stof( string( fields_.at( 2 ) ) );
-        instruction.y = stof( string( fields_.at( 3 ) ) );
-        instruction.width = stof( string( fields_.at( 4 ) ) );
-        instruction.height = stof( string( fields_.at( 5 ) ) );
+        if ( fields_.at( 1 ) == "zoom:x" ) {
+          instruction.x = stoi( string( fields_.at( 2 ) ) );
+        } else if ( fields_.at( 1 ) == "zoom:y" ) {
+          instruction.y = stoi( string( fields_.at( 2 ) ) );
+        } else if ( fields_.at( 1 ) == "zoom:zoom" ) {
+          instruction.width = lrint( 3840.0 / stof( string( fields_.at( 2 ) ) ) );
+        }
+
         send_control( instruction );
+
       } catch ( const exception& e ) {
       }
     }
@@ -163,192 +171,174 @@ public:
       muxer_.write( s, video_frame_count_, video_frame_count_ );
       video_frame_count_++;
     }
-  }
-
-  void push_update( const string_view str )
-  {
-    if ( ws_server_.handshake_complete()
-         and ssl_session_.outbound_plaintext().writable_region().size()
-               > str.size() + 1 + WebSocketFrame::max_overhead() ) {
-
-      ws_frame_.payload.resize( 1 + str.size() );
-      ws_frame_.payload.at( 0 ) = 3;
-      memcpy( ws_frame_.payload.data() + 1, str.data(), str.size() );
-
-      Serializer s { ssl_session_.outbound_plaintext().writable_region() };
-      s.object( ws_frame_ );
-      ssl_session_.outbound_plaintext().push( s.bytes_written() );
     }
-  }
 
-  bool can_send( const size_t len ) const
-  {
-    return ssl_session_.outbound_plaintext().writable_region().size() >= len;
-  }
+    void push_update( const string_view str )
+    {
+      if ( ws_server_.handshake_complete()
+           and ssl_session_.outbound_plaintext().writable_region().size()
+                 > str.size() + 1 + WebSocketFrame::max_overhead() ) {
 
-  ClientConnection( const EventCategories& categories,
-                    const shared_ptr<vector<string>>& camera_names,
-                    SSLContext& context,
-                    TCPSocket& listening_socket,
-                    const string& origin,
-                    EventLoop& loop,
-                    shared_ptr<bool> cull_needed )
-    : camera_names_( camera_names )
-    , ssl_session_( context.make_SSL_handle(),
-                    [&] {
-                      auto sock = listening_socket.accept();
-                      sock.set_blocking( false );
-                      sock.set_tcp_nodelay( true );
-                      return sock;
-                    }() )
-    , ws_server_( origin )
-    , ws_frame_()
-    , rules_()
-    , cull_needed_( cull_needed )
-  {
-    cerr << "New connection from " << ssl_session_.socket().peer_address().to_string() << "\n";
-
-    rules_.reserve( 10 );
-
-    rules_.push_back( loop.add_rule(
-      categories.close,
-      [this] { cull( "WebSocket closure or error" ); },
-      [this] {
-        return good() and ws_server_.should_close_connection()
-               and ssl_session_.outbound_plaintext().readable_region().empty();
-      } ) );
-
-    rules_.push_back( loop.add_rule(
-      categories.SSL_read,
-      ssl_session_.socket(),
-      Direction::In,
-      [this] {
-        try {
-          ssl_session_.do_read();
-        } catch ( const exception& e ) {
-          cull( e.what() );
-        }
-      },
-      [this] { return good() and ssl_session_.want_read(); },
-      [this] { cull( "socket closed" ); } ) );
-
-    rules_.push_back( loop.add_rule(
-      categories.SSL_write,
-      ssl_session_.socket(),
-      Direction::Out,
-      [this] {
-        try {
-          ssl_session_.do_write();
-        } catch ( const exception& e ) {
-          cull( e.what() );
-        }
-      },
-      [this] { return good() and ssl_session_.want_write(); },
-      [this] { cull( "socket closed" ); } ) );
-
-    rules_.push_back( loop.add_rule(
-      categories.ws_handshake,
-      [this] { ws_server_.do_handshake( ssl_session_.inbound_plaintext(), ssl_session_.outbound_plaintext() ); },
-      [this] {
-        return good() and ( not ssl_session_.inbound_plaintext().readable_region().empty() )
-               and ( not ws_server_.handshake_complete() );
-      } ) );
-
-    ws_frame_.fin = true;
-    ws_frame_.opcode = WebSocketFrame::opcode_t::Binary;
-
-    rules_.push_back( loop.add_rule(
-      categories.ws_send,
-      [this] {
-        ws_frame_.payload.resize(
-          min( muxer_.output().readable_region().size() + 1,
-               ssl_session_.outbound_plaintext().writable_region().size() - WebSocketFrame::max_overhead() - 1 ) );
-        ws_frame_.payload.at( 0 ) = 0;
-        memcpy(
-          ws_frame_.payload.data() + 1, muxer_.output().readable_region().data(), ws_frame_.payload.size() - 1 );
-
-        muxer_.output().pop( ws_frame_.payload.size() - 1 );
+        ws_frame_.payload.resize( 1 + str.size() );
+        ws_frame_.payload.at( 0 ) = 3;
+        memcpy( ws_frame_.payload.data() + 1, str.data(), str.size() );
 
         Serializer s { ssl_session_.outbound_plaintext().writable_region() };
         s.object( ws_frame_ );
         ssl_session_.outbound_plaintext().push( s.bytes_written() );
-      },
-      [&] {
-        return ssl_session_.outbound_plaintext().writable_region().size() > ( 1 + WebSocketFrame::max_overhead() )
-               and muxer_.output().readable_region().size() and ws_server_.handshake_complete();
-      } ) );
+      }
+    }
 
-    rules_.push_back( loop.add_rule(
-      categories.ws_send,
-      [this] {
-        const auto now = Timer::timestamp_ns();
-        ws_frame_.payload = " time = " + to_string( now );
-        ws_frame_.payload.at( 0 ) = 1;
+    bool can_send( const size_t len ) const
+    {
+      return ssl_session_.outbound_plaintext().writable_region().size() >= len;
+    }
 
-        next_status_update_ = now + BILLION;
+    ClientConnection( const EventCategories& categories,
+                      const shared_ptr<vector<string>>& camera_names,
+                      SSLContext& context,
+                      TCPSocket& listening_socket,
+                      const string& origin,
+                      EventLoop& loop,
+                      shared_ptr<bool> cull_needed )
+      : camera_names_( camera_names )
+      , ssl_session_( context.make_SSL_handle(),
+                      [&] {
+                        auto sock = listening_socket.accept();
+                        sock.set_blocking( false );
+                        sock.set_tcp_nodelay( true );
+                        return sock;
+                      }() )
+      , ws_server_( origin )
+      , ws_frame_()
+      , rules_()
+      , cull_needed_( cull_needed )
+    {
+      cerr << "New connection from " << ssl_session_.socket().peer_address().to_string() << "\n";
 
-        Serializer s { ssl_session_.outbound_plaintext().writable_region() };
-        s.object( ws_frame_ );
-        ssl_session_.outbound_plaintext().push( s.bytes_written() );
-      },
-      [&] {
-        return ws_server_.handshake_complete() and Timer::timestamp_ns() > next_status_update_
-               and ssl_session_.outbound_plaintext().writable_region().size() > 100;
-      } ) );
+      rules_.reserve( 10 );
 
-    rules_.push_back( loop.add_rule(
-      categories.ws_send,
-      [this] {
-        ws_frame_.payload = " " + camera_names_->at( controls_sent_ );
-        ws_frame_.payload.at( 0 ) = 2;
+      rules_.push_back( loop.add_rule(
+        categories.close,
+        [this] { cull( "WebSocket closure or error" ); },
+        [this] {
+          return good() and ws_server_.should_close_connection()
+                 and ssl_session_.outbound_plaintext().readable_region().empty();
+        } ) );
 
-        Serializer s { ssl_session_.outbound_plaintext().writable_region() };
-        s.object( ws_frame_ );
-        ssl_session_.outbound_plaintext().push( s.bytes_written() );
-
-        controls_sent_++;
-      },
-      [&] {
-        return ws_server_.handshake_complete() and ( controls_sent_ < camera_names_->size() )
-               and ssl_session_.outbound_plaintext().writable_region().size() > 100;
-      } ) );
-
-    rules_.push_back( loop.add_rule(
-      categories.ws_receive,
-      [this] {
-        ws_server_.endpoint().read( ssl_session_.inbound_plaintext(), ssl_session_.outbound_plaintext() );
-        if ( ws_server_.endpoint().ready() ) {
-          parse_message( ws_server_.endpoint().message() );
-
-          if ( last_buffer_ > 0.11 and mean_buffer_ > 0.11 and idrs_since_skip_ > 0 ) {
-            skipping_ = true;
+      rules_.push_back( loop.add_rule(
+        categories.SSL_read,
+        ssl_session_.socket(),
+        Direction::In,
+        [this] {
+          try {
+            ssl_session_.do_read();
+          } catch ( const exception& e ) {
+            cull( e.what() );
           }
+        },
+        [this] { return good() and ssl_session_.want_read(); },
+        [this] { cull( "socket closed" ); } ) );
 
-          //          cerr << skipping_ << " " << idrs_since_skip_ << " " << last_buffer_ << " " << mean_buffer_
-          //          <<
-          //          "\n";
+      rules_.push_back( loop.add_rule(
+        categories.SSL_write,
+        ssl_session_.socket(),
+        Direction::Out,
+        [this] {
+          try {
+            ssl_session_.do_write();
+          } catch ( const exception& e ) {
+            cull( e.what() );
+          }
+        },
+        [this] { return good() and ssl_session_.want_write(); },
+        [this] { cull( "socket closed" ); } ) );
 
-          ws_server_.endpoint().pop_message();
-        }
-      },
-      [this] { return good() and ssl_session_.inbound_plaintext().readable_region().size(); } ) );
-  }
+      rules_.push_back( loop.add_rule(
+        categories.ws_handshake,
+        [this] { ws_server_.do_handshake( ssl_session_.inbound_plaintext(), ssl_session_.outbound_plaintext() ); },
+        [this] {
+          return good() and ( not ssl_session_.inbound_plaintext().readable_region().empty() )
+                 and ( not ws_server_.handshake_complete() );
+        } ) );
 
-  ~ClientConnection()
-  {
-    if ( not error_text_.empty() ) {
-      cerr << "Client error: " << error_text_ << "\n";
+      ws_frame_.fin = true;
+      ws_frame_.opcode = WebSocketFrame::opcode_t::Binary;
+
+      rules_.push_back( loop.add_rule(
+        categories.ws_send,
+        [this] {
+          ws_frame_.payload.resize( min( muxer_.output().readable_region().size() + 1,
+                                         ssl_session_.outbound_plaintext().writable_region().size()
+                                           - WebSocketFrame::max_overhead() - 1 ) );
+          ws_frame_.payload.at( 0 ) = 0;
+          memcpy(
+            ws_frame_.payload.data() + 1, muxer_.output().readable_region().data(), ws_frame_.payload.size() - 1 );
+
+          muxer_.output().pop( ws_frame_.payload.size() - 1 );
+
+          Serializer s { ssl_session_.outbound_plaintext().writable_region() };
+          s.object( ws_frame_ );
+          ssl_session_.outbound_plaintext().push( s.bytes_written() );
+        },
+        [&] {
+          return ssl_session_.outbound_plaintext().writable_region().size() > ( 1 + WebSocketFrame::max_overhead() )
+                 and muxer_.output().readable_region().size() and ws_server_.handshake_complete();
+        } ) );
+
+      rules_.push_back( loop.add_rule(
+        categories.ws_send,
+        [this] {
+          ws_frame_.payload = " " + camera_names_->at( controls_sent_ );
+          ws_frame_.payload.at( 0 ) = 2;
+
+          Serializer s { ssl_session_.outbound_plaintext().writable_region() };
+          s.object( ws_frame_ );
+          ssl_session_.outbound_plaintext().push( s.bytes_written() );
+
+          controls_sent_++;
+        },
+        [&] {
+          return ws_server_.handshake_complete() and ( controls_sent_ < camera_names_->size() )
+                 and ssl_session_.outbound_plaintext().writable_region().size() > 100;
+        } ) );
+
+      rules_.push_back( loop.add_rule(
+        categories.ws_receive,
+        [this] {
+          ws_server_.endpoint().read( ssl_session_.inbound_plaintext(), ssl_session_.outbound_plaintext() );
+          if ( ws_server_.endpoint().ready() ) {
+            parse_message( ws_server_.endpoint().message() );
+
+            if ( last_buffer_ > 0.11 and mean_buffer_ > 0.11 and idrs_since_skip_ > 0 ) {
+              skipping_ = true;
+            }
+
+            //          cerr << skipping_ << " " << idrs_since_skip_ << " " << last_buffer_ << " " << mean_buffer_
+            //          <<
+            //          "\n";
+
+            ws_server_.endpoint().pop_message();
+          }
+        },
+        [this] { return good() and ssl_session_.inbound_plaintext().readable_region().size(); } ) );
     }
-  }
 
-  SSLSession& session() { return ssl_session_; }
+    ~ClientConnection()
+    {
+      if ( not error_text_.empty() ) {
+        cerr << "Client error: " << error_text_ << "\n";
+      }
+    }
 
-  ClientConnection( const ClientConnection& other ) noexcept = delete;
-  ClientConnection& operator=( const ClientConnection& other ) noexcept = delete;
+    SSLSession& session() { return ssl_session_; }
 
-  ClientConnection( ClientConnection&& other ) noexcept = delete;
-  ClientConnection& operator=( ClientConnection&& other ) noexcept = delete;
-};
+    ClientConnection( const ClientConnection& other ) noexcept = delete;
+    ClientConnection& operator=( const ClientConnection& other ) noexcept = delete;
+
+    ClientConnection( ClientConnection && other ) noexcept = delete;
+    ClientConnection& operator=( ClientConnection&& other ) noexcept = delete;
+  };
 
 void program_body( const string origin,
                    const string cert_filename,

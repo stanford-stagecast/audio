@@ -13,6 +13,17 @@ window.onload = async function(e){
     }
 }
 
+var ws;
+
+function send_control(id, value)
+{
+    ws.send( "control " + id + " " + value );
+}
+
+function set_live(name) {
+    ws.send("live " + name );
+}
+
 function sourceOpenVideo(e) {
     const audio = document.getElementById('video');
     var mime = 'video/mp4; codecs="avc1.64001E"';
@@ -33,9 +44,16 @@ function sourceOpenVideo(e) {
     var playing = false;
 
     var resets = 0;
-    document.getElementById('videobuffer').innerHTML = "resets: " + resets;
+    document.getElementById('videoresets').innerHTML = "resets: " + resets;
 
-    videobump = function() {
+    setInterval(function(){
+	if ( videoSourceBuffer.buffered.length > 0 ) {
+	    var buffer_duration = videoSourceBuffer.buffered.end(0) - video.currentTime;
+	    ws.send("buffer " + buffer_duration.toFixed(3));
+	}
+    }, 50);
+    
+    var videobump = function() {
         if (videoqueue.length > 0 && !videoSourceBuffer.updating) {
 	    videoSourceBuffer.appendBuffer(videoqueue.shift());
 
@@ -43,8 +61,6 @@ function sourceOpenVideo(e) {
 		var buffer_duration = (videoSourceBuffer.buffered.end(0) - video.currentTime);
 		document.getElementById('videobuffer').innerHTML = "buffer: " + (24*buffer_duration).toFixed(0) + " frames";
 
-		ws.send("buffer " + buffer_duration.toFixed(3));
-		
 		if ( playing && (buffer_duration > 0.5) ) {
 		    video.currentTime = videoSourceBuffer.buffered.end(0) - 0.25;
 		    resets++;
@@ -54,37 +70,12 @@ function sourceOpenVideo(e) {
 	}
     }
 
-    set_live = function(name) {
-	ws.send("live " + name );
-    }
-
-    reset = function(name) {
-	var x_elem = document.getElementById( name + ":zoom:x" );
- 	var y_elem = document.getElementById( name + ":zoom:y" );
-	var zoom_elem = document.getElementById( name + ":zoom:zoom" );
-
-	x.elem.value = 0;
-	y.elem.value = 0;
-	zoom.elem.value = 1;
-
-	ws.send( `zoom ${name} ${x_elem.value} ${y_elem.value} ${3840.0 / zoom_elem.value} ${2160.0 / zoom_elem.value}`);
-    }
-    
-    add_control = function(name) {
-	var div = document.getElementById('controls');
+    var add_control = function(name) {
+	var div = document.getElementById('buttons');
 	div.innerHTML += "<button onclick='set_live(this.id)' type='button' id='" + name + "'>" + name + "</button><p>";
-	div.innerHTML += "<button onclick='reset(this.id)' type='button' id='" + name + "'>reset</button><p>";
-	div.innerHTML += `<span style="float: left; width: 100px;" id="text:${name}:zoom:x">x</span><input type="range" min="0" max="3840" id="${name}:zoom:x"
-onmousedown="this.ignoring = true;" onmouseup="this.ignoring = false;" oninput="send_control(this.id, value);"
-><br>`;
-	div.innerHTML += `<span style="float: left; width: 100px;" id="text:${name}:zoom:y">y</span><input type="range" min="0" max="3840" id="${name}:zoom:y"
-onmousedown="this.ignoring = true;" onmouseup="this.ignoring = false;" oninput="send_control(this.id, value);"
-><br>`;
-	div.innerHTML += `<span style="float: left; width: 100px;" id="text:${name}:zoom:zoom">zoom</span><input type="range" min="1" max="3" step="0.01" id="${name}:zoom:zoom"
-onmousedown="this.ignoring = true;" onmouseup="this.ignoring = false;" oninput="send_control(this.id, value);"
-><br>`;
-	div.innerHTML += `<p><hr>`;
     }
+
+    document.getElementById('zooms').innerHTML = 'Camera control for: <b><span id="text:live"></span></b><br><span style="float: left; width: 100px;" id="text:zoom:x">x</span><input type="range" min="0" max="3840" step="1" id="zoom:x" style="width: 1280px;" onmousedown="this.ignoring = true;" onmouseup="this.ignoring = false;" oninput="send_control(this.id, value);"><br><span style="float: left; width: 100px;" id="text:zoom:y">y</span><input type="range" min="0" max="3840" step="1" id="zoom:y" style="width: 1280px;" onmousedown="this.ignoring = true;" onmouseup="this.ignoring = false;" oninput="send_control(this.id, value);"><br><span style="float: left; width: 100px;" id="text:zoom:zoom">zoom</span><input type="range" min="1" max="3" step="0.001" id="zoom:zoom" style="width: 1280px;" onmousedown="this.ignoring = true;" onmouseup="this.ignoring = false;" oninput="send_control(this.id, value);"><br>';
     
     ws = new WebSocket("wss://stagecast.org:8400");
     ws.binaryType = 'arraybuffer';
@@ -101,30 +92,27 @@ onmousedown="this.ignoring = true;" onmouseup="this.ignoring = false;" oninput="
 	    return;
 	}
 	if ( type_byte == 3 ) {
-	    doc = JSON.parse( decoder.decode( rest ) );
-	    for ( name in doc ) {
-		var x_elem = document.getElementById( name + ":zoom:x" );
- 		var y_elem = document.getElementById( name + ":zoom:y" );
-		var zoom_elem = document.getElementById( name + ":zoom:zoom" );
+	    var doc = JSON.parse( decoder.decode( rest ) );
+	    var x_elem = document.getElementById("zoom:x");
+	    var y_elem = document.getElementById("zoom:y");
+	    var zoom_elem = document.getElementById("zoom:zoom");
 
-		if ( ! x_elem.ignoring ) {
-		    x_elem.value = doc[name]["zoom"]["x"];
-		}
-
-		if ( ! y_elem.ignoring ) {
-		    y_elem.value = doc[name]["zoom"]["y"];
-		}
-
-		if ( ! zoom_elem.ignoring ) {
-		    zoom_elem.value = 3840.0 / doc[name]["zoom"]["width"];
-		}
-		    
-		document.getElementById( "text:" + name + ":zoom:x" ).innerHTML = "x: " + doc[name]["zoom"]["x"];
-		document.getElementById( "text:" + name + ":zoom:y" ).innerHTML = "y: " + doc[name]["zoom"]["y"];
-		document.getElementById( "text:" + name + ":zoom:zoom" ).innerHTML = "zoom: " + (3840.0 / doc[name]["zoom"]["width"]).toFixed(2);
-
-		ws.send( `zoom ${name} ${x_elem.value} ${y_elem.value} ${3840.0 / zoom_elem.value} ${2160.0 / zoom_elem.value}`);
+	    if ( !x_elem.ignoring ) {
+		x_elem.value = doc["zoom"]["x"];
 	    }
+
+	    if ( !y_elem.ignoring ) {
+		y_elem.value = doc["zoom"]["y"];
+	    }
+	    
+	    if ( !zoom_elem.ignoring ) {
+		document.getElementById("zoom:zoom").value = doc["zoom"]["zoom"];
+	    }
+	    
+	    document.getElementById( "text:live" ).innerHTML = doc["live"];
+	    document.getElementById( "text:zoom:x" ).innerHTML = "x: " + doc["zoom"]["x"];
+	    document.getElementById( "text:zoom:y" ).innerHTML = "y: " + doc["zoom"]["y"];
+	    document.getElementById( "text:zoom:zoom" ).innerHTML = "zoom: " + doc["zoom"]["zoom"].toFixed(2);
 	    
 	    return;
 	}
@@ -163,3 +151,4 @@ onmousedown="this.ignoring = true;" onmouseup="this.ignoring = false;" oninput="
 	}
     };
 }
+

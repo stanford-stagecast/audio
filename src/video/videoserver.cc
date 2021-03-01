@@ -114,13 +114,17 @@ void VideoServer::summary( ostream& out ) const
 
 void VideoServer::json_summary( Json::Value& root ) const
 {
-  for ( const auto& client : clients_ ) {
-    if ( client ) {
-      root[client.name()]["zoom"]["x"] = client.client().zoom_.x;
-      root[client.name()]["zoom"]["y"] = client.client().zoom_.y;
-      root[client.name()]["zoom"]["width"] = client.client().zoom_.width;
-      root[client.name()]["zoom"]["height"] = client.client().zoom_.height;
-    }
+  const auto& client = clients_.at( camera_feed_live_no_ );
+  if ( client ) {
+    root["live"] = client.name();
+    root["zoom"]["x"] = client.client().zoom_.x;
+    root["zoom"]["y"] = client.client().zoom_.y;
+    root["zoom"]["zoom"] = float( 3840.0 ) / float( client.client().zoom_.width );
+  } else {
+    root["live"] = "none";
+    root["zoom"]["x"] = 0;
+    root["zoom"]["y"] = 0;
+    root["zoom"]["zoom"] = 0;
   }
 }
 
@@ -133,42 +137,68 @@ void VideoServer::set_live( const string_view name )
   }
 }
 
+bool valid( const video_control& c )
+{
+  if ( c.x >= 3840 ) {
+    return false;
+  }
+
+  if ( c.y >= 2160 ) {
+    return false;
+  }
+
+  if ( c.x + c.width > 3840 ) {
+    return false;
+  }
+
+  if ( c.y + c.height > 2160 ) {
+    return false;
+  }
+
+  if ( c.width == 0 or c.height == 0 ) {
+    return false;
+  }
+
+  return true;
+}
+
 void VideoServer::set_zoom( const video_control& control )
 {
-  for ( auto& client : clients_ ) {
-    if ( client and ( client.name() == control.name.as_string_view() ) ) {
-      auto control2 = control;
-      control2.name.resize( 0 );
+  if ( not clients_.at( camera_feed_live_no_ ) ) {
+    return;
+  }
 
-      if ( control2.x > 3840 - 1280 ) {
-        control2.x = 3840 - 1280;
-      }
+  auto& client = clients_.at( camera_feed_live_no_ ).client();
 
-      if ( control2.y > 2160 - 720 ) {
-        control2.x = 2160 - 720;
-      }
+  auto& existing_zoom = client.zoom_;
 
-      if ( control2.width > 3840 ) {
-        control2.width = 3840;
-      }
+  if ( control.x != uint16_t( -1 ) ) {
+    existing_zoom.x = min( control.x, uint16_t( 3840 ) );
 
-      control2.height = control2.width * 2160 / 3840;
-
-      if ( control2.height > 2160 ) {
-        control2.height = 2160;
-      }
-
-      if ( control2.x + control2.width > 3840 ) {
-        control2.width = 3840 - control2.x;
-      }
-
-      if ( control2.y + control2.height > 2160 ) {
-        control2.height = 2160 - control2.y;
-      }
-
-      control2.height = control2.width * 2160 / 3840;
-
-      client.client().zoom_ = control2;
+    if ( not valid( existing_zoom ) ) {
+      existing_zoom.x = 3840 - existing_zoom.width;
     }
+  } else if ( control.y != uint16_t( -1 ) ) {
+    existing_zoom.y = min( control.y, uint16_t( 2160 ) );
+
+    if ( not valid( existing_zoom ) ) {
+      existing_zoom.y = 2160 - existing_zoom.height;
+    }
+  } else if ( control.width != uint16_t( -1 ) ) {
+    existing_zoom.width = max( uint16_t( 1280 ), min( control.width, uint16_t( 3840 ) ) );
+    existing_zoom.height = 2160 * existing_zoom.width / 3840;
+
+    if ( not valid( existing_zoom ) ) {
+      existing_zoom.x = 3840 - existing_zoom.width;
+      existing_zoom.y = 2160 - existing_zoom.height;
+    }
+  }
+
+  if ( not valid( existing_zoom ) ) {
+    cerr << "Warning, failed to correct zoom input.\n";
+    existing_zoom.x = 0;
+    existing_zoom.y = 0;
+    existing_zoom.width = 3840;
+    existing_zoom.height = 2160;
   }
 }
