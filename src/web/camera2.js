@@ -72,7 +72,7 @@ function sourceOpenVideo(e) {
 
     var add_control = function(name) {
 	var div = document.getElementById('buttons');
-	div.innerHTML += "<button onclick='set_live(this.id)' type='button' id='" + name + "'>" + name + "</button><p>";
+	div.innerHTML += "<button onclick='set_live(this.id)' type='button' id='" + name + "'>" + name + "</button>";
     }
 
     document.getElementById('zooms').innerHTML = 'Camera control for: <b><span id="text:live"></span></b><br><span style="float: left; width: 100px;" id="text:zoom:x">x</span><input type="range" min="0" max="3840" step="1" id="zoom:x" style="width: 1280px;" onmousedown="this.ignoring = true;" onmouseup="this.ignoring = false;" oninput="send_control(this.id, value);"><br><span style="float: left; width: 100px;" id="text:zoom:y">y</span><input type="range" min="0" max="3840" step="1" id="zoom:y" style="width: 1280px;" onmousedown="this.ignoring = true;" onmouseup="this.ignoring = false;" oninput="send_control(this.id, value);"><br><span style="float: left; width: 100px;" id="text:zoom:zoom">zoom</span><input type="range" min="1" max="3" step="0.001" id="zoom:zoom" style="width: 1280px;" onmousedown="this.ignoring = true;" onmouseup="this.ignoring = false;" oninput="send_control(this.id, value);"><br>';
