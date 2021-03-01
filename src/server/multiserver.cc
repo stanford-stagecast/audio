@@ -43,13 +43,13 @@ void NetworkMultiServer::add_key( const LongLivedKey& key )
 
 void NetworkMultiServer::initialize_clock()
 {
-  next_cursor_sample_ = server_clock() + opus_frame::NUM_SAMPLES_MINLATENCY;
+  next_cursor_sample_ = server_clock() + opus_frame::NUM_SAMPLES;
 }
 
 NetworkMultiServer::NetworkMultiServer( const uint8_t num_clients, EventLoop& loop )
   : socket_()
   , global_ns_timestamp_at_creation_( Timer::timestamp_ns() )
-  , next_cursor_sample_( server_clock() + opus_frame::NUM_SAMPLES_MINLATENCY )
+  , next_cursor_sample_( server_clock() + opus_frame::NUM_SAMPLES )
   , num_clients_( num_clients )
   , internal_board_( "internal", 2 * num_clients )
   , preview_board_( "preview", 2 * num_clients )
@@ -109,13 +109,13 @@ NetworkMultiServer::NetworkMultiServer( const uint8_t num_clients, EventLoop& lo
         }
       }
 
-      if ( next_cursor_sample_ > 240 ) {
-        internal_board_.pop_samples_until( next_cursor_sample_ - 240 );
-        preview_board_.pop_samples_until( next_cursor_sample_ - 240 );
-        program_board_.pop_samples_until( next_cursor_sample_ - 240 );
+      if ( next_cursor_sample_ > 960 ) {
+        internal_board_.pop_samples_until( next_cursor_sample_ - 960 );
+        preview_board_.pop_samples_until( next_cursor_sample_ - 960 );
+        program_board_.pop_samples_until( next_cursor_sample_ - 960 );
       }
 
-      next_cursor_sample_ += opus_frame::NUM_SAMPLES_MINLATENCY;
+      next_cursor_sample_ += opus_frame::NUM_SAMPLES;
     },
     [&] { return server_clock() >= next_cursor_sample_; } );
 }

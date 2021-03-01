@@ -97,7 +97,7 @@ size_t OpusEncoderProcess::min_encode_cursor() const
 
 bool OpusEncoderProcess::TrackedEncoder::can_encode_frame( const size_t source_cursor ) const
 {
-  return ( source_cursor >= cursor() + opus_frame::NUM_SAMPLES_MINLATENCY ) and ( not output_.has_value() );
+  return ( source_cursor >= cursor() + opus_frame::NUM_SAMPLES ) and ( not output_.has_value() );
 }
 
 void OpusEncoderProcess::TrackedEncoder::encode_one_frame( const AudioChannel& channel )
@@ -107,7 +107,7 @@ void OpusEncoderProcess::TrackedEncoder::encode_one_frame( const AudioChannel& c
   }
 
   output_.emplace();
-  enc_.encode( channel.region( cursor(), opus_frame::NUM_SAMPLES_MINLATENCY ), output_.value() );
+  enc_.encode( channel.region( cursor(), opus_frame::NUM_SAMPLES ), output_.value() );
   num_pushed_++;
 }
 
@@ -118,8 +118,8 @@ void OpusEncoderProcess::TrackedEncoder::encode_one_frame( const AudioChannel& c
   }
 
   output_.emplace();
-  enc_.encode_stereo( ch1.region( cursor(), opus_frame::NUM_SAMPLES_MINLATENCY ),
-                      ch2.region( cursor(), opus_frame::NUM_SAMPLES_MINLATENCY ),
+  enc_.encode_stereo( ch1.region( cursor(), opus_frame::NUM_SAMPLES ),
+                      ch2.region( cursor(), opus_frame::NUM_SAMPLES ),
                       output_.value() );
   num_pushed_++;
 }

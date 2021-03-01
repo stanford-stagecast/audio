@@ -44,8 +44,6 @@ class ClientConnection
 
   shared_ptr<bool> cull_needed_;
 
-  uint64_t audio_frame_count_ {};
-
 public:
   void cull( const string_view s )
   {
@@ -233,8 +231,7 @@ public:
       frames_since_skip_ = 0;
       updates_since_small_buffer_ = 0;
     } else {
-      muxer_.write( s, audio_frame_count_ * opus_frame::NUM_SAMPLES_MINLATENCY );
-      audio_frame_count_++;
+      muxer_.write( s, big_opus_frame::NUM_SAMPLES );
       frames_since_skip_++;
     }
   }

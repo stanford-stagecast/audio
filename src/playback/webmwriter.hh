@@ -43,12 +43,14 @@ class WebMWriter
 
   static int av_check( const int retval );
 
+  uint64_t sample_count_ {};
+
 public:
   WebMWriter( const int bit_rate, const uint32_t sample_rate, const uint8_t num_channels );
 
   ~WebMWriter();
 
-  void write( const std::string_view frame, const uint64_t starting_sample_number );
+  void write( const std::string_view frame, const uint16_t num_samples );
 
   RingBuffer& output() { return buf_; }
 

@@ -54,16 +54,16 @@ void AudioBoard::json_summary( Json::Value& root, const bool include_second_chan
 
 void AudioWriter::mix_and_write( const AudioBoard& board, const uint64_t cursor_sample )
 {
-  while ( mix_cursor_ + opus_frame::NUM_SAMPLES_MINLATENCY <= cursor_sample ) {
-    span<float> ch1_target = mixed_audio_.ch1().region( mix_cursor_, opus_frame::NUM_SAMPLES_MINLATENCY );
-    span<float> ch2_target = mixed_audio_.ch2().region( mix_cursor_, opus_frame::NUM_SAMPLES_MINLATENCY );
+  while ( mix_cursor_ + big_opus_frame::NUM_SAMPLES <= cursor_sample ) {
+    span<float> ch1_target = mixed_audio_.ch1().region( mix_cursor_, big_opus_frame::NUM_SAMPLES );
+    span<float> ch2_target = mixed_audio_.ch2().region( mix_cursor_, big_opus_frame::NUM_SAMPLES );
 
     for ( uint8_t channel_i = 0; channel_i < board.num_channels(); channel_i++ ) {
       const span_view<float> other_channel
-        = board.channel( channel_i ).region( mix_cursor_, opus_frame::NUM_SAMPLES_MINLATENCY );
+        = board.channel( channel_i ).region( mix_cursor_, big_opus_frame::NUM_SAMPLES );
 
       const auto [gain_into_1, gain_into_2] = board.gain( channel_i );
-      for ( uint8_t sample_i = 0; sample_i < opus_frame::NUM_SAMPLES_MINLATENCY; sample_i++ ) {
+      for ( uint16_t sample_i = 0; sample_i < big_opus_frame::NUM_SAMPLES; sample_i++ ) {
         const float value = other_channel[sample_i];
         const float orig_1 = ch1_target[sample_i];
         const float orig_2 = ch2_target[sample_i];
@@ -73,11 +73,10 @@ void AudioWriter::mix_and_write( const AudioBoard& board, const uint64_t cursor_
       }
     }
 
-    encoder_.encode_one_frame( mixed_audio_.ch1(), mixed_audio_.ch2() );
-    auto frame_mutable = encoder_.front( 0 );
-    socket_.sendto_ignore_errors( destination_, frame_mutable.frame1 );
-    encoder_.pop_frame();
-    mix_cursor_ += opus_frame::NUM_SAMPLES_MINLATENCY;
+    big_opus_frame encoded_frame;
+    encoder_.encode_stereo( ch1_target, ch2_target, encoded_frame );
+    socket_.sendto_ignore_errors( destination_, encoded_frame );
+    mix_cursor_ += big_opus_frame::NUM_SAMPLES;
     mixed_audio_.pop_before( mix_cursor_ );
   }
 }

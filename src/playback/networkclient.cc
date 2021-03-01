@@ -30,8 +30,7 @@ void NetworkClient::NetworkSession::decode( const size_t decode_cursor,
                                             ChannelPair& output )
 {
   /* decode server's Opus frames to playback buffer */
-  const size_t frontier_sample_index
-    = connection.unreceived_beyond_this_frame_index() * opus_frame::NUM_SAMPLES_MINLATENCY;
+  const size_t frontier_sample_index = connection.unreceived_beyond_this_frame_index() * opus_frame::NUM_SAMPLES;
 
   cursor.setup( decode_cursor, frontier_sample_index );
 
@@ -94,7 +93,7 @@ NetworkClient::NetworkClient( const Address& server,
   , next_key_request_( steady_clock::now() )
 {
   socket_.set_blocking( false );
-  stretcher_.setMaxProcessSize( opus_frame::NUM_SAMPLES_MINLATENCY );
+  stretcher_.setMaxProcessSize( opus_frame::NUM_SAMPLES );
   stretcher_.calculateStretch();
 
   loop.add_rule(
@@ -137,24 +136,20 @@ NetworkClient::NetworkClient( const Address& server,
     "decode",
     [&] {
       session_->decode( decode_cursor_, decoder_, stretcher_, dest_->playback() );
-      decode_cursor_ += opus_frame::NUM_SAMPLES_MINLATENCY;
+      decode_cursor_ += opus_frame::NUM_SAMPLES;
 
       if ( session_->connection.sender_stats().last_good_ack_ts + 4'000'000'000 < Timer::timestamp_ns() ) {
         stats_.timeouts++;
         session_.reset();
       }
     },
-    [&] {
-      return session_.has_value()
-             and ( dest_->cursor() + opus_frame::NUM_SAMPLES_MINLATENCY + 60 >= decode_cursor_ );
-    } );
+    [&] { return session_.has_value() and ( dest_->cursor() + opus_frame::NUM_SAMPLES + 60 >= decode_cursor_ ); } );
 
   loop.add_rule(
     "play silence",
-    [&] { decode_cursor_ += opus_frame::NUM_SAMPLES_MINLATENCY; },
+    [&] { decode_cursor_ += opus_frame::NUM_SAMPLES; },
     [&] {
-      return ( !session_.has_value() )
-             and ( dest_->cursor() + opus_frame::NUM_SAMPLES_MINLATENCY + 60 >= decode_cursor_ );
+      return ( !session_.has_value() ) and ( dest_->cursor() + opus_frame::NUM_SAMPLES + 60 >= decode_cursor_ );
     } );
 
   loop.add_rule(

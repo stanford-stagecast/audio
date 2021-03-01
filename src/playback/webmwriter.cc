@@ -103,7 +103,8 @@ WebMWriter::WebMWriter( const int bit_rate, const uint32_t sample_rate, const ui
   header_written_ = true;
 
   if ( audio_stream_->time_base.num != 1 or audio_stream_->time_base.den != WEBM_TIMEBASE ) {
-    throw runtime_error( "audio stream time base mismatch" );
+    throw runtime_error( "audio stream time base mismatch: " + to_string( audio_stream_->time_base.num ) + "/"
+                         + to_string( audio_stream_->time_base.den ) );
   }
 
   avio_flush( context_->pb );
@@ -120,21 +121,23 @@ WebMWriter::~WebMWriter()
   }
 }
 
-void WebMWriter::write( const std::string_view frame, const uint64_t starting_sample_number )
+void WebMWriter::write( const std::string_view frame, const uint16_t num_samples )
 {
   AVPacket packet {};
   packet.buf = nullptr;
-  packet.pts = WEBM_TIMEBASE * starting_sample_number / sample_rate_;
-  packet.dts = WEBM_TIMEBASE * starting_sample_number / sample_rate_;
+  packet.pts = uint64_t( WEBM_TIMEBASE ) * uint64_t( sample_count_ ) / uint64_t( sample_rate_ );
+  packet.dts = uint64_t( WEBM_TIMEBASE ) * uint64_t( sample_count_ ) / uint64_t( sample_rate_ );
   packet.data = const_cast<uint8_t*>(
     reinterpret_cast<const uint8_t*>( frame.data() ) ); /* hope that av_write_frame doesn't change contents */
   packet.size = frame.length();
   packet.stream_index = 0;
   packet.flags = AV_PKT_FLAG_KEY;
-  packet.duration = WEBM_TIMEBASE * opus_frame::NUM_SAMPLES_MINLATENCY / sample_rate_;
+  packet.duration = uint64_t( WEBM_TIMEBASE ) * uint64_t( num_samples ) / uint64_t( sample_rate_ );
   packet.pos = -1;
 
   av_check( av_write_frame( context_.get(), &packet ) );
   av_check( av_write_frame( context_.get(), nullptr ) );
   avio_flush( context_->pb );
+
+  sample_count_ += num_samples;
 }

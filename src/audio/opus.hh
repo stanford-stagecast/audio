@@ -8,10 +8,16 @@
 class opus_frame : public StackBuffer<0, uint8_t, 60>
 {
 public:
-  static constexpr unsigned int NUM_SAMPLES_MINLATENCY = 120; /* 2.5 ms at 48 kHz */
+  static constexpr unsigned int NUM_SAMPLES = 120; /* 2.5 ms at 48 kHz */
 };
 
 static_assert( sizeof( opus_frame ) == 61 );
+
+class big_opus_frame : public StackBuffer<0, uint8_t, 240>
+{
+public:
+  static constexpr unsigned int NUM_SAMPLES = 480; /* 10 ms at 48 kHz */
+};
 
 class OpusEncoder
 {
@@ -26,7 +32,9 @@ class OpusEncoder
 public:
   OpusEncoder( const int bit_rate, const int sample_rate, const int channels, const int application );
   void encode( const span_view<float> samples, opus_frame& encoded_output );
-  void encode_stereo( const span_view<float> ch1, const span_view<float> ch2, opus_frame& encoded_output );
+
+  template<class OpusFrameType>
+  void encode_stereo( const span_view<float> ch1, const span_view<float> ch2, OpusFrameType& encoded_output );
 };
 
 class OpusDecoder

@@ -25,7 +25,7 @@ void Cursor::setup( const size_t global_sample_index, const size_t frontier_samp
 {
   /* initialize cursor if necessary */
   if ( not frame_cursor_.has_value() and frontier_sample_index > target_lag_samples_ ) {
-    frame_cursor_ = ( frontier_sample_index - target_lag_samples_ ) / opus_frame::NUM_SAMPLES_MINLATENCY;
+    frame_cursor_ = ( frontier_sample_index - target_lag_samples_ ) / opus_frame::NUM_SAMPLES;
     num_samples_output_ = global_sample_index;
     rate_ = Rate::Steady;
     stats_.resets++;
@@ -55,7 +55,7 @@ void Cursor::sample( const PartialFrameStore<AudioFrame>& frames,
       return;
     }
 
-    frame_cursor_ = ( frontier_sample_index - target_lag_samples_ ) / opus_frame::NUM_SAMPLES_MINLATENCY;
+    frame_cursor_ = ( frontier_sample_index - target_lag_samples_ ) / opus_frame::NUM_SAMPLES;
     rate_ = Rate::Steady;
     if ( greatest_read_location() >= frontier_sample_index ) {
       throw runtime_error( "internal error" );
@@ -102,9 +102,9 @@ void Cursor::sample( const PartialFrameStore<AudioFrame>& frames,
 
   ewma_update( stats_.mean_time_ratio, stretcher.getTimeRatio(), ALPHA );
 
-  array<float, opus_frame::NUM_SAMPLES_MINLATENCY> ch1_scratch, ch2_scratch;
-  span<float> ch1_decoded { ch1_scratch.data(), opus_frame::NUM_SAMPLES_MINLATENCY };
-  span<float> ch2_decoded { ch2_scratch.data(), opus_frame::NUM_SAMPLES_MINLATENCY };
+  array<float, opus_frame::NUM_SAMPLES> ch1_scratch, ch2_scratch;
+  span<float> ch1_decoded { ch1_scratch.data(), opus_frame::NUM_SAMPLES };
+  span<float> ch2_decoded { ch2_scratch.data(), opus_frame::NUM_SAMPLES };
 
   /* Do we have an Opus frame ready to decode? */
   if ( not frames.has_value( frame_cursor ) ) {
@@ -127,16 +127,16 @@ void Cursor::sample( const PartialFrameStore<AudioFrame>& frames,
   }
 
   if ( fade_in_ ) {
-    for ( uint16_t i = 0; i < opus_frame::NUM_SAMPLES_MINLATENCY; i++ ) {
-      ch1_decoded[i] *= double( i ) / double( opus_frame::NUM_SAMPLES_MINLATENCY );
-      ch2_decoded[i] *= double( i ) / double( opus_frame::NUM_SAMPLES_MINLATENCY );
+    for ( uint16_t i = 0; i < opus_frame::NUM_SAMPLES; i++ ) {
+      ch1_decoded[i] *= double( i ) / double( opus_frame::NUM_SAMPLES );
+      ch2_decoded[i] *= double( i ) / double( opus_frame::NUM_SAMPLES );
     }
     stats_.fades_in++;
   }
 
   /* time-stretch */
   array<float*, 2> decoded_audio_for_stretcher = { ch1_scratch.data(), ch2_scratch.data() };
-  stretcher.process( decoded_audio_for_stretcher.data(), opus_frame::NUM_SAMPLES_MINLATENCY, false );
+  stretcher.process( decoded_audio_for_stretcher.data(), opus_frame::NUM_SAMPLES, false );
 
   const int samples_available = stretcher.available();
   if ( samples_available < 0 ) {

@@ -33,8 +33,8 @@ class Cursor
   std::optional<size_t> num_samples_output_ {};
   std::optional<uint64_t> frame_cursor_ {};
 
-  uint64_t cursor_location() const { return frame_cursor_.value() * opus_frame::NUM_SAMPLES_MINLATENCY; }
-  uint64_t greatest_read_location() const { return cursor_location() + opus_frame::NUM_SAMPLES_MINLATENCY - 1; }
+  uint64_t cursor_location() const { return frame_cursor_.value() * opus_frame::NUM_SAMPLES; }
+  uint64_t greatest_read_location() const { return cursor_location() + opus_frame::NUM_SAMPLES - 1; }
 
   static constexpr float ALPHA = 0.01;
 

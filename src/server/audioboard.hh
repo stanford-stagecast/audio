@@ -46,7 +46,7 @@ class AudioWriter
 
   uint64_t mix_cursor_ {};
 
-  OpusEncoderProcess encoder_ { 96000, 48000 };
+  OpusEncoder encoder_ { 96000, 48000, 2, OPUS_APPLICATION_AUDIO };
 
   Address destination_;
   UnixDatagramSocket socket_ {};
