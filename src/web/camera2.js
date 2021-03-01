@@ -20,6 +20,15 @@ function send_control(id, value)
     ws.send( "control " + id + " " + value );
 }
 
+function reset_controls()
+{
+    ws.send( "control zoom:zoom 1.00" );
+    ws.send( "control crop:left 0" );
+    ws.send( "control crop:right 0" );
+    ws.send( "control crop:top 0" );
+    ws.send( "control crop:bottom 0" );
+}
+
 function set_live(name) {
     ws.send("live " + name );
 }
@@ -75,7 +84,7 @@ function sourceOpenVideo(e) {
 	div.innerHTML += "<button onclick='set_live(this.id)' type='button' id='" + name + "'>" + name + "</button>";
     }
 
-    document.getElementById('zooms').innerHTML = 'Camera control for: <b><span id="text:live"></span></b><br><span style="float: left; width: 100px;" id="text:zoom:x">x</span><input type="range" min="0" max="3840" step="1" id="zoom:x" style="width: 1280px;" onmousedown="this.ignoring = true;" onmouseup="this.ignoring = false;" oninput="send_control(this.id, value);"><br><span style="float: left; width: 100px;" id="text:zoom:y">y</span><input type="range" min="0" max="3840" step="1" id="zoom:y" style="width: 1280px;" onmousedown="this.ignoring = true;" onmouseup="this.ignoring = false;" oninput="send_control(this.id, value);"><br><span style="float: left; width: 100px;" id="text:zoom:zoom">zoom</span><input type="range" min="1" max="3" step="0.001" id="zoom:zoom" style="width: 1280px;" onmousedown="this.ignoring = true;" onmouseup="this.ignoring = false;" oninput="send_control(this.id, value);"><br><span style="float: left; width: 100px;" id="text:crop:left">crop</span><input type="range" min="0" max="3840" step="1" id="crop:left" style="width: 1280px;" onmousedown="this.ignoring = true;" onmouseup="this.ignoring = false;" oninput="send_control(this.id, value);"><br><span style="float: left; width: 100px;" id="text:crop:right">crop</span><input type="range" min="0" max="3840" step="1" id="crop:right" style="width: 1280px;" onmousedown="this.ignoring = true;" onmouseup="this.ignoring = false;" oninput="send_control(this.id, value);"><br><span style="float: left; width: 100px;" id="text:crop:top">crop</span><input type="range" min="0" max="2160" step="1" id="crop:top" style="width: 1280px;" onmousedown="this.ignoring = true;" onmouseup="this.ignoring = false;" oninput="send_control(this.id, value);"><br><span style="float: left; width: 100px;" id="text:crop:bottom">crop</span><input type="range" min="0" max="2160" step="1" id="crop:bottom" style="width: 1280px;" onmousedown="this.ignoring = true;" onmouseup="this.ignoring = false;" oninput="send_control(this.id, value);"><br>';
+    document.getElementById('zooms').innerHTML = 'Camera control for: <b><span id="text:live"></span></b><br><button onclick="reset_controls();" type="button">Reset controls</button><br><span style="float: left; width: 200px;" id="text:zoom:x">x</span><input type="range" min="0" max="3840" step="1" id="zoom:x" style="width: 1280px;" onmousedown="this.ignoring = true;" onmouseup="this.ignoring = false;" oninput="send_control(this.id, value);"><br><span style="float: left; width: 200px;" id="text:zoom:y">y</span><input type="range" min="0" max="3840" step="1" id="zoom:y" style="width: 1280px;" onmousedown="this.ignoring = true;" onmouseup="this.ignoring = false;" oninput="send_control(this.id, value);"><br><span style="float: left; width: 200px;" id="text:zoom:zoom">zoom</span><input type="range" min="1" max="3" step="0.001" id="zoom:zoom" style="width: 1280px;" onmousedown="this.ignoring = true;" onmouseup="this.ignoring = false;" oninput="send_control(this.id, value);"><br><span style="float: left; width: 200px;" id="text:crop:left">crop</span><input type="range" min="0" max="3840" step="1" id="crop:left" style="width: 1280px;" onmousedown="this.ignoring = true;" onmouseup="this.ignoring = false;" oninput="send_control(this.id, value);"><br><span style="float: left; width: 200px;" id="text:crop:right">crop</span><input type="range" min="0" max="3840" step="1" id="crop:right" style="width: 1280px;" onmousedown="this.ignoring = true;" onmouseup="this.ignoring = false;" oninput="send_control(this.id, value);"><br><span style="float: left; width: 200px;" id="text:crop:top">crop</span><input type="range" min="0" max="2160" step="1" id="crop:top" style="width: 1280px;" onmousedown="this.ignoring = true;" onmouseup="this.ignoring = false;" oninput="send_control(this.id, value);"><br><span style="float: left; width: 200px;" id="text:crop:bottom">crop</span><input type="range" min="0" max="2160" step="1" id="crop:bottom" style="width: 1280px;" onmousedown="this.ignoring = true;" onmouseup="this.ignoring = false;" oninput="send_control(this.id, value);"><br>';
     
     ws = new WebSocket("wss://stagecast.org:8400");
     ws.binaryType = 'arraybuffer';
