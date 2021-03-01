@@ -110,8 +110,7 @@ void Cursor::sample( const PartialFrameStore<AudioFrame>& frames,
   if ( not frames.has_value( frame_cursor ) ) {
     /* no, so leave it as silence */
     miss();
-    fill( ch1_decoded.begin(), ch1_decoded.end(), 0 );
-    fill( ch2_decoded.begin(), ch2_decoded.end(), 0 );
+    decoder.decode_missing( ch1_decoded, ch2_decoded );
   } else {
     /* decode a frame! */
     hit();
