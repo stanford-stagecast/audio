@@ -132,10 +132,10 @@ function sourceOpenVideo(e) {
 		bottom_elem.value = doc["crop"]["bottom"];
 	    }
 
-	    document.getElementById( "text:crop:left" ).innerHTML = "x: " + doc["crop"]["left"];
-	    document.getElementById( "text:crop:right" ).innerHTML = "y: " + doc["crop"]["right"];
-	    document.getElementById( "text:crop:top" ).innerHTML = "top: " + doc["crop"]["top"];
-	    document.getElementById( "text:crop:bottom" ).innerHTML = "bottom: " + doc["crop"]["bottom"];
+	    document.getElementById( "text:crop:left" ).innerHTML = "crop left: " + doc["crop"]["left"];
+	    document.getElementById( "text:crop:right" ).innerHTML = "crop right: " + doc["crop"]["right"];
+	    document.getElementById( "text:crop:top" ).innerHTML = "crop top: " + doc["crop"]["top"];
+	    document.getElementById( "text:crop:bottom" ).innerHTML = "crop bottom: " + doc["crop"]["bottom"];
 	    
 	    return;
 	}
