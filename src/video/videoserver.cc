@@ -120,11 +120,21 @@ void VideoServer::json_summary( Json::Value& root ) const
     root["zoom"]["x"] = client.client().zoom_.x;
     root["zoom"]["y"] = client.client().zoom_.y;
     root["zoom"]["zoom"] = float( 3840.0 ) / float( client.client().zoom_.width );
+
+    root["crop"]["left"] = client.client().zoom_.crop_left;
+    root["crop"]["right"] = client.client().zoom_.crop_right;
+    root["crop"]["top"] = client.client().zoom_.crop_top;
+    root["crop"]["bottom"] = client.client().zoom_.crop_bottom;
   } else {
     root["live"] = "none";
     root["zoom"]["x"] = 0;
     root["zoom"]["y"] = 0;
     root["zoom"]["zoom"] = 0;
+
+    root["crop"]["left"] = 0;
+    root["crop"]["right"] = 0;
+    root["crop"]["top"] = 0;
+    root["crop"]["bottom"] = 0;
   }
 }
 
@@ -172,19 +182,21 @@ void VideoServer::set_zoom( const video_control& control )
 
   auto& existing_zoom = client.zoom_;
 
-  if ( control.x != uint16_t( -1 ) ) {
+  static constexpr uint16_t NEG1 = -1;
+
+  if ( control.x != NEG1 ) {
     existing_zoom.x = min( control.x, uint16_t( 3840 ) );
 
     if ( not valid( existing_zoom ) ) {
       existing_zoom.x = 3840 - existing_zoom.width;
     }
-  } else if ( control.y != uint16_t( -1 ) ) {
+  } else if ( control.y != NEG1 ) {
     existing_zoom.y = min( control.y, uint16_t( 2160 ) );
 
     if ( not valid( existing_zoom ) ) {
       existing_zoom.y = 2160 - existing_zoom.height;
     }
-  } else if ( control.width != uint16_t( -1 ) ) {
+  } else if ( control.width != NEG1 ) {
     existing_zoom.width = max( uint16_t( 1280 ), min( control.width, uint16_t( 3840 ) ) );
     existing_zoom.height = 2160 * existing_zoom.width / 3840;
 
@@ -192,6 +204,14 @@ void VideoServer::set_zoom( const video_control& control )
       existing_zoom.x = 3840 - existing_zoom.width;
       existing_zoom.y = 2160 - existing_zoom.height;
     }
+  } else if ( control.crop_left != NEG1 ) {
+    existing_zoom.crop_left = min( control.crop_left, uint16_t( 3840 ) );
+  } else if ( control.crop_right != NEG1 ) {
+    existing_zoom.crop_right = min( control.crop_right, uint16_t( 3840 ) );
+  } else if ( control.crop_top != NEG1 ) {
+    existing_zoom.crop_top = min( control.crop_top, uint16_t( 2160 ) );
+  } else if ( control.crop_bottom != NEG1 ) {
+    existing_zoom.crop_bottom = min( control.crop_bottom, uint16_t( 2160 ) );
   }
 
   if ( not valid( existing_zoom ) ) {
@@ -200,5 +220,9 @@ void VideoServer::set_zoom( const video_control& control )
     existing_zoom.y = 0;
     existing_zoom.width = 3840;
     existing_zoom.height = 2160;
+    existing_zoom.crop_left = 0;
+    existing_zoom.crop_right = 0;
+    existing_zoom.crop_top = 0;
+    existing_zoom.crop_bottom = 0;
   }
 }

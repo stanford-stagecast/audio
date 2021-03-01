@@ -124,10 +124,7 @@ private:
         return;
       }
 
-      video_control instruction;
-      instruction.x = -1;
-      instruction.y = -1;
-      instruction.width = -1;
+      video_control instruction {};
 
       try {
         if ( fields_.at( 1 ) == "zoom:x" ) {
@@ -136,6 +133,14 @@ private:
           instruction.y = stoi( string( fields_.at( 2 ) ) );
         } else if ( fields_.at( 1 ) == "zoom:zoom" ) {
           instruction.width = lrint( 3840.0 / stof( string( fields_.at( 2 ) ) ) );
+        } else if ( fields_.at( 1 ) == "crop:left" ) {
+          instruction.crop_left = stoi( string( fields_.at( 2 ) ) );
+        } else if ( fields_.at( 1 ) == "crop:right" ) {
+          instruction.crop_right = stoi( string( fields_.at( 2 ) ) );
+        } else if ( fields_.at( 1 ) == "crop:top" ) {
+          instruction.crop_top = stoi( string( fields_.at( 2 ) ) );
+        } else if ( fields_.at( 1 ) == "crop:bottom" ) {
+          instruction.crop_bottom = stoi( string( fields_.at( 2 ) ) );
         }
 
         send_control( instruction );

@@ -37,7 +37,6 @@ void program_body( const string& control,
     send( instruction );
   } else if ( control == "zoom" ) {
     video_control instruction;
-    instruction.name = NetString( name );
     instruction.x = stoi( a );
     instruction.y = stoi( b );
     instruction.width = stoi( c );

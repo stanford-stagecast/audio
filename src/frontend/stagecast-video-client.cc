@@ -10,6 +10,7 @@
 #include "address.hh"
 #include "camera.hh"
 #include "connection.hh"
+#include "crop.hh"
 #include "crypto.hh"
 #include "eventloop.hh"
 #include "exception.hh"
@@ -36,6 +37,7 @@ void program_body( const string& device, const string& host, const string& servi
   RasterYUV420 output_raster { 1280, 720 };
   H264Encoder encoder { 1280, 720, 24, "fast", "zerolatency" };
   Scaler scaler;
+  Cropper cropper;
 
   /* read key */
   ReadOnlyFile keyfile { key_filename };
@@ -65,10 +67,15 @@ void program_body( const string& device, const string& host, const string& servi
     "scale frame",
     [&] {
       if ( client->has_control() ) {
+        cropper.setup( client->control().crop_left,
+                       client->control().crop_right,
+                       client->control().crop_top,
+                       client->control().crop_bottom );
         scaler.setup( client->control().x, client->control().y, client->control().width, client->control().height );
         client->pop_control();
       }
 
+      cropper.crop( camera_raster );
       scaler.scale( camera_raster, output_raster );
       frames_scaled_++;
     },
