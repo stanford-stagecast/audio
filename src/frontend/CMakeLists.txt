@@ -284,7 +284,14 @@ target_link_libraries ("ws-control-server" ${SSL_LDFLAGS_OTHER})
 target_link_libraries ("ws-control-server" ${CryptoPP_LDFLAGS})
 target_link_libraries ("ws-control-server" ${CryptoPP_LDFLAGS_OTHER})
 
+add_executable (media-download "media-download.cc")
+target_link_libraries ("media-download" util)
+
+target_link_libraries ("media-download" ${JSON_LDFLAGS})
+target_link_libraries ("media-download" ${JSON_LDFLAGS_OTHER})
+
 add_executable (cue-parser "cue-parser.cc")
+target_link_libraries ("cue-parser" video)
 target_link_libraries ("cue-parser" util)
 
 target_link_libraries ("cue-parser" ${JSON_LDFLAGS})
