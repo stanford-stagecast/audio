@@ -287,7 +287,7 @@ void VideoServer::insert_preview_layer( const Layer& layer )
   if ( layer.type == Layer::layer_type::Media ) {
     try {
       cerr << "loading " << layer.name << "\n";
-      ReadOnlyFile frame { layer.name };
+      ReadOnlyFile frame { "/home/keithw/media/" + layer.name };
       cerr << "success\n";
 
       RasterYUV420 raster { 1280, 720 };
