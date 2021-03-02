@@ -56,7 +56,7 @@ VideoServerController::VideoServerController( shared_ptr<VideoServer> server, Ev
         new_layer.y = my_insert_layer.y;
         new_layer.width = my_insert_layer.width;
         new_layer.z = my_insert_layer.z;
-        server->insert_preview_layer( new_layer );
+        server_->insert_preview_layer( new_layer );
       } break;
 
       case remove_layer::id: {
@@ -67,7 +67,7 @@ VideoServerController::VideoServerController( shared_ptr<VideoServer> server, Ev
           return;
         }
 
-        server->remove_preview_layer( my_remove_layer.name );
+        server_->remove_preview_layer( my_remove_layer.name );
       } break;
     }
   } );
