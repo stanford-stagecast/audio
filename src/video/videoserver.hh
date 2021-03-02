@@ -8,6 +8,7 @@
 #include "keys.hh"
 #include "socket.hh"
 #include "summarize.hh"
+#include "videofile.hh"
 #include "vsclient.hh"
 
 struct CompositingGroup
@@ -63,6 +64,7 @@ class VideoServer : public Summarizable
   } stats_ {};
 
   RasterYUV420 default_raster_ { 1280, 720 };
+  std::shared_ptr<RasterRGBA> default_raster_keyed_ = std::make_shared<RasterRGBA>( 1280, 720 );
   H264Encoder camera_feed_ { 1280, 720, 24, "veryfast", "zerolatency" };
   uint8_t camera_feed_live_no_ {};
   Address camera_destination_ { Address::abstract_unix( "stagecast-camera-video" ) };

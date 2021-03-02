@@ -115,11 +115,6 @@ public:
   {
     return { &Y_rows_.at( y ), &Cb_rows_.at( y ), &Cr_rows_.at( y ) };
   }
-
-  RasterYUV( const RasterYUV& other ) = delete;
-  RasterYUV& operator=( const RasterYUV& other ) = delete;
-  RasterYUV( RasterYUV&& other ) = default;
-  RasterYUV& operator=( RasterYUV&& other ) = default;
 };
 
 class RasterYUV422 : public RasterYUV

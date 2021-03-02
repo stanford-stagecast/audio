@@ -40,6 +40,13 @@ VideoServer::VideoServer( const uint8_t num_clients, EventLoop& loop )
   , num_clients_( num_clients )
   , next_ack_ts_ { Timer::timestamp_ns() }
 {
+  VideoFile default_raster_file { "/home/media/files/decoded/default.png.rawvideo" };
+  default_raster_file.read_raster();
+  default_raster_ = default_raster_file.raster();
+
+  ColorspaceConverter converter_ { 1280, 720 };
+  converter_.convert( default_raster_, *default_raster_keyed_ );
+
   socket_.set_blocking( false );
   camera_broadcast_socket_.set_blocking( false );
   socket_.bind( { "0", 9201 } );
@@ -275,6 +282,8 @@ void VideoServer::load_cameras( Compositor& compositor )
   for ( const auto& client : clients_ ) {
     if ( client ) {
       compositor.load_image( client.name(), client.client().raster_keyed_ );
+    } else {
+      compositor.load_image( client.name(), default_raster_keyed_ );
     }
   }
 }
