@@ -9,28 +9,29 @@
 
 struct Layer
 {
-  enum class type : uint8_t
+  enum class layer_type : uint8_t
   {
-    Camera
+    Camera,
+    Media
   };
 
-  std::string name;
-  int16_t x, y;
-  uint16_t width;
-  bool flip_horizontal;
-
-  Layer( const std::string_view s_name,
-         const int16_t s_x,
-         const int16_t s_y,
-         const uint16_t s_width,
-         const bool s_horizontal );
+  layer_type type {};
+  std::string name {};
+  int16_t x {}, y {};
+  uint16_t width {};
+  uint16_t z {};
 
   void render( const RasterRGBA& source, RasterRGBA& target ) const;
 };
 
 struct Scene
 {
-  std::list<Layer> layers;
+  std::list<Layer> layers {};
+
+  std::string debug_summary() const;
+
+  void insert( const Layer& layer );
+  void remove( const std::string_view name );
 };
 
 class Compositor

@@ -23,18 +23,6 @@ void Compositor::load_image( const string& name, const shared_ptr<const RasterRG
   images_.insert_or_assign( name, image );
 }
 
-Layer::Layer( const std::string_view s_name,
-              const int16_t s_x,
-              const int16_t s_y,
-              const uint16_t s_width,
-              const bool s_horizontal )
-  : name( s_name )
-  , x( s_x )
-  , y( s_y )
-  , width( s_width )
-  , flip_horizontal( s_horizontal )
-{}
-
 void Layer::render( const RasterRGBA& source, RasterRGBA& output ) const
 {
   uint16_t height = 720 * width / 1280;
@@ -75,4 +63,32 @@ void Layer::render( const RasterRGBA& source, RasterRGBA& output ) const
   for ( auto& thread : threads ) {
     thread.join();
   }
+}
+
+string Scene::debug_summary() const
+{
+  string ret;
+  for ( const auto& x : layers ) {
+    ret += ( x.type == Layer::layer_type::Camera ) ? "Camera: " : "Media: ";
+    ret += '"' + x.name + '"';
+    ret += " @ (" + to_string( x.x ) + ", " + to_string( x.y ) + "), width=" + to_string( x.width ) + "\n";
+  }
+  return ret;
+}
+
+void Scene::insert( const Layer& layer )
+{
+  for ( auto it = layers.begin(); it != layers.end(); it++ ) {
+    if ( layer.z < it->z ) {
+      layers.insert( it, layer );
+      return;
+    }
+  }
+
+  layers.push_back( layer );
+}
+
+void Scene::remove( const string_view name )
+{
+  layers.remove_if( [name]( const Layer& x ) { return x.name == name; } );
 }

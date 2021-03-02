@@ -1,3 +1,4 @@
+#include "compositor.hh"
 #include "exception.hh"
 #include "mmap.hh"
 
@@ -88,6 +89,8 @@ int main( int argc, char* argv[] )
     media_lookup.insert_or_assign( id, make_pair( name, filename ) );
   }
 
+  Scene scene;
+
   /* go through cues in order */
   for ( auto it = root["cues"].begin(); it != root["cues"].end(); it++ ) {
     const auto cue = *it;
@@ -112,17 +115,46 @@ int main( int argc, char* argv[] )
 
         View v { change["action"]["config"]["view"] };
         cout << "        @ " << v.left << " " << v.right << " " << v.top << " " << v.bottom << " " << v.z << "\n";
+
+        Layer new_layer;
+        new_layer.type = Layer::layer_type::Camera;
+        new_layer.name = camera_lookup.at( change["camera_id"].asInt() );
+        new_layer.x = v.left;
+        new_layer.y = v.top;
+        new_layer.width = v.right - v.left;
+        new_layer.z = v.z;
+
+        scene.insert( new_layer );
       } else if ( action_type == "add" and change_type == "media" ) {
         cout << "   ADD media \"" << media_lookup.at( change["media_id"].asInt() ).first << "\"\n";
 
         View v { change["action"]["config"]["view"] };
         cout << "        @ " << v.left << " " << v.right << " " << v.top << " " << v.bottom << " " << v.z << "\n";
+
+        Layer new_layer;
+        new_layer.type = Layer::layer_type::Media;
+        new_layer.name = media_lookup.at( change["media_id"].asInt() ).first;
+        new_layer.x = v.left;
+        new_layer.y = v.top;
+        new_layer.width = v.right - v.left;
+        new_layer.z = v.z;
+
+        scene.insert( new_layer );
       } else if ( action_type == "remove" and change_type == "camera" ) {
         cout << "   REMOVE camera " << camera_lookup.at( change["camera_id"].asInt() ) << "\n";
+
+        scene.remove( camera_lookup.at( change["camera_id"].asInt() ) );
       } else if ( action_type == "remove" and change_type == "media" ) {
         cout << "   REMOVE media \"" << media_lookup.at( change["media_id"].asInt() ).first << "\"\n";
+
+        scene.remove( media_lookup.at( change["media_id"].asInt() ).first );
       }
     }
+
+    cout << "#####################\n";
+    cout << "      SCENE NOW      \n\n";
+    cout << scene.debug_summary();
+    cout << "#####################\n\n";
   }
 
   return EXIT_SUCCESS;
