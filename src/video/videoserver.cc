@@ -291,8 +291,6 @@ void VideoServer::load_cameras( Compositor& compositor )
 void VideoServer::insert_preview_layer( const Layer& layer )
 
 {
-  preview_.scene_.insert( layer );
-
   if ( layer.type == Layer::layer_type::Media ) {
     try {
       const string filename = "/home/media/files/decoded/" + layer.filename;
@@ -306,6 +304,7 @@ void VideoServer::insert_preview_layer( const Layer& layer )
       converter.convert( raster, *rgba_raster );
 
       preview_.compositor_.load_image( layer.name, rgba_raster );
+      preview_.scene_.insert( layer );
 
       cerr << "Successfully loaded " + filename + "\n";
     } catch ( const exception& e ) {
