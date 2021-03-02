@@ -56,12 +56,15 @@ int main( int argc, char* argv[] )
     //    const int id = node["id"].asInt();
     const string url = node["file"].asString();
     const string type = node["type"].asString();
+    const string name = node["name"].asString();
 
-    string filename = url;
+    string filename = name;
     for ( auto& ch : filename ) {
       if ( ch == '/' ) {
         ch = '_';
       } else if ( ch == ':' ) {
+        ch = '_';
+      } else if ( ch == ' ' ) {
         ch = '_';
       }
     }
