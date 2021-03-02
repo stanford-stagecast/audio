@@ -159,7 +159,7 @@ int main( int argc, char* argv[] )
       } else if ( action_type == "remove" and change_type == "media" ) {
         cout << "   REMOVE media \"" << media_lookup.at( change["media_id"].asInt() ).first << "\"\n";
 
-        scene.remove( media_lookup.at( change["media_id"].asInt() ).second );
+        scene.remove( media_lookup.at( change["media_id"].asInt() ).first );
       }
 
       cout << "#####################\n";
