@@ -45,14 +45,14 @@ int main( int argc, char* argv[] )
     abort();
   }
 
-  if ( argc != 4 ) {
-    cerr << "Usage: " << argv[0] << " cue_filename cue_integer cue_fractional\n";
+  if ( argc != 3 ) {
+    cerr << "Usage: " << argv[0] << " cue_filename desired_cue\n";
     return EXIT_FAILURE;
   }
 
   ReadOnlyFile cues { argv[1] };
 
-  const unsigned int cue_integer_desired = stoi( argv[2] ), cue_fractional_desired = stoi( argv[3] );
+  const string desired_cue = argv[2];
 
   istringstream istr;
   istr.str( string( cues ) );
@@ -111,9 +111,7 @@ int main( int argc, char* argv[] )
     if ( cue_number_raw.size() < 2 ) {
       throw runtime_error( "invalid cue number: " + cue_number_raw );
     }
-    const unsigned int cue_integer = stoi( cue_number_raw.substr( 0, cue_number_raw.size() - 2 ) );
-    const unsigned int cue_fractional = stoi( cue_number_raw.substr( cue_number_raw.size() - 3, 1 ) );
-    cout << cue_integer << "." << cue_fractional << ": " << cue["name"] << "\n";
+    cout << cue_number_raw << cue["name"] << "\n";
 
     const auto changes = cue["changes"];
 
@@ -165,12 +163,12 @@ int main( int argc, char* argv[] )
 
       cout << "#####################\n";
       cout << "      SCENE NOW      \n\n";
-      cout << cue_integer << "." << cue_fractional << "\n";
+      cout << "Cue: " << cue_number_raw << "\n";
       cout << scene.debug_summary();
       cout << "#####################\n\n";
     }
 
-    if ( cue_integer == cue_integer_desired and cue_fractional == cue_fractional_desired ) {
+    if ( desired_cue == cue_number_raw ) {
       {
         remove_layer instruction;
         memcpy( instruction.name.mutable_data_ptr(), "all", strlen( "all" ) );
