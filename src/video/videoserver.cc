@@ -295,7 +295,7 @@ void VideoServer::insert_preview_layer( const Layer& layer )
 
   if ( layer.type == Layer::layer_type::Media ) {
     try {
-      ReadOnlyFile frame { "/home/keithw/media/" + layer.filename };
+      ReadOnlyFile frame { "/home/media/files/decoded/" + layer.filename };
 
       RasterYUV420 raster { 1280, 720 };
       memcpy( raster.Y_row( 0 ), frame.addr(), 1280 * 720 );
