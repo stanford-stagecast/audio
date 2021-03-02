@@ -295,7 +295,7 @@ void VideoServer::insert_preview_layer( const Layer& layer )
       memcpy( raster.Cb_row( 0 ), frame.addr() + 1280 * 720, 640 * 360 );
       memcpy( raster.Cr_row( 0 ), frame.addr() + 1280 * 720 + 640 * 360, 640 * 360 );
 
-      shared_ptr<RasterRGBA> rgba_raster;
+      auto rgba_raster = make_shared<RasterRGBA>( 1280, 720 );
 
       ColorspaceConverter converter { 1280, 720 };
       converter.convert( raster, *rgba_raster );
