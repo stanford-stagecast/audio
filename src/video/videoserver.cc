@@ -278,3 +278,13 @@ void VideoServer::load_cameras( Compositor& compositor )
     }
   }
 }
+
+void VideoServer::insert_preview_layer( const Layer& layer )
+
+{
+  preview_.scene_.insert( layer );
+
+  if ( layer.type == Layer::layer_type::Media ) {
+    cerr << "loading " << layer.name << "\n";
+  }
+}

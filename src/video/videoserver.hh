@@ -89,6 +89,6 @@ public:
 
   void json_summary( Json::Value& root ) const;
 
-  void insert_preview_layer( const Layer& layer ) { preview_.scene_.insert( layer ); }
+  void insert_preview_layer( const Layer& layer );
   void remove_preview_layer( const std::string_view name ) { preview_.scene_.remove( name ); }
 };

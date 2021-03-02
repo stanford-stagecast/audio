@@ -49,7 +49,7 @@ void Layer::render( const RasterRGBA& source, RasterRGBA& output ) const
               float alpha = src.alpha / 255.0;
 
               /* temporary chroma key */
-              if ( src.red <= 5 and src.green >= 150 and src.blue > 50 and src.blue < 70 ) {
+              if ( src.red <= 5 and src.green >= 100 and src.blue < 80 ) {
                 alpha = 0;
               }
 
@@ -91,6 +91,9 @@ void Scene::insert( const Layer& layer )
   }
 
   layers.push_back( layer );
+
+  cerr << "### SCENE ###\n";
+  cerr << debug_summary() << "\n\n";
 }
 
 void Scene::remove( const string_view name )
@@ -100,4 +103,7 @@ void Scene::remove( const string_view name )
   } else {
     layers.remove_if( [name]( const Layer& x ) { return x.name == name; } );
   }
+
+  cerr << "### SCENE ###\n";
+  cerr << debug_summary() << "\n\n";
 }
