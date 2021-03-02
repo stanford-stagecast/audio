@@ -44,13 +44,18 @@ void Layer::render( const RasterRGBA& source, RasterRGBA& output ) const
 
             if ( target_x >= 0 and target_x >= 0 and target_x < 1280 and target_y < 720 and source_x < 1280
                  and source_y < 720 ) {
-              const float alpha = source.pel( source_x, source_y ).alpha / 255.0;
-              output.pel( target_x, target_y ).red = alpha * source.pel( source_x, source_y ).red
-                                                     + ( 1 - alpha ) * output.pel( target_x, target_y ).red;
-              output.pel( target_x, target_y ).green = alpha * source.pel( source_x, source_y ).green
-                                                       + ( 1 - alpha ) * output.pel( target_x, target_y ).green;
-              output.pel( target_x, target_y ).blue = alpha * source.pel( source_x, source_y ).blue
-                                                      + ( 1 - alpha ) * output.pel( target_x, target_y ).blue;
+              const auto src = source.pel( source_x, source_y );
+              auto& outputpel = output.pel( target_x, target_y );
+              float alpha = src.alpha / 255.0;
+
+              /* temporary chroma key */
+              if ( src.red <= 5 and src.green >= 150 and src.blue > 50 and src.blue < 70 ) {
+                alpha = 0;
+              }
+
+              outputpel.red = alpha * src.red + ( 1 - alpha ) * outputpel.red;
+              outputpel.green = alpha * src.green + ( 1 - alpha ) * outputpel.green;
+              outputpel.blue = alpha * src.blue + ( 1 - alpha ) * outputpel.blue;
             }
           }
         }

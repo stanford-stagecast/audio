@@ -113,9 +113,9 @@ VideoServer::VideoServer( const uint8_t num_clients, EventLoop& loop )
     },
     [&] { return server_clock() >= output_frames_encoded_; } );
 
-  /*
-  preview_.scene_.layers.emplace_back( "KeithBox", 0, 0, 640, false );
-  preview_.scene_.layers.emplace_back( "KeithBox", 640, 0, 640, false );
+  preview_.scene_.insert( Layer { Layer::layer_type::Camera, "KeithBox", 0, 0, 640, 20 } );
+
+  /* preview_.scene_.layers.emplace_back( "KeithBox", 640, 0, 640, false );
   preview_.scene_.layers.emplace_back( "KeithBox", 0, 360, 640, false );
   preview_.scene_.layers.emplace_back( "KeithBox", 640, 360, 640, false );
   */
