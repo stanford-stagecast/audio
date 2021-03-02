@@ -162,14 +162,15 @@ int main( int argc, char* argv[] )
 
         scene.remove( media_lookup.at( change["media_id"].asInt() ).second );
       }
+
+      cout << "#####################\n";
+      cout << "      SCENE NOW      \n\n";
+      cout << cue_integer << "." << cue_fractional << "\n";
+      cout << scene.debug_summary();
+      cout << "#####################\n\n";
     }
 
     if ( cue_integer == cue_integer_desired and cue_fractional == cue_fractional_desired ) {
-      cout << "#####################\n";
-      cout << "      SCENE NOW      \n\n";
-      cout << scene.debug_summary();
-      cout << "#####################\n\n";
-
       {
         remove_layer instruction;
         memcpy( instruction.name.mutable_data_ptr(), "all", strlen( "all" ) );
