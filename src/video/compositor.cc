@@ -84,7 +84,7 @@ string Scene::debug_summary() const
 void Scene::insert( const Layer& layer )
 {
   for ( auto it = layers.begin(); it != layers.end(); it++ ) {
-    if ( layer.z < it->z ) {
+    if ( layer.z > it->z ) {
       layers.insert( it, layer );
       return;
     }
