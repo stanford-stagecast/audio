@@ -159,7 +159,7 @@ int main( int argc, char* argv[] )
       } else if ( action_type == "remove" and change_type == "media" ) {
         cout << "   REMOVE media \"" << media_lookup.at( change["media_id"].asInt() ).first << "\"\n";
 
-        scene.remove( media_lookup.at( change["media_id"].asInt() ).first );
+        scene.remove( media_lookup.at( change["media_id"].asInt() ).second );
       }
 
       cout << "#####################\n";
@@ -184,6 +184,8 @@ int main( int argc, char* argv[] )
         insertion.is_media = ( layer.type == Layer::layer_type::Media );
         insertion.name.resize( layer.name.size() );
         insertion.name.mutable_buffer().copy( layer.name );
+        insertion.filename.resize( layer.filename.size() );
+        insertion.filename.mutable_buffer().copy( layer.filename );
         insertion.x = layer.x;
         insertion.y = layer.y;
         insertion.width = min( layer.width, uint16_t( 1280 ) );
