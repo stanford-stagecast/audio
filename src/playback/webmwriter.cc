@@ -52,10 +52,9 @@ WebMWriter::WebMWriter( const int bit_rate, const uint32_t sample_rate, const ui
   }
 
   /* open internal buffer */
-  buffer_.reset( static_cast<uint8_t*>( notnull( "av_malloc", av_malloc( BUF_SIZE ) ) ) );
-  context_->pb
-    = notnull( "avio_alloc_context",
-               avio_alloc_context( buffer_.get(), BUF_SIZE, true, &buf_, nullptr, write_helper, nullptr ) );
+  buffer_ = static_cast<uint8_t*>( notnull( "av_malloc", av_malloc( BUF_SIZE ) ) );
+  context_->pb = notnull( "avio_alloc_context",
+                          avio_alloc_context( buffer_, BUF_SIZE, true, &buf_, nullptr, write_helper, nullptr ) );
 
   /* allocate audio stream */
   audio_stream_ = notnull( "avformat_new_stream", avformat_new_stream( context_.get(), nullptr ) );

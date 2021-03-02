@@ -25,11 +25,7 @@ class WebMWriter
   };
   std::unique_ptr<AVFormatContext, avformat_deleter> context_ {};
 
-  struct av_deleter
-  {
-    void operator()( uint8_t* x ) const { av_free( x ); }
-  };
-  std::unique_ptr<uint8_t, av_deleter> buffer_ {};
+  uint8_t* buffer_ {};
 
   AVStream* audio_stream_;
 
