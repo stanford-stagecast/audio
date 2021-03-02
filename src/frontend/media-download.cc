@@ -69,6 +69,14 @@ int main( int argc, char* argv[] )
       }
     }
 
+    if ( type == "image" ) {
+      filename += ".png";
+    } else if ( type == "audio" ) {
+      filename += ".wav";
+    } else if ( type == "video" ) {
+      filename += ".mp4";
+    }
+
     cout << "wget -N -O " << filename << " " << url << "\n";
   }
 
