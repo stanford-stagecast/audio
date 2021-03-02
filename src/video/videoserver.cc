@@ -295,19 +295,19 @@ void VideoServer::insert_preview_layer( const Layer& layer )
 
   if ( layer.type == Layer::layer_type::Media ) {
     try {
-      ReadOnlyFile frame { "/home/media/files/decoded/" + layer.filename };
+      const string filename = "/home/media/files/decoded/" + layer.filename;
+      VideoFile file { filename };
+      file.read_raster();
 
-      RasterYUV420 raster { 1280, 720 };
-      memcpy( raster.Y_row( 0 ), frame.addr(), 1280 * 720 );
-      memcpy( raster.Cb_row( 0 ), frame.addr() + 1280 * 720, 640 * 360 );
-      memcpy( raster.Cr_row( 0 ), frame.addr() + 1280 * 720 + 640 * 360, 640 * 360 );
-
+      RasterYUV420 raster = file.raster();
       auto rgba_raster = make_shared<RasterRGBA>( 1280, 720 );
 
       ColorspaceConverter converter { 1280, 720 };
       converter.convert( raster, *rgba_raster );
 
       preview_.compositor_.load_image( layer.name, rgba_raster );
+
+      cerr << "Successfully loaded " + filename + "\n";
     } catch ( const exception& e ) {
       cerr << e.what() << "\n";
     }
