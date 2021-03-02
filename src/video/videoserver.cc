@@ -285,6 +285,23 @@ void VideoServer::insert_preview_layer( const Layer& layer )
   preview_.scene_.insert( layer );
 
   if ( layer.type == Layer::layer_type::Media ) {
-    cerr << "loading " << layer.name << "\n";
+    try {
+      cerr << "loading " << layer.name << "\n";
+      ReadOnlyFile frame { layer.name };
+      cerr << "success\n";
+
+      RasterYUV420 raster { 1280, 720 };
+      memcpy( raster.Y_row( 0 ), frame.addr(), 1280 * 720 );
+      memcpy( raster.Cb_row( 0 ), frame.addr() + 1280 * 720, 640 * 360 );
+      memcpy( raster.Cr_row( 0 ), frame.addr() + 1280 * 720 + 640 * 360, 640 * 360 );
+
+      shared_ptr<RasterRGBA> rgba_raster;
+
+      ColorspaceConverter converter { 1280, 720 };
+      converter.convert( raster, *rgba_raster );
+
+      preview_.compositor_.load_image( layer.name, rgba_raster );
+    } catch ( const exception& e ) {
+    }
   }
 }
