@@ -88,13 +88,23 @@ int main( int argc, char* argv[] )
     const string name = node["name"].asString();
     const string type = node["type"].asString();
 
-    string filename = url;
+    string filename = name;
     for ( auto& ch : filename ) {
       if ( ch == '/' ) {
         ch = '_';
       } else if ( ch == ':' ) {
         ch = '_';
+      } else if ( ch == ' ' ) {
+        ch = '_';
       }
+    }
+
+    if ( type == "image" ) {
+      filename += ".png";
+    } else if ( type == "audio" ) {
+      filename += ".wav";
+    } else if ( type == "video" ) {
+      filename += ".mp4";
     }
 
     filename += ".rawvideo";
@@ -111,7 +121,7 @@ int main( int argc, char* argv[] )
     if ( cue_number_raw.size() < 2 ) {
       throw runtime_error( "invalid cue number: " + cue_number_raw );
     }
-    cout << cue_number_raw << cue["name"] << "\n";
+    //    cout << cue_number_raw << cue["name"] << "\n";
 
     const auto changes = cue["changes"];
 
@@ -122,10 +132,11 @@ int main( int argc, char* argv[] )
       const auto change_type = change["type"];
 
       if ( action_type == "add" and change_type == "camera" ) {
-        cout << "   ADD camera " << camera_lookup.at( change["camera_id"].asInt() ) << "\n";
+        //        cout << "   ADD camera " << camera_lookup.at( change["camera_id"].asInt() ) << "\n";
 
         View v { change["action"]["config"]["view"] };
-        cout << "        @ " << v.left << " " << v.right << " " << v.top << " " << v.bottom << " " << v.z << "\n";
+        //        cout << "        @ " << v.left << " " << v.right << " " << v.top << " " << v.bottom << " " << v.z
+        //        << "\n";
 
         Layer new_layer;
         new_layer.type = Layer::layer_type::Camera;
@@ -137,10 +148,11 @@ int main( int argc, char* argv[] )
 
         scene.insert( new_layer );
       } else if ( action_type == "add" and change_type == "media" ) {
-        cout << "   ADD media \"" << media_lookup.at( change["media_id"].asInt() ).first << "\"\n";
+        //        cout << "   ADD media \"" << media_lookup.at( change["media_id"].asInt() ).first << "\"\n";
 
         View v { change["action"]["config"]["view"] };
-        cout << "        @ " << v.left << " " << v.right << " " << v.top << " " << v.bottom << " " << v.z << "\n";
+        //        cout << "        @ " << v.left << " " << v.right << " " << v.top << " " << v.bottom << " " << v.z
+        //        << "\n";
 
         Layer new_layer;
         new_layer.type = Layer::layer_type::Media;
@@ -153,23 +165,23 @@ int main( int argc, char* argv[] )
 
         scene.insert( new_layer );
       } else if ( action_type == "remove" and change_type == "camera" ) {
-        cout << "   REMOVE camera " << camera_lookup.at( change["camera_id"].asInt() ) << "\n";
+        //        cout << "   REMOVE camera " << camera_lookup.at( change["camera_id"].asInt() ) << "\n";
 
         scene.remove( camera_lookup.at( change["camera_id"].asInt() ) );
       } else if ( action_type == "remove" and change_type == "media" ) {
-        cout << "   REMOVE media \"" << media_lookup.at( change["media_id"].asInt() ).first << "\"\n";
+        //        cout << "   REMOVE media \"" << media_lookup.at( change["media_id"].asInt() ).first << "\"\n";
 
         scene.remove( media_lookup.at( change["media_id"].asInt() ).first );
       }
+    }
 
+    if ( desired_cue == cue_number_raw ) {
       cout << "#####################\n";
       cout << "      SCENE NOW      \n\n";
       cout << "Cue: " << cue_number_raw << "\n";
       cout << scene.debug_summary();
       cout << "#####################\n\n";
-    }
 
-    if ( desired_cue == cue_number_raw ) {
       atomic_scene_update inst;
 
       {
