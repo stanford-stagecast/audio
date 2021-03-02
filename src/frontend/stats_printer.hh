@@ -23,7 +23,7 @@ class StatsPrinterTask
 
   time_point next_stats_print, next_stats_reset;
 
-  static constexpr auto stats_print_interval = std::chrono::milliseconds( 1000 );
+  static constexpr auto stats_print_interval = std::chrono::milliseconds( 5000 );
   static constexpr auto stats_reset_interval = std::chrono::seconds( 10 );
 
   std::ostringstream ss_ {};
