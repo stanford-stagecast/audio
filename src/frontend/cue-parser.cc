@@ -46,7 +46,7 @@ int main( int argc, char* argv[] )
   }
 
   if ( argc != 4 ) {
-    cerr << "Usage: " << argv[0] << " cue_filename cue_integer cue_fractional";
+    cerr << "Usage: " << argv[0] << " cue_filename cue_integer cue_fractional\n";
     return EXIT_FAILURE;
   }
 
@@ -188,6 +188,8 @@ int main( int argc, char* argv[] )
 
         send( instruction );
       }
+
+      break;
     }
   }
 
