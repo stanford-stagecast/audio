@@ -164,19 +164,21 @@ struct insert_layer : public control_message<5>
 {
   uint8_t is_media {};
   NetString name {};
+  NetString filename {};
   int16_t x {}, y {};
   uint16_t width {};
   uint16_t z {};
 
   uint32_t serialized_length() const
   {
-    return sizeof( is_media ) + name.serialized_length() + 4 * sizeof( int16_t );
+    return sizeof( is_media ) + name.serialized_length() + filename.serialized_length() + 4 * sizeof( int16_t );
   };
 
   void serialize( Serializer& s ) const
   {
     s.integer( is_media );
     s.object( name );
+    s.object( filename );
     s.integer( x );
     s.integer( y );
     s.integer( width );
@@ -187,6 +189,7 @@ struct insert_layer : public control_message<5>
   {
     p.integer( is_media );
     p.object( name );
+    p.object( filename );
     p.integer( x );
     p.integer( y );
     p.integer( width );
@@ -203,4 +206,22 @@ struct remove_layer : public control_message<6>
   void serialize( Serializer& s ) const { s.object( name ); }
 
   void parse( Parser& p ) { p.object( name ); }
+};
+
+struct atomic_scene_update : public control_message<7>
+{
+  NetArray<remove_layer, 255> removals {};
+  NetArray<insert_layer, 255> insertions {};
+
+  uint32_t serialized_length() const { return removals.serialized_length() + insertions.serialized_length(); }
+  void serialize( Serializer& s ) const
+  {
+    s.object( removals );
+    s.object( insertions );
+  }
+  void parse( Parser& p )
+  {
+    p.object( removals );
+    p.object( insertions );
+  }
 };

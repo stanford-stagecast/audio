@@ -113,10 +113,10 @@ VideoServer::VideoServer( const uint8_t num_clients, EventLoop& loop )
     },
     [&] { return server_clock() >= output_frames_encoded_; } );
 
-  preview_.scene_.insert( Layer { Layer::layer_type::Camera, "Sam", 0, 0, 640, 20 } );
-  preview_.scene_.insert( Layer { Layer::layer_type::Camera, "Audrey", 640, 0, 640, 20 } );
-  preview_.scene_.insert( Layer { Layer::layer_type::Camera, "JJ", 0, 360, 640, 20 } );
-  preview_.scene_.insert( Layer { Layer::layer_type::Camera, "Justine", 640, 360, 640, 20 } );
+  preview_.scene_.insert( Layer { Layer::layer_type::Camera, "Sam", "", 0, 0, 640, 20 } );
+  preview_.scene_.insert( Layer { Layer::layer_type::Camera, "Audrey", "", 640, 0, 640, 20 } );
+  preview_.scene_.insert( Layer { Layer::layer_type::Camera, "JJ", "", 0, 360, 640, 20 } );
+  preview_.scene_.insert( Layer { Layer::layer_type::Camera, "Justine", "", 640, 360, 640, 20 } );
 
   /* preview_.scene_.layers.emplace_back( "KeithBox", 640, 0, 640, false );
   preview_.scene_.layers.emplace_back( "KeithBox", 0, 360, 640, false );
@@ -286,9 +286,7 @@ void VideoServer::insert_preview_layer( const Layer& layer )
 
   if ( layer.type == Layer::layer_type::Media ) {
     try {
-      cerr << "loading " << layer.name << "\n";
-      ReadOnlyFile frame { "/home/keithw/media/" + layer.name };
-      cerr << "success\n";
+      ReadOnlyFile frame { "/home/keithw/media/" + layer.filename };
 
       RasterYUV420 raster { 1280, 720 };
       memcpy( raster.Y_row( 0 ), frame.addr(), 1280 * 720 );

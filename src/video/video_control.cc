@@ -3,6 +3,19 @@
 
 using namespace std;
 
+Layer make_layer( const insert_layer& instruction )
+{
+  Layer new_layer;
+  new_layer.type = instruction.is_media ? Layer::layer_type::Media : Layer::layer_type::Camera;
+  new_layer.name = instruction.name;
+  new_layer.filename = instruction.filename;
+  new_layer.x = instruction.x;
+  new_layer.y = instruction.y;
+  new_layer.width = min( instruction.width, uint16_t( 1280 ) );
+  new_layer.z = instruction.z;
+  return new_layer;
+}
+
 VideoServerController::VideoServerController( shared_ptr<VideoServer> server, EventLoop& loop )
   : socket_()
   , server_( server )
@@ -49,14 +62,7 @@ VideoServerController::VideoServerController( shared_ptr<VideoServer> server, Ev
           return;
         }
 
-        Layer new_layer;
-        new_layer.type = my_insert_layer.is_media ? Layer::layer_type::Media : Layer::layer_type::Camera;
-        new_layer.name = my_insert_layer.name;
-        new_layer.x = my_insert_layer.x;
-        new_layer.y = my_insert_layer.y;
-        new_layer.width = my_insert_layer.width;
-        new_layer.z = my_insert_layer.z;
-        server_->insert_preview_layer( new_layer );
+        server_->insert_preview_layer( make_layer( my_insert_layer ) );
       } break;
 
       case remove_layer::id: {
@@ -69,6 +75,24 @@ VideoServerController::VideoServerController( shared_ptr<VideoServer> server, Ev
 
         server_->remove_preview_layer( my_remove_layer.name );
       } break;
+
+      case atomic_scene_update::id: {
+        atomic_scene_update my_update;
+        parser.object( my_update );
+        if ( parser.error() ) {
+          parser.clear_error();
+          return;
+        }
+
+        for ( const auto& x : my_update.removals ) {
+          server_->remove_preview_layer( x.name );
+        }
+
+        for ( const auto& x : my_update.insertions ) {
+          server_->insert_preview_layer( make_layer( x ) );
+        }
+
+      }; break;
     }
   } );
 }

@@ -144,6 +144,7 @@ int main( int argc, char* argv[] )
 
         Layer new_layer;
         new_layer.type = Layer::layer_type::Media;
+        new_layer.name = media_lookup.at( change["media_id"].asInt() ).first;
         new_layer.name = media_lookup.at( change["media_id"].asInt() ).second;
         new_layer.x = v.left;
         new_layer.y = v.top;
@@ -169,24 +170,27 @@ int main( int argc, char* argv[] )
     }
 
     if ( desired_cue == cue_number_raw ) {
+      atomic_scene_update inst;
+
       {
-        remove_layer instruction;
-        memcpy( instruction.name.mutable_data_ptr(), "all", strlen( "all" ) );
-        instruction.name.resize( strlen( "all" ) );
-        send( instruction );
+        remove_layer removal;
+        memcpy( removal.name.mutable_data_ptr(), "all", strlen( "all" ) );
+        removal.name.resize( strlen( "all" ) );
+        inst.removals.push_back( removal );
       }
 
       for ( const auto& layer : scene.layers ) {
-        insert_layer instruction;
-        instruction.is_media = ( layer.type == Layer::layer_type::Media );
-        instruction.name.resize( layer.name.size() );
-        instruction.name.mutable_buffer().copy( layer.name );
-        instruction.x = layer.x;
-        instruction.y = layer.y;
-        instruction.width = layer.width;
-
-        send( instruction );
+        insert_layer insertion;
+        insertion.is_media = ( layer.type == Layer::layer_type::Media );
+        insertion.name.resize( layer.name.size() );
+        insertion.name.mutable_buffer().copy( layer.name );
+        insertion.x = layer.x;
+        insertion.y = layer.y;
+        insertion.width = min( layer.width, uint16_t( 1280 ) );
+        inst.insertions.push_back( insertion );
       }
+
+      send( inst );
 
       break;
     }

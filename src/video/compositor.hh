@@ -17,6 +17,7 @@ struct Layer
 
   layer_type type {};
   std::string name {};
+  std::string filename {};
   int16_t x {}, y {};
   uint16_t width {};
   uint16_t z {};
