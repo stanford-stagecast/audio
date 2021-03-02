@@ -95,5 +95,9 @@ void Scene::insert( const Layer& layer )
 
 void Scene::remove( const string_view name )
 {
-  layers.remove_if( [name]( const Layer& x ) { return x.name == name; } );
+  if ( name == "all" ) {
+    layers.clear();
+  } else {
+    layers.remove_if( [name]( const Layer& x ) { return x.name == name; } );
+  }
 }

@@ -159,3 +159,48 @@ struct video_control : public control_message<4>
     p.integer( crop_bottom );
   }
 };
+
+struct insert_layer : public control_message<5>
+{
+  uint8_t is_media {};
+  NetString name {};
+  int16_t x {}, y {};
+  uint16_t width {};
+  uint16_t z {};
+
+  uint32_t serialized_length() const
+  {
+    return sizeof( is_media ) + name.serialized_length() + 4 * sizeof( int16_t );
+  };
+
+  void serialize( Serializer& s ) const
+  {
+    s.integer( is_media );
+    s.object( name );
+    s.integer( x );
+    s.integer( y );
+    s.integer( width );
+    s.integer( z );
+  }
+
+  void parse( Parser& p )
+  {
+    p.integer( is_media );
+    p.object( name );
+    p.integer( x );
+    p.integer( y );
+    p.integer( width );
+    p.integer( z );
+  }
+};
+
+struct remove_layer : public control_message<6>
+{
+  NetString name {};
+
+  uint32_t serialized_length() const { return name.serialized_length(); }
+
+  void serialize( Serializer& s ) const { s.object( name ); }
+
+  void parse( Parser& p ) { p.object( name ); }
+};

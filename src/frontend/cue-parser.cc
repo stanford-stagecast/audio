@@ -26,18 +26,33 @@ struct View
   {}
 };
 
+template<class Message>
+void send( const Message& message )
+{
+  StackBuffer<0, uint8_t, 255> buf;
+  Serializer s { buf.mutable_buffer() };
+  s.integer( Message::id );
+  s.object( message );
+  buf.resize( s.bytes_written() );
+
+  UDPSocket socket;
+  socket.sendto( { "127.0.0.1", video_server_control_port() }, buf );
+}
+
 int main( int argc, char* argv[] )
 {
   if ( argc <= 0 ) {
     abort();
   }
 
-  if ( argc != 2 ) {
-    cerr << "Usage: " << argv[0] << " cue_filename\n";
+  if ( argc != 4 ) {
+    cerr << "Usage: " << argv[0] << " cue_filename cue_integer cue_fractional";
     return EXIT_FAILURE;
   }
 
   ReadOnlyFile cues { argv[1] };
+
+  const unsigned int cue_integer_desired = stoi( argv[2] ), cue_fractional_desired = stoi( argv[3] );
 
   istringstream istr;
   istr.str( string( cues ) );
@@ -82,9 +97,7 @@ int main( int argc, char* argv[] )
       }
     }
 
-    if ( type == "image" ) {
-      filename += ".mp4";
-    }
+    filename += ".rawvideo";
 
     media_lookup.insert_or_assign( id, make_pair( name, filename ) );
   }
@@ -151,10 +164,31 @@ int main( int argc, char* argv[] )
       }
     }
 
-    cout << "#####################\n";
-    cout << "      SCENE NOW      \n\n";
-    cout << scene.debug_summary();
-    cout << "#####################\n\n";
+    if ( cue_integer == cue_integer_desired and cue_fractional == cue_fractional_desired ) {
+      cout << "#####################\n";
+      cout << "      SCENE NOW      \n\n";
+      cout << scene.debug_summary();
+      cout << "#####################\n\n";
+
+      {
+        remove_layer instruction;
+        memcpy( instruction.name.mutable_data_ptr(), "all", strlen( "all" ) );
+        instruction.name.resize( strlen( "all" ) );
+        send( instruction );
+      }
+
+      for ( const auto& layer : scene.layers ) {
+        insert_layer instruction;
+        instruction.is_media = ( layer.type == Layer::layer_type::Media );
+        instruction.name.resize( layer.name.size() );
+        instruction.name.mutable_buffer().copy( layer.name );
+        instruction.x = layer.x;
+        instruction.y = layer.y;
+        instruction.width = layer.width;
+
+        send( instruction );
+      }
+    }
   }
 
   return EXIT_SUCCESS;

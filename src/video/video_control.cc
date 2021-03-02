@@ -32,7 +32,7 @@ VideoServerController::VideoServerController( shared_ptr<VideoServer> server, Ev
         }
         server_->set_live( my_set_live.name );
       } break;
-      case video_control::id:
+      case video_control::id: {
         video_control my_video_control;
         parser.object( my_video_control );
         if ( parser.error() ) {
@@ -40,7 +40,35 @@ VideoServerController::VideoServerController( shared_ptr<VideoServer> server, Ev
           return;
         }
         server_->set_zoom( my_video_control );
-        break;
+      } break;
+      case insert_layer::id: {
+        insert_layer my_insert_layer;
+        parser.object( my_insert_layer );
+        if ( parser.error() ) {
+          parser.clear_error();
+          return;
+        }
+
+        Layer new_layer;
+        new_layer.type = my_insert_layer.is_media ? Layer::layer_type::Media : Layer::layer_type::Camera;
+        new_layer.name = my_insert_layer.name;
+        new_layer.x = my_insert_layer.x;
+        new_layer.y = my_insert_layer.y;
+        new_layer.width = my_insert_layer.width;
+        new_layer.z = my_insert_layer.z;
+        server->insert_preview_layer( new_layer );
+      } break;
+
+      case remove_layer::id: {
+        remove_layer my_remove_layer;
+        parser.object( my_remove_layer );
+        if ( parser.error() ) {
+          parser.clear_error();
+          return;
+        }
+
+        server->remove_preview_layer( my_remove_layer.name );
+      } break;
     }
   } );
 }
