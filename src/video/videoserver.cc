@@ -300,6 +300,7 @@ void VideoServer::insert_preview_layer( const Layer& layer )
 
       preview_.compositor_.load_image( layer.name, rgba_raster );
     } catch ( const exception& e ) {
+      cerr << e.what() << "\n";
     }
   }
 }
