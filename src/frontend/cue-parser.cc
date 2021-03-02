@@ -146,7 +146,7 @@ int main( int argc, char* argv[] )
 
         Layer new_layer;
         new_layer.type = Layer::layer_type::Media;
-        new_layer.name = media_lookup.at( change["media_id"].asInt() ).first;
+        new_layer.name = media_lookup.at( change["media_id"].asInt() ).second;
         new_layer.x = v.left;
         new_layer.y = v.top;
         new_layer.width = v.right - v.left;
