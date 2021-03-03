@@ -29,7 +29,7 @@ struct View
 template<class Message>
 void send( const Message& message )
 {
-  StackBuffer<0, uint8_t, 255> buf;
+  StackBuffer<0, uint16_t, 65535> buf;
   Serializer s { buf.mutable_buffer() };
   s.integer( Message::id );
   s.object( message );
