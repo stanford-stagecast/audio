@@ -202,7 +202,7 @@ uint64_t VideoMKVWriter::write_video( const std::string_view nal,
   packet.data = const_cast<uint8_t*>(
     reinterpret_cast<const uint8_t*>( nal.data() ) ); /* hope that av_write_frame doesn't change contents */
   packet.size = nal.size();
-  packet.stream_index = 0;
+  packet.stream_index = 1;
   packet.duration = duration;
   packet.pos = -1;
 
