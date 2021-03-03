@@ -77,7 +77,7 @@ int main( int argc, char* argv[] )
       filename += ".mp4";
     }
 
-    cout << "wget -N -O " << filename << " " << url << "\n";
+    cout << "wget -N -O '" << filename << "' '" << url << "'\n";
   }
 
   return EXIT_SUCCESS;
