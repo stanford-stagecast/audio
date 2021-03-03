@@ -76,13 +76,15 @@ void AudioWriter::mix_and_write( const AudioBoard& board, const uint64_t cursor_
     big_opus_frame encoded_frame;
     encoder_.encode_stereo( ch1_target, ch2_target, encoded_frame );
     socket_.sendto_ignore_errors( destination_, encoded_frame );
+    socket_.sendto_ignore_errors( destination2_, encoded_frame );
     mix_cursor_ += big_opus_frame::NUM_SAMPLES;
     mixed_audio_.pop_before( mix_cursor_ );
   }
 }
 
-AudioWriter::AudioWriter( const string_view socket_path )
+AudioWriter::AudioWriter( const string_view socket_path, const string_view socket_path2 )
   : destination_( Address::abstract_unix( socket_path ) )
+  , destination2_( Address::abstract_unix( socket_path2 ) )
 {
   socket_.set_blocking( false );
 }

@@ -17,6 +17,7 @@ struct CompositingGroup
   Compositor compositor_ {};
   H264Encoder feed_ { 1280, 720, 24, "veryfast", "zerolatency" };
   Address destination_ { Address::abstract_unix( "stagecast-" + name_ + "-video" ) };
+  Address destination2_ { Address::abstract_unix( "stagecast-" + name_ + "-video-filmout" ) };
   UnixDatagramSocket broadcast_socket_ {};
   Scene scene_ {};
   RasterRGBA composite_ { 1280, 720 };
@@ -38,6 +39,8 @@ struct CompositingGroup
     if ( feed_.has_nal() ) {
       broadcast_socket_.sendto_ignore_errors(
         destination_, { reinterpret_cast<const char*>( feed_.nal().NAL.data() ), feed_.nal().NAL.size() } );
+      broadcast_socket_.sendto_ignore_errors(
+        destination2_, { reinterpret_cast<const char*>( feed_.nal().NAL.data() ), feed_.nal().NAL.size() } );
       feed_.reset_nal();
     }
   }
@@ -68,6 +71,7 @@ class VideoServer : public Summarizable
   H264Encoder camera_feed_ { 1280, 720, 24, "veryfast", "zerolatency" };
   uint8_t camera_feed_live_no_ {};
   Address camera_destination_ { Address::abstract_unix( "stagecast-camera-video" ) };
+  Address camera_destination2_ { Address::abstract_unix( "stagecast-camera-video-filmout" ) };
   UnixDatagramSocket camera_broadcast_socket_ {};
 
   uint64_t output_frames_encoded_ {};

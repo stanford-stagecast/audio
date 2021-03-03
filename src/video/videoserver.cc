@@ -97,6 +97,9 @@ VideoServer::VideoServer( const uint8_t num_clients, EventLoop& loop )
         camera_broadcast_socket_.sendto_ignore_errors(
           camera_destination_,
           { reinterpret_cast<const char*>( camera_feed_.nal().NAL.data() ), camera_feed_.nal().NAL.size() } );
+        camera_broadcast_socket_.sendto_ignore_errors(
+          camera_destination2_,
+          { reinterpret_cast<const char*>( camera_feed_.nal().NAL.data() ), camera_feed_.nal().NAL.size() } );
         camera_feed_.reset_nal();
       }
     },

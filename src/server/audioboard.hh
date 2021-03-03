@@ -48,10 +48,10 @@ class AudioWriter
 
   OpusEncoder encoder_ { 96000, 48000, 2, OPUS_APPLICATION_AUDIO };
 
-  Address destination_;
+  Address destination_, destination2_;
   UnixDatagramSocket socket_ {};
 
 public:
-  AudioWriter( const std::string_view socket_path );
+  AudioWriter( const std::string_view socket_path, const std::string_view socket_path2 );
   void mix_and_write( const AudioBoard& board, const uint64_t cursor_sample );
 };

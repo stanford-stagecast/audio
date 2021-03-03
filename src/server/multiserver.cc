@@ -34,9 +34,6 @@ void NetworkMultiServer::add_key( const LongLivedKey& key )
   internal_board_.set_channel_name( ch1, string( key.name() ) );
   internal_board_.set_channel_name( ch2, string( key.name() ) + "-CH2" );
 
-  preview_board_.set_channel_name( ch1, string( key.name() ) );
-  preview_board_.set_channel_name( ch2, string( key.name() ) + "-CH2" );
-
   program_board_.set_channel_name( ch1, string( key.name() ) );
   program_board_.set_channel_name( ch2, string( key.name() ) + "-CH2" );
 }
@@ -52,7 +49,6 @@ NetworkMultiServer::NetworkMultiServer( const uint8_t num_clients, EventLoop& lo
   , next_cursor_sample_( server_clock() + opus_frame::NUM_SAMPLES )
   , num_clients_( num_clients )
   , internal_board_( "internal", 2 * num_clients )
-  , preview_board_( "preview", 2 * num_clients )
   , program_board_( "program", 2 * num_clients )
 {
   socket_.set_blocking( false );
@@ -84,7 +80,7 @@ NetworkMultiServer::NetworkMultiServer( const uint8_t num_clients, EventLoop& lo
       /* decode all audio */
       for ( auto& client : clients_ ) {
         if ( client ) {
-          client.client().decode_audio( next_cursor_sample_, internal_board_, preview_board_, program_board_ );
+          client.client().decode_audio( next_cursor_sample_, internal_board_, program_board_ );
           if ( client.client().connection().sender_stats().last_good_ack_ts + CLIENT_TIMEOUT_NS < ts_now ) {
             client.clear_current_session();
           }
@@ -99,7 +95,6 @@ NetworkMultiServer::NetworkMultiServer( const uint8_t num_clients, EventLoop& lo
       }
 
       internal_audio_.mix_and_write( internal_board_, next_cursor_sample_ );
-      preview_audio_.mix_and_write( preview_board_, next_cursor_sample_ );
       program_audio_.mix_and_write( program_board_, next_cursor_sample_ );
 
       /* send audio to clients */
@@ -111,7 +106,6 @@ NetworkMultiServer::NetworkMultiServer( const uint8_t num_clients, EventLoop& lo
 
       if ( next_cursor_sample_ > 960 ) {
         internal_board_.pop_samples_until( next_cursor_sample_ - 960 );
-        preview_board_.pop_samples_until( next_cursor_sample_ - 960 );
         program_board_.pop_samples_until( next_cursor_sample_ - 960 );
       }
 
@@ -134,7 +128,6 @@ void NetworkMultiServer::summary( ostream& out ) const
 void NetworkMultiServer::json_summary( Json::Value& root, const bool include_second_channels ) const
 {
   internal_board_.json_summary( root["board"][internal_board_.name()], include_second_channels );
-  preview_board_.json_summary( root["board"][preview_board_.name()], include_second_channels );
   program_board_.json_summary( root["board"][program_board_.name()], include_second_channels );
 
   for ( const auto& client : clients_ ) {
@@ -169,8 +162,6 @@ void NetworkMultiServer::set_gain( const string_view board_name,
     target = &internal_board_;
   } else if ( program_board_.name() == board_name ) {
     target = &program_board_;
-  } else if ( preview_board_.name() == board_name ) {
-    target = &preview_board_;
   }
 
   if ( target ) {

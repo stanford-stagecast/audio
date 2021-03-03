@@ -254,13 +254,11 @@ void program_body( const string origin, const string cert_filename, const string
   SSLServerContext ssl_context { cert_filename, privkey_filename };
 
   /* receive new additions to stream */
-  UnixDatagramSocket internal_receiver, preview_receiver, program_receiver;
+  UnixDatagramSocket internal_receiver, program_receiver;
   internal_receiver.set_blocking( false );
-  preview_receiver.set_blocking( false );
   program_receiver.set_blocking( false );
 
   internal_receiver.bind( Address::abstract_unix( "stagecast-internal-audio" ) );
-  preview_receiver.bind( Address::abstract_unix( "stagecast-preview-audio" ) );
   program_receiver.bind( Address::abstract_unix( "stagecast-program-audio" ) );
 
   /* start listening for HTTP connections */
@@ -305,23 +303,6 @@ void program_body( const string origin, const string cert_filename, const string
 
     for ( auto& client : clients->clients ) {
       if ( client.feed() == "internal" ) {
-        try {
-          client.push_opus_frame( buf );
-        } catch ( const exception& e ) {
-          client.cull( "Muxer exception" );
-        }
-      }
-    }
-  } );
-
-  loop->add_rule( "new preview segment", preview_receiver, Direction::In, [&] {
-    buf.resize( preview_receiver.recv( buf.mutable_buffer() ) );
-    if ( buf.length() == 0 ) {
-      return;
-    }
-
-    for ( auto& client : clients->clients ) {
-      if ( client.feed() == "preview" ) {
         try {
           client.push_opus_frame( buf );
         } catch ( const exception& e ) {
