@@ -5,28 +5,36 @@
 
 using namespace std;
 
-void Compositor::apply( const Scene& scene, RasterRGBA& raster )
+void Compositor::apply( Scene& scene, RasterRGBA& raster )
 {
   /* fill with black */
   fill( raster.pixels().begin(), raster.pixels().end(), RasterRGBA::pixel { 0, 0, 0, 255 } );
 
   /* apply layers in order */
   for ( auto& layer : scene.layers ) {
-    if ( images_.count( layer.name ) ) {
-      layer.render( *images_.at( layer.name ), raster );
+    layer.render( raster );
+  }
+}
+
+void Scene::load_camera_image( const string& name, const shared_ptr<RasterRGBA> image )
+{
+  for ( auto& layer : layers ) {
+    if ( layer.name == name and layer.type == Layer::layer_type::Camera ) {
+      layer.image = image;
     }
   }
 }
 
-void Compositor::load_image( const string& name, const shared_ptr<const RasterRGBA> image )
-{
-  images_.insert_or_assign( name, image );
-}
-
-void Layer::render( const RasterRGBA& source, RasterRGBA& output ) const
+void Layer::render( RasterRGBA& output )
 {
   uint16_t height = 720 * width / 1280;
   vector<thread> threads;
+
+  if ( ( type == Layer::layer_type::Media ) and video ) {
+    video->read_raster();
+    converter.convert( video->raster(), *decoded_video_frame_ );
+    image = decoded_video_frame_;
+  }
 
   constexpr unsigned int num_threads = 8;
   for ( unsigned int i = 0; i < num_threads; i++ ) {
@@ -44,7 +52,7 @@ void Layer::render( const RasterRGBA& source, RasterRGBA& output ) const
 
             if ( target_x >= 0 and target_x >= 0 and target_x < 1280 and target_y < 720 and source_x < 1280
                  and source_y < 720 ) {
-              const auto src = source.pel( source_x, source_y );
+              const auto src = image->pel( source_x, source_y );
               auto& outputpel = output.pel( target_x, target_y );
               float alpha = src.alpha / 255.0;
 
@@ -81,16 +89,16 @@ string Scene::debug_summary() const
   return ret;
 }
 
-void Scene::insert( const Layer& layer )
+void Scene::insert( Layer&& layer )
 {
   for ( auto it = layers.begin(); it != layers.end(); it++ ) {
     if ( layer.z > it->z ) {
-      layers.insert( it, layer );
+      layers.insert( it, move( layer ) );
       return;
     }
   }
 
-  layers.push_back( layer );
+  layers.push_back( move( layer ) );
 
   cerr << "### SCENE ###\n";
   cerr << debug_summary() << "\n\n";

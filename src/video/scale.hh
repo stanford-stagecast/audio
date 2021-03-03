@@ -49,10 +49,14 @@ public:
   ColorspaceConverter( const uint16_t width, const uint16_t height );
   ~ColorspaceConverter();
 
-  void convert( const RasterYUV420& yuv, RasterRGBA& output );
-  void convert( const RasterRGBA& rgba, RasterYUV420& output );
+  void convert( const RasterYUV420& yuv, RasterRGBA& output ) const;
+  void convert( const RasterRGBA& rgba, RasterYUV420& output ) const;
 
-  ColorspaceConverter( ColorspaceConverter&& other ) = default;
+  ColorspaceConverter( ColorspaceConverter&& other )
+    : yuv2rgba_( other.yuv2rgba_ )
+    , rgba2yuv_( other.rgba2yuv_ )
+  {}
+
   ColorspaceConverter& operator=( ColorspaceConverter&& other ) = default;
 
   ColorspaceConverter( const ColorspaceConverter& other ) = delete;

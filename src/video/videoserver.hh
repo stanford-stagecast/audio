@@ -77,7 +77,7 @@ class VideoServer : public Summarizable
 
   void summary( std::ostream& out ) const override;
 
-  void load_cameras( Compositor& compositor );
+  void load_cameras( Scene& compositor );
 
 public:
   VideoServer( const uint8_t num_clients, EventLoop& loop );
@@ -91,6 +91,6 @@ public:
 
   void json_summary( Json::Value& root ) const;
 
-  void insert_preview_layer( const Layer& layer );
+  void insert_preview_layer( Layer&& layer );
   void remove_preview_layer( const std::string_view name ) { preview_.scene_.remove( name ); }
 };

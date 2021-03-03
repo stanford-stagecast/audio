@@ -297,4 +297,7 @@ target_link_libraries ("cue-parser" util)
 target_link_libraries ("cue-parser" ${JSON_LDFLAGS})
 target_link_libraries ("cue-parser" ${JSON_LDFLAGS_OTHER})
 
+target_link_libraries ("cue-parser" ${V4L_LDFLAGS})
+target_link_libraries ("cue-parser" ${V4L_LDFLAGS_OTHER})
+
 target_link_libraries ("cue-parser" "-pthread")

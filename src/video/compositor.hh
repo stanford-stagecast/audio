@@ -2,6 +2,7 @@
 
 #include "raster.hh"
 #include "scale.hh"
+#include "videofile.hh"
 #include "vsclient.hh"
 
 #include <list>
@@ -21,8 +22,12 @@ struct Layer
   int16_t x {}, y {};
   uint16_t width {};
   uint16_t z {};
+  std::shared_ptr<VideoFile> video {};
+  std::shared_ptr<RasterRGBA> decoded_video_frame_ = std::make_shared<RasterRGBA>( 1280, 720 );
+  std::shared_ptr<RasterRGBA> image {};
+  ColorspaceConverter converter { 1280, 720 };
 
-  void render( const RasterRGBA& source, RasterRGBA& target ) const;
+  void render( RasterRGBA& target );
 };
 
 struct Scene
@@ -31,8 +36,10 @@ struct Scene
 
   std::string debug_summary() const;
 
-  void insert( const Layer& layer );
+  void insert( Layer&& layer );
   void remove( const std::string_view name );
+
+  void load_camera_image( const std::string& name, const std::shared_ptr<RasterRGBA> image );
 };
 
 class Compositor
@@ -40,6 +47,5 @@ class Compositor
   std::unordered_map<std::string, std::shared_ptr<const RasterRGBA>> images_ {};
 
 public:
-  void load_image( const std::string& name, const std::shared_ptr<const RasterRGBA> image );
-  void apply( const Scene& scene, RasterRGBA& output );
+  void apply( Scene& scene, RasterRGBA& output );
 };

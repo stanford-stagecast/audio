@@ -129,7 +129,7 @@ ColorspaceConverter::~ColorspaceConverter()
   }
 }
 
-void ColorspaceConverter::convert( const RasterYUV420& yuv, RasterRGBA& output )
+void ColorspaceConverter::convert( const RasterYUV420& yuv, RasterRGBA& output ) const
 {
   const array<const uint8_t*, 3> source_planes { yuv.Y_row( 0 ), yuv.Cb_row( 0 ), yuv.Cr_row( 0 ) };
   const array<const int, 3> source_strides { yuv.width(), yuv.chroma_width(), yuv.chroma_width() };
@@ -146,7 +146,7 @@ void ColorspaceConverter::convert( const RasterYUV420& yuv, RasterRGBA& output )
              dest_strides.data() );
 }
 
-void ColorspaceConverter::convert( const RasterRGBA& rgba, RasterYUV420& output )
+void ColorspaceConverter::convert( const RasterRGBA& rgba, RasterYUV420& output ) const
 {
   const array<const uint8_t*, 3> source_planes { rgba.data(), nullptr, nullptr };
   const array<const int, 3> source_strides { rgba.width() * 4, 0, 0 };

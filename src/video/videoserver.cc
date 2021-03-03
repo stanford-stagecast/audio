@@ -41,7 +41,6 @@ VideoServer::VideoServer( const uint8_t num_clients, EventLoop& loop )
   , next_ack_ts_ { Timer::timestamp_ns() }
 {
   VideoFile default_raster_file { "/home/media/files/decoded/default.png.rawvideo" };
-  default_raster_file.read_raster();
   default_raster_ = default_raster_file.raster();
 
   ColorspaceConverter converter_ { 1280, 720 };
@@ -106,8 +105,8 @@ VideoServer::VideoServer( const uint8_t num_clients, EventLoop& loop )
   loop.add_rule(
     "encode [preview & program]",
     [&] {
-      load_cameras( preview_.compositor_ );
-      load_cameras( program_.compositor_ );
+      load_cameras( preview_.scene_ );
+      load_cameras( program_.scene_ );
 
       vector<thread> threads;
       threads.reserve( 2 );
@@ -277,38 +276,30 @@ void VideoServer::set_zoom( const video_control& control )
   }
 }
 
-void VideoServer::load_cameras( Compositor& compositor )
+void VideoServer::load_cameras( Scene& scene )
 {
   for ( const auto& client : clients_ ) {
     if ( client ) {
-      compositor.load_image( client.name(), client.client().raster_keyed_ );
+      scene.load_camera_image( client.name(), client.client().raster_keyed_ );
     } else {
-      compositor.load_image( client.name(), default_raster_keyed_ );
+      scene.load_camera_image( client.name(), default_raster_keyed_ );
     }
   }
 }
 
-void VideoServer::insert_preview_layer( const Layer& layer )
-
+void VideoServer::insert_preview_layer( Layer&& layer )
 {
   if ( layer.type == Layer::layer_type::Media ) {
     try {
       const string filename = "/home/media/files/decoded/" + layer.filename;
-      VideoFile file { filename };
-      file.read_raster();
-
-      RasterYUV420 raster = file.raster();
-      auto rgba_raster = make_shared<RasterRGBA>( 1280, 720 );
-
-      ColorspaceConverter converter { 1280, 720 };
-      converter.convert( raster, *rgba_raster );
-
-      preview_.compositor_.load_image( layer.name, rgba_raster );
-      preview_.scene_.insert( layer );
+      layer.video = make_shared<VideoFile>( filename );
+      preview_.scene_.insert( move( layer ) );
 
       cerr << "Successfully loaded " + filename + "\n";
     } catch ( const exception& e ) {
       cerr << e.what() << "\n";
     }
+  } else {
+    preview_.scene_.insert( move( layer ) );
   }
 }

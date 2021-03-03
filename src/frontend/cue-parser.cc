@@ -146,7 +146,7 @@ int main( int argc, char* argv[] )
         new_layer.width = v.right - v.left;
         new_layer.z = v.z;
 
-        scene.insert( new_layer );
+        scene.insert( move( new_layer ) );
       } else if ( action_type == "add" and change_type == "media" ) {
         //        cout << "   ADD media \"" << media_lookup.at( change["media_id"].asInt() ).first << "\"\n";
 
@@ -163,7 +163,7 @@ int main( int argc, char* argv[] )
         new_layer.width = v.right - v.left;
         new_layer.z = v.z;
 
-        scene.insert( new_layer );
+        scene.insert( move( new_layer ) );
       } else if ( action_type == "remove" and change_type == "camera" ) {
         //        cout << "   REMOVE camera " << camera_lookup.at( change["camera_id"].asInt() ) << "\n";
 
