@@ -50,7 +50,7 @@ VideoMKVWriter::VideoMKVWriter( const int audio_bit_rate,
 {
   {
     AVFormatContext* tmp_context;
-    av_check( avformat_alloc_output_context2( &tmp_context, nullptr, "mkv", nullptr ) );
+    av_check( avformat_alloc_output_context2( &tmp_context, nullptr, "matroska", nullptr ) );
     notnull( "avformat_alloc_output_context2", tmp_context );
     context_.reset( tmp_context );
   }
