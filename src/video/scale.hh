@@ -55,7 +55,9 @@ public:
   ColorspaceConverter( ColorspaceConverter&& other )
     : yuv2rgba_( other.yuv2rgba_ )
     , rgba2yuv_( other.rgba2yuv_ )
-  {}
+  {
+    other.yuv2rgba_ = other.rgba2yuv_ = nullptr;
+  }
 
   ColorspaceConverter& operator=( ColorspaceConverter&& other ) = default;
 
