@@ -29,7 +29,7 @@ class VideoMKVWriter
   static constexpr unsigned int BUF_SIZE = 1048576;
   RingBuffer buf_ { BUF_SIZE };
 
-  constexpr static unsigned int MKV_TIMEBASE = 90000;
+  constexpr static unsigned int MKV_TIMEBASE = 1000;
 
   unsigned int sample_rate_;
   unsigned int frame_rate_, width_, height_;
