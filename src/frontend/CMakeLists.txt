@@ -301,3 +301,11 @@ target_link_libraries ("cue-parser" ${V4L_LDFLAGS})
 target_link_libraries ("cue-parser" ${V4L_LDFLAGS_OTHER})
 
 target_link_libraries ("cue-parser" "-pthread")
+
+add_executable (filmout "filmout.cc")
+target_link_libraries ("filmout" video)
+target_link_libraries ("filmout" util)
+target_link_libraries ("filmout" ${AVFormat_LDFLAGS})
+target_link_libraries ("filmout" ${AVFormat_LDFLAGS_OTHER})
+target_link_libraries ("filmout" ${X264_LDFLAGS})
+target_link_libraries ("filmout" ${X264_LDFLAGS_OTHER})

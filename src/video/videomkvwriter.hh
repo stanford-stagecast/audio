@@ -46,9 +46,9 @@ public:
                   const unsigned int width,
                   const unsigned int height );
 
-  void write_audio( const std::string_view frame, const uint16_t num_samples );
+  uint64_t write_audio( const std::string_view frame, const uint16_t num_samples );
 
-  void write_video( const std::string_view nal, const uint32_t presentation_no, const uint32_t display_no );
+  uint64_t write_video( const std::string_view nal, const uint32_t presentation_no, const uint32_t display_no );
 
   RingBuffer& output() { return buf_; }
 

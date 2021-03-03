@@ -43,7 +43,6 @@ VideoMKVWriter::VideoMKVWriter( const int audio_bit_rate,
                                 const unsigned int height )
   : audio_stream_()
   , video_stream_()
-  , header_written_( false )
   , sample_rate_( audio_sample_rate )
   , frame_rate_( video_frame_rate )
   , width_( width )
@@ -93,7 +92,7 @@ VideoMKVWriter::VideoMKVWriter( const int audio_bit_rate,
   } opus_head;
 
   opus_head.channels = audio_num_channels;
-  opus_head.input_sample_rate = htole32( sample_rate );
+  opus_head.input_sample_rate = htole32( sample_rate_ );
 
   static_assert( sizeof( opus_head ) == 19 );
 
@@ -143,8 +142,10 @@ VideoMKVWriter::VideoMKVWriter( const int audio_bit_rate,
   avio_flush( context_->pb );
 }
 
-void VideoMKVWriter::write_audio( const std::string_view frame, const uint16_t num_samples )
+uint64_t VideoMKVWriter::write_audio( const std::string_view frame, const uint16_t num_samples )
 {
+  const uint64_t duration = uint64_t( MKV_TIMEBASE ) * uint64_t( num_samples ) / uint64_t( sample_rate_ );
+
   AVPacket packet {};
   packet.buf = nullptr;
   packet.pts = uint64_t( MKV_TIMEBASE ) * uint64_t( sample_count_ ) / uint64_t( sample_rate_ );
@@ -154,7 +155,7 @@ void VideoMKVWriter::write_audio( const std::string_view frame, const uint16_t n
   packet.size = frame.length();
   packet.stream_index = 0;
   packet.flags = AV_PKT_FLAG_KEY;
-  packet.duration = uint64_t( MKV_TIMEBASE ) * uint64_t( num_samples ) / uint64_t( sample_rate_ );
+  packet.duration = duration;
   packet.pos = -1;
 
   av_check( av_write_frame( context_.get(), &packet ) );
@@ -162,6 +163,8 @@ void VideoMKVWriter::write_audio( const std::string_view frame, const uint16_t n
   avio_flush( context_->pb );
 
   sample_count_ += num_samples;
+
+  return duration;
 }
 
 bool VideoMKVWriter::is_idr( const string_view nal )
@@ -177,10 +180,12 @@ bool VideoMKVWriter::is_idr( const string_view nal )
   return false;
 }
 
-void VideoMKVWriter::write_video( const std::string_view nal,
-                                  const uint32_t presentation_no,
-                                  const uint32_t display_no )
+uint64_t VideoMKVWriter::write_video( const std::string_view nal,
+                                      const uint32_t presentation_no,
+                                      const uint32_t display_no )
 {
+  const uint64_t duration = MKV_TIMEBASE / frame_rate_;
+
   AVPacket packet {};
   packet.buf = nullptr;
   packet.pts = uint64_t( presentation_no ) * uint64_t( MKV_TIMEBASE ) / uint64_t( frame_rate_ );
@@ -189,7 +194,7 @@ void VideoMKVWriter::write_video( const std::string_view nal,
     reinterpret_cast<const uint8_t*>( nal.data() ) ); /* hope that av_write_frame doesn't change contents */
   packet.size = nal.size();
   packet.stream_index = 0;
-  packet.duration = MKV_TIMEBASE / frame_rate_;
+  packet.duration = duration;
   packet.pos = -1;
 
   if ( is_idr( nal ) ) {
@@ -208,4 +213,6 @@ void VideoMKVWriter::write_video( const std::string_view nal,
     av_check( av_write_frame( context_.get(), nullptr ) );
     avio_flush( context_->pb );
   }
+
+  return duration;
 }
