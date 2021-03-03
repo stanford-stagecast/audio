@@ -44,7 +44,8 @@ public:
                   const uint8_t audio_num_channels,
                   const unsigned int video_frame_rate,
                   const unsigned int width,
-                  const unsigned int height );
+                  const unsigned int height,
+                  const std::string_view extradata_idr );
 
   uint64_t write_audio( const std::string_view frame, const uint16_t num_samples );
 

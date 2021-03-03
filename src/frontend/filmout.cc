@@ -27,7 +27,7 @@ int main( int argc, char* argv[] )
     throw runtime_error( "failed to encode default IDR" );
   }
 
-  VideoMKVWriter muxer { 96000, 48000, 2, 24, 1280, 720 };
+  VideoMKVWriter muxer { 96000, 48000, 2, 24, 1280, 720, blank_frame_encoder.nal().NAL };
 
   UnixDatagramSocket audio_receiver {}, video_receiver {};
   audio_receiver.set_blocking( false );

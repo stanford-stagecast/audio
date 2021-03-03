@@ -40,7 +40,8 @@ VideoMKVWriter::VideoMKVWriter( const int audio_bit_rate,
                                 const uint8_t audio_num_channels,
                                 const unsigned int video_frame_rate,
                                 const unsigned int width,
-                                const unsigned int height )
+                                const unsigned int height,
+                                const string_view extradata_idr )
   : audio_stream_()
   , video_stream_()
   , sample_rate_( audio_sample_rate )
@@ -122,6 +123,14 @@ VideoMKVWriter::VideoMKVWriter( const int audio_bit_rate,
   video_stream_->codecpar->initial_padding = 0;
   video_stream_->codecpar->trailing_padding = 0;
   video_stream_->duration = 0;
+
+  if ( not is_idr( extradata_idr ) ) {
+    throw runtime_error( "extradata is not an IDR" );
+  }
+
+  video_stream_->codecpar->extradata
+    = const_cast<uint8_t*>( reinterpret_cast<const uint8_t*>( extradata_idr.data() ) );
+  video_stream_->codecpar->extradata_size = extradata_idr.size();
 
   AVDictionary* flags = nullptr;
   av_check( av_dict_set( &flags, "movflags", "default_base_moof+faststart+frag_custom", 0 ) );
