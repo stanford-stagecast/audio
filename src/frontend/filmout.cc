@@ -71,5 +71,8 @@ int main( int argc, char* argv[] )
     cerr << "V";
   } );
 
+  while ( loop.wait_next_event( -1 ) != EventLoop::Result::Exit ) {
+  }
+
   return EXIT_SUCCESS;
 }
