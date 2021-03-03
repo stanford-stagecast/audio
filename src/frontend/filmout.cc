@@ -57,7 +57,7 @@ int main( int argc, char* argv[] )
     }
   } );
 
-  loop.add_rule( "new video segment", audio_receiver, Direction::In, [&] {
+  loop.add_rule( "new video segment", video_receiver, Direction::In, [&] {
     buf.resize( video_receiver.recv( buf.mutable_buffer() ) );
 
     if ( ( video_time > audio_time ) and ( video_time - audio_time ) > 45000 ) {
