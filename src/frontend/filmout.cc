@@ -48,6 +48,7 @@ int main( int argc, char* argv[] )
     buf.resize( audio_receiver.recv( buf.mutable_buffer() ) );
     audio_time += muxer.write_audio( buf, big_opus_frame::NUM_SAMPLES );
     muxer.output().pop( muxer.output().readable_region().size() );
+    cerr << "A";
 
     while ( ( audio_time > video_time ) and ( audio_time - video_time ) > 45000 ) {
       cerr << "Inserting blank frame @ time = " << audio_time << "\n";
@@ -67,6 +68,7 @@ int main( int argc, char* argv[] )
     video_time += muxer.write_video( buf, video_frame_count, video_frame_count );
     video_frame_count++;
     muxer.output().pop( muxer.output().readable_region().size() );
+    cerr << "V";
   } );
 
   return EXIT_SUCCESS;
