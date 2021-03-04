@@ -68,7 +68,7 @@ struct Scene
 
     {
       insert_layer inst;
-      inst.name = name1;
+      inst.name = name2;
       inst.width = 640;
       inst.x = 640;
       inst.y = 180;
