@@ -50,6 +50,34 @@ struct Scene
     }
     return ret;
   }
+
+  static Scene two_shot( const string_view name1, const string_view name2 )
+  {
+    Scene ret;
+    ret.name = string( name1 ) + " | " + string( name2 );
+
+    {
+      insert_layer inst;
+      inst.name = name1;
+      inst.width = 640;
+      inst.x = 0;
+      inst.y = 180;
+      inst.z = 50;
+      ret.layers.push_back( inst );
+    }
+
+    {
+      insert_layer inst;
+      inst.name = name1;
+      inst.width = 640;
+      inst.x = 640;
+      inst.y = 180;
+      inst.z = 50;
+      ret.layers.push_back( inst );
+    }
+
+    return ret;
+  }
 };
 
 struct SceneList
@@ -489,6 +517,8 @@ void program_body( const string origin, const string cert_filename, const string
   scenes->scenes.push_back( Scene::iso_scene( "Michael" ) );
   scenes->scenes.push_back( Scene::iso_scene( "Keith" ) );
   scenes->scenes.push_back( Scene::iso_scene( "Band" ) );
+  scenes->scenes.push_back( Scene::two_shot( "Michael", "Keith" ) );
+  scenes->scenes.push_back( Scene::two_shot( "Audrey", "Aiyana" ) );
 
   loop->add_rule( "new Preview connection", preview_listen_socket, Direction::In, [&] {
     clients->clients.emplace_back(
