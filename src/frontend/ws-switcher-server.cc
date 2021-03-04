@@ -61,6 +61,8 @@ struct SceneList
     optional<atomic_scene_update> ret;
     for ( auto& scene : scenes ) {
       if ( scene.name == scene_name ) {
+        cerr << "found " << scene_name << "\n";
+
         ret.emplace();
 
         {
@@ -75,6 +77,8 @@ struct SceneList
         }
 
         break;
+      } else {
+        cerr << "checked " << scene.name << "\n";
       }
     }
 
