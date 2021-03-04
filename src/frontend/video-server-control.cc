@@ -42,6 +42,19 @@ void program_body( const string& control,
     instruction.width = stoi( c );
     instruction.height = stoi( d );
     send( instruction );
+  } else if ( control == "insert" ) {
+    insert_layer instruction;
+    instruction.is_media = false;
+    instruction.name = NetString( name );
+    instruction.x = stoi( a );
+    instruction.y = stoi( b );
+    instruction.width = stoi( c );
+    instruction.z = stoi( d );
+    send( instruction );
+  } else if ( control == "remove" ) {
+    remove_layer instruction;
+    instruction.name = NetString( name );
+    send( instruction );
   } else {
     throw runtime_error( "unknown control" );
   }

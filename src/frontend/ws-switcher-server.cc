@@ -560,6 +560,7 @@ void program_body( const string origin, const string cert_filename, const string
   scenes->scenes.push_back( Scene::two_shot( "Audrey", "Justine" ) );
   scenes->scenes.push_back( Scene::two_shot( "Audrey", "Sam" ) );
   scenes->scenes.push_back( Scene::two_shot( "JJ", "Aiyana" ) );
+  scenes->scenes.push_back( Scene::two_shot( "JJ", "Audrey" ) );
   scenes->scenes.push_back( Scene::two_shot( "Justine", "Sam" ) );
   scenes->scenes.push_back( Scene::three_shot( "Sam", "Audrey", "Justine" ) );
 
