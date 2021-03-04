@@ -31,7 +31,56 @@ void send_control( const Message& message )
   socket.sendto( { "127.0.0.1", video_server_control_port() }, buf );
 }
 
-void make_scene( atomic_scene_update&, const string_view ) {}
+struct Scene
+{
+  string name {};
+
+  list<insert_layer> layers {};
+
+  static Scene iso_scene( const string_view name )
+  {
+    Scene ret;
+    ret.name = name;
+    {
+      insert_layer inst;
+      inst.name = name;
+      inst.width = 1280;
+      inst.z = 50;
+      ret.layers.push_back( inst );
+    }
+    return ret;
+  }
+};
+
+struct SceneList
+{
+  vector<Scene> scenes {};
+
+  optional<atomic_scene_update> make( const string_view scene_name ) const
+  {
+    optional<atomic_scene_update> ret;
+    for ( auto& scene : scenes ) {
+      if ( scene.name == scene_name ) {
+        ret.emplace();
+
+        {
+          remove_layer removal;
+          memcpy( removal.name.mutable_data_ptr(), "all", strlen( "all" ) );
+          removal.name.resize( strlen( "all" ) );
+          ret->removals.push_back( removal );
+        }
+
+        for ( auto& layer : scene.layers ) {
+          ret->insertions.push_back( layer );
+        }
+
+        break;
+      }
+    }
+
+    return ret;
+  }
+};
 
 void split_on_char( const string_view str, const char ch_to_find, vector<string_view>& ret )
 {
@@ -76,7 +125,7 @@ enum class stream_t : uint8_t
 
 class ClientConnection
 {
-  shared_ptr<vector<string>> camera_names_;
+  shared_ptr<SceneList> scenes_;
   SSLSession ssl_session_;
   WebSocketServer ws_server_;
   MP4Writer muxer_ { 24, 1280, 720 };
@@ -124,17 +173,10 @@ private:
     } else if ( ( s.size() > 6 ) and ( s.substr( 0, 6 ) == "scene " ) ) {
       const string_view scene_name = s.substr( 7 );
 
-      atomic_scene_update inst;
-
-      {
-        remove_layer removal;
-        memcpy( removal.name.mutable_data_ptr(), "all", strlen( "all" ) );
-        removal.name.resize( strlen( "all" ) );
-        inst.removals.push_back( removal );
+      auto inst = scenes_->make( scene_name );
+      if ( inst.has_value() ) {
+        send_control( inst.value() );
       }
-
-      make_scene( inst, scene_name );
-      send_control( inst );
     }
   }
 
@@ -191,14 +233,14 @@ public:
   }
 
   ClientConnection( const EventCategories& categories,
-                    const shared_ptr<vector<string>>& camera_names,
+                    const shared_ptr<SceneList> scenes,
                     SSLContext& context,
                     TCPSocket& listening_socket,
                     const string& origin,
                     EventLoop& loop,
                     shared_ptr<bool> cull_needed,
                     const stream_t the_stream )
-    : camera_names_( camera_names )
+    : scenes_( scenes )
     , ssl_session_( context.make_SSL_handle(),
                     [&] {
                       auto sock = listening_socket.accept();
@@ -287,7 +329,7 @@ public:
     rules_.push_back( loop.add_rule(
       categories.ws_send,
       [this] {
-        ws_frame_.payload = " " + camera_names_->at( controls_sent_ );
+        ws_frame_.payload = " " + scenes_->scenes.at( controls_sent_ ).name;
         ws_frame_.payload.at( 0 ) = 2;
 
         Serializer s { ssl_session_.outbound_plaintext().writable_region() };
@@ -297,7 +339,7 @@ public:
         controls_sent_++;
       },
       [&] {
-        return ws_server_.handshake_complete() and ( controls_sent_ < camera_names_->size() )
+        return ws_server_.handshake_complete() and ( controls_sent_ < scenes_->scenes.size() )
                and ssl_session_.outbound_plaintext().writable_region().size() > 100;
       } ) );
 
@@ -338,23 +380,12 @@ public:
   ClientConnection& operator=( ClientConnection&& other ) noexcept = delete;
 };
 
-void program_body( const string origin,
-                   const string cert_filename,
-                   const string privkey_filename,
-                   const vector<string>& keyfiles )
+void program_body( const string origin, const string cert_filename, const string privkey_filename )
 {
   ios::sync_with_stdio( false );
 
   if ( SIG_ERR == signal( SIGPIPE, SIG_IGN ) ) {
     throw unix_error( "signal" );
-  }
-
-  auto names = make_shared<vector<string>>();
-  for ( const auto& filename : keyfiles ) {
-    ReadOnlyFile file { filename };
-    Parser p { file };
-    LongLivedKey k { p };
-    names->push_back( string( k.name() ) );
   }
 
   SSLServerContext ssl_context { cert_filename, privkey_filename };
@@ -443,14 +474,25 @@ void program_body( const string origin,
     }
   } );
 
+  shared_ptr<SceneList> scenes;
+
+  scenes->scenes.push_back( Scene::iso_scene( "Audrey" ) );
+  scenes->scenes.push_back( Scene::iso_scene( "Aiyana" ) );
+  scenes->scenes.push_back( Scene::iso_scene( "JJ" ) );
+  scenes->scenes.push_back( Scene::iso_scene( "Justine" ) );
+  scenes->scenes.push_back( Scene::iso_scene( "Sam" ) );
+  scenes->scenes.push_back( Scene::iso_scene( "Michael" ) );
+  scenes->scenes.push_back( Scene::iso_scene( "Keith" ) );
+  scenes->scenes.push_back( Scene::iso_scene( "Band" ) );
+
   loop->add_rule( "new Preview connection", preview_listen_socket, Direction::In, [&] {
     clients->clients.emplace_back(
-      categories, names, ssl_context, preview_listen_socket, origin, *loop, cull_needed, stream_t::Preview );
+      categories, scenes, ssl_context, preview_listen_socket, origin, *loop, cull_needed, stream_t::Preview );
   } );
 
   loop->add_rule( "new Program connection", program_listen_socket, Direction::In, [&] {
     clients->clients.emplace_back(
-      categories, names, ssl_context, program_listen_socket, origin, *loop, cull_needed, stream_t::Program );
+      categories, scenes, ssl_context, program_listen_socket, origin, *loop, cull_needed, stream_t::Program );
   } );
 
   /* cull old connections */
@@ -477,16 +519,12 @@ int main( int argc, char* argv[] )
     if ( argc <= 0 ) {
       abort();
     }
-    if ( argc < 4 ) {
-      cerr << "Usage: " << argv[0] << " origin certificate private_key keys...\n";
+    if ( argc != 4 ) {
+      cerr << "Usage: " << argv[0] << " origin certificate private_key\n";
       return EXIT_FAILURE;
     }
-    vector<string> keys;
-    for ( int i = 4; i < argc; i++ ) {
-      keys.push_back( argv[i] );
-    }
 
-    program_body( argv[1], argv[2], argv[3], keys );
+    program_body( argv[1], argv[2], argv[3] );
   } catch ( const exception& e ) {
     cerr << "Exception: " << e.what() << "\n";
     return EXIT_FAILURE;
