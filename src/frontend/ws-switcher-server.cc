@@ -166,17 +166,18 @@ private:
   vector<string_view> fields_ {};
   void parse_message( const string_view s )
   {
-    cerr << "incoming: " << s << "\n";
-
     if ( ( s.size() > 7 ) and ( s.substr( 0, 7 ) == "buffer " ) ) {
       string_view num = s.substr( 8 );
       last_buffer_ = stof( string( num ) );
       ewma_update( mean_buffer_, last_buffer_, 0.05 );
     } else if ( ( s.size() > 6 ) and ( s.substr( 0, 6 ) == "scene " ) ) {
+      cerr << "incoming: " << s << "\n";
+
       const string_view scene_name = s.substr( 7 );
 
       auto inst = scenes_->make( scene_name );
       if ( inst.has_value() ) {
+        cerr << "sending: " << scene_name << "\n";
         send_control( inst.value() );
       }
     }
