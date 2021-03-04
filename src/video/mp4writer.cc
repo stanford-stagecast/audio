@@ -82,17 +82,6 @@ MP4Writer::MP4Writer( const unsigned int frame_rate, const unsigned int width, c
   avio_flush( context_->pb );
 }
 
-MP4Writer::~MP4Writer()
-{
-  try {
-    if ( header_written_ ) {
-      av_check( av_write_trailer( context_.get() ) );
-    }
-  } catch ( const exception& e ) {
-    cerr << "Exception in MP4Writer destructor: " << e.what() << "\n";
-  }
-}
-
 bool MP4Writer::is_idr( const string_view nal )
 {
   if ( nal.at( 0 ) != 0 or nal.at( 1 ) != 0 or nal.at( 2 ) != 0 or nal.at( 3 ) != 1 ) {

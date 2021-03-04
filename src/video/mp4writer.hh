@@ -39,8 +39,6 @@ class MP4Writer
 public:
   MP4Writer( const unsigned int frame_rate, const unsigned int width, const unsigned int height );
 
-  ~MP4Writer();
-
   void write( const std::string_view nal, const uint32_t presentation_no, const uint32_t display_no );
 
   RingBuffer& output() { return buf_; }
