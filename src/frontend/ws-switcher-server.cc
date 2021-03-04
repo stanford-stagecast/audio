@@ -78,6 +78,44 @@ struct Scene
 
     return ret;
   }
+
+  static Scene three_shot( const string_view name1, const string_view name2, const string_view name3 )
+  {
+    Scene ret;
+    ret.name = string( name1 ) + " | " + string( name2 ) + " | " + string( name3 );
+
+    {
+      insert_layer inst;
+      inst.name = name1;
+      inst.width = 640;
+      inst.x = 0;
+      inst.y = 180;
+      inst.z = 50;
+      ret.layers.push_back( inst );
+    }
+
+    {
+      insert_layer inst;
+      inst.name = name2;
+      inst.width = 640;
+      inst.x = 427;
+      inst.y = 180;
+      inst.z = 50;
+      ret.layers.push_back( inst );
+    }
+
+    {
+      insert_layer inst;
+      inst.name = name3;
+      inst.width = 640;
+      inst.x = 853;
+      inst.y = 180;
+      inst.z = 50;
+      ret.layers.push_back( inst );
+    }
+
+    return ret;
+  }
 };
 
 struct SceneList
@@ -519,6 +557,11 @@ void program_body( const string origin, const string cert_filename, const string
   scenes->scenes.push_back( Scene::iso_scene( "Band" ) );
   scenes->scenes.push_back( Scene::two_shot( "Michael", "Keith" ) );
   scenes->scenes.push_back( Scene::two_shot( "Audrey", "Aiyana" ) );
+  scenes->scenes.push_back( Scene::two_shot( "Audrey", "Justine" ) );
+  scenes->scenes.push_back( Scene::two_shot( "Audrey", "Sam" ) );
+  scenes->scenes.push_back( Scene::two_shot( "JJ", "Aiyana" ) );
+  scenes->scenes.push_back( Scene::two_shot( "Justine", "Sam" ) );
+  scenes->scenes.push_back( Scene::three_shot( "Sam", "Audrey", "Justine" ) );
 
   loop->add_rule( "new Preview connection", preview_listen_socket, Direction::In, [&] {
     clients->clients.emplace_back(
