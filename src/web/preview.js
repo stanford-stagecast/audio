@@ -13,6 +13,12 @@ window.onload = async function(e){
     }
 }
 
+var ws;
+
+function set_scene(name) {
+    ws.send("scene " + name );
+}
+
 function sourceOpenVideo(e) {
     const audio = document.getElementById('video');
     var mime = 'video/mp4; codecs="avc1.64001E"';
@@ -70,7 +76,7 @@ function sourceOpenVideo(e) {
 	    return;
 	}
 	if ( type_byte == 2 ) {
-
+	    add_control( decoder.decode( rest ) );
 	    return;
 	}
 	if ( type_byte == 3 ) {
@@ -86,6 +92,11 @@ function sourceOpenVideo(e) {
 	}
     }
 
+    var add_control = function(name) {
+	var div = document.getElementById('buttons');
+	div.innerHTML += "<button onclick='set_scene(this.id)' type='button' id='" + name + "'>" + name + "</button>";
+    }
+    
     videoSourceBuffer.addEventListener('abort', function(e) {
 	document.getElementById('status').innerHTML = "playback abort";
         console.log('video source buffer abort:', e);

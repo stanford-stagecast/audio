@@ -54,16 +54,10 @@ void Layer::render( RasterRGBA& output )
                  and source_y < 720 ) {
               const auto src = image->pel( source_x, source_y );
               auto& outputpel = output.pel( target_x, target_y );
-              float alpha = src.alpha / 255.0;
 
-              /* temporary chroma key */
-              if ( src.red <= 5 and src.green >= 100 and src.blue < 80 ) {
-                alpha = 0;
-              }
-
-              outputpel.red = alpha * src.red + ( 1 - alpha ) * outputpel.red;
-              outputpel.green = alpha * src.green + ( 1 - alpha ) * outputpel.green;
-              outputpel.blue = alpha * src.blue + ( 1 - alpha ) * outputpel.blue;
+              outputpel.red = src.red;
+              outputpel.green = src.green;
+              outputpel.blue = src.blue;
             }
           }
         }

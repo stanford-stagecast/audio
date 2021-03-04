@@ -21,7 +21,7 @@ using namespace std::chrono;
 template<class Message>
 void send_control( const Message& message )
 {
-  StackBuffer<0, uint8_t, 255> buf;
+  StackBuffer<0, uint16_t, 65535> buf;
   Serializer s { buf.mutable_buffer() };
   s.integer( Message::id );
   s.object( message );
@@ -30,6 +30,8 @@ void send_control( const Message& message )
   UDPSocket socket;
   socket.sendto( { "127.0.0.1", video_server_control_port() }, buf );
 }
+
+void make_scene( atomic_scene_update&, const string_view ) {}
 
 void split_on_char( const string_view str, const char ch_to_find, vector<string_view>& ret )
 {
@@ -119,43 +121,20 @@ private:
       string_view num = s.substr( 8 );
       last_buffer_ = stof( string( num ) );
       ewma_update( mean_buffer_, last_buffer_, 0.05 );
-    } else if ( ( s.size() > 5 ) and ( s.substr( 0, 5 ) == "live " ) ) {
-      set_live instruction;
-      string_view name = s.substr( 5 );
-      instruction.name = NetString( name );
-      send_control( instruction );
-    } else if ( ( s.size() > 8 ) and ( s.substr( 0, 8 ) == "control " ) ) {
-      split_on_char( s, ' ', fields_ );
+    } else if ( ( s.size() > 6 ) and ( s.substr( 0, 6 ) == "scene " ) ) {
+      const string_view scene_name = s.substr( 7 );
 
-      if ( fields_.size() != 3 ) {
-        return;
+      atomic_scene_update inst;
+
+      {
+        remove_layer removal;
+        memcpy( removal.name.mutable_data_ptr(), "all", strlen( "all" ) );
+        removal.name.resize( strlen( "all" ) );
+        inst.removals.push_back( removal );
       }
 
-      video_control instruction {};
-      instruction.x = instruction.y = instruction.width = instruction.height = instruction.crop_left
-        = instruction.crop_right = instruction.crop_top = instruction.crop_bottom = -1;
-
-      try {
-        if ( fields_.at( 1 ) == "zoom:x" ) {
-          instruction.x = stoi( string( fields_.at( 2 ) ) );
-        } else if ( fields_.at( 1 ) == "zoom:y" ) {
-          instruction.y = stoi( string( fields_.at( 2 ) ) );
-        } else if ( fields_.at( 1 ) == "zoom:zoom" ) {
-          instruction.width = lrint( 3840.0 / stof( string( fields_.at( 2 ) ) ) );
-        } else if ( fields_.at( 1 ) == "crop:left" ) {
-          instruction.crop_left = stoi( string( fields_.at( 2 ) ) );
-        } else if ( fields_.at( 1 ) == "crop:right" ) {
-          instruction.crop_right = stoi( string( fields_.at( 2 ) ) );
-        } else if ( fields_.at( 1 ) == "crop:top" ) {
-          instruction.crop_top = stoi( string( fields_.at( 2 ) ) );
-        } else if ( fields_.at( 1 ) == "crop:bottom" ) {
-          instruction.crop_bottom = stoi( string( fields_.at( 2 ) ) );
-        }
-
-        send_control( instruction );
-
-      } catch ( const exception& e ) {
-      }
+      make_scene( inst, scene_name );
+      send_control( inst );
     }
   }
 
