@@ -78,7 +78,7 @@ struct SceneList
 
         break;
       } else {
-        cerr << "checked " << scene.name << "\n";
+        cerr << "checked {" << scene.name << "} vs. {" << scene_name << "}\n";
       }
     }
 
