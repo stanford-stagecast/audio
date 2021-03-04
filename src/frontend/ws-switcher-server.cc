@@ -173,6 +173,8 @@ private:
     } else if ( ( s.size() > 6 ) and ( s.substr( 0, 6 ) == "scene " ) ) {
       const string_view scene_name = s.substr( 7 );
 
+      cerr << "scene requested: " << scene_name << "\n";
+
       auto inst = scenes_->make( scene_name );
       if ( inst.has_value() ) {
         send_control( inst.value() );
@@ -476,6 +478,7 @@ void program_body( const string origin, const string cert_filename, const string
 
   auto scenes = make_shared<SceneList>();
 
+  scenes->scenes.push_back( Scene::iso_scene( "QLab" ) );
   scenes->scenes.push_back( Scene::iso_scene( "Audrey" ) );
   scenes->scenes.push_back( Scene::iso_scene( "Aiyana" ) );
   scenes->scenes.push_back( Scene::iso_scene( "JJ" ) );
