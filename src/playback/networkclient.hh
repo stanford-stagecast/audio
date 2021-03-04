@@ -11,6 +11,7 @@
 
 class NetworkClient : public Summarizable
 {
+public:
   struct NetworkSession
   {
     AudioNetworkConnection connection;
@@ -28,6 +29,7 @@ class NetworkClient : public Summarizable
     void json_summary( Json::Value& root ) const { cursor.json_summary( root ); }
   };
 
+private:
   UDPSocket socket_ {};
   Address server_;
 

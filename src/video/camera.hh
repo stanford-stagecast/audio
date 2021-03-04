@@ -47,10 +47,10 @@ class Camera
 {
 private:
   static constexpr unsigned int NUM_BUFFERS = 4;
-  static constexpr uint32_t pixel_format = V4L2_PIX_FMT_MJPEG;
 
   uint16_t width_;
   uint16_t height_;
+  uint32_t pixel_format_;
   std::string device_name_;
 
   CameraFD camera_fd_;
@@ -63,11 +63,15 @@ private:
   unsigned int frame_count_ {};
 
 public:
-  Camera( const uint16_t width, const uint16_t height, const std::string& device_name );
+  Camera( const uint16_t width,
+          const uint16_t height,
+          const std::string& device_name,
+          const uint32_t pixel_format = V4L2_PIX_FMT_MJPEG );
 
   ~Camera();
 
   void get_next_frame( RasterYUV422& raster );
+  void get_next_frame( RasterYUV420& raster );
 
   FileDescriptor& fd() { return camera_fd_; }
 };

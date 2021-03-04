@@ -19,7 +19,13 @@ void NetworkMultiServer::receive_keyrequest( const Address& src, const Ciphertex
       return;
     }
   }
+
   stats_.bad_packets++;
+}
+
+void NetworkMultiServer::add_interconnect( const Address& other_server, const LongLivedKey& key )
+{
+  interconnect_.emplace( other_server, key );
 }
 
 void NetworkMultiServer::add_key( const LongLivedKey& key )

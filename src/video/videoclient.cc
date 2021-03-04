@@ -82,7 +82,11 @@ VideoClient::VideoClient( const Address& server,
 
   loop.add_rule(
     "discard video",
-    [&] { source_->pop_frame(); },
+    [&] {
+      while ( source_->has_frame() ) {
+        source_->pop_frame();
+      }
+    },
     [&] { return source_->has_frame() and not session_.has_value(); } );
 
   loop.add_rule( "network receive", socket_, Direction::In, [&] {

@@ -11,7 +11,7 @@ extern "C"
 
 class Scaler
 {
-  static constexpr uint16_t input_width = 3840, input_height = 2160;
+  uint16_t input_width, input_height;
   static constexpr uint16_t output_width = 1280, output_height = 720;
 
   SwsContext* context_ { nullptr };
@@ -24,7 +24,13 @@ class Scaler
   void create_context();
 
 public:
-  Scaler() { create_context(); }
+  Scaler( const uint16_t s_input_width = 3840, const uint16_t s_input_height = 2160 )
+    : input_width( s_input_width )
+    , input_height( s_input_height )
+  {
+    create_context();
+  }
+
   ~Scaler()
   {
     if ( context_ ) {

@@ -41,9 +41,13 @@ using namespace std;
 
 static constexpr int capture_type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 
-Camera::Camera( const uint16_t width, const uint16_t height, const string& device_name )
+Camera::Camera( const uint16_t width,
+                const uint16_t height,
+                const string& device_name,
+                const uint32_t pixel_format )
   : width_( width )
   , height_( height )
+  , pixel_format_( pixel_format )
   , device_name_( device_name )
   , camera_fd_( CheckSystemCall( "open camera", open( device_name.c_str(), O_RDWR ) ) )
   , kernel_v4l2_buffers_()
@@ -147,16 +151,24 @@ void Camera::get_next_frame( RasterYUV422& raster )
   CheckSystemCall( "dequeue buffer", ioctl( camera_fd_.fd_num(), VIDIOC_DQBUF, &buffer_info ) );
   camera_fd_.buffer_dequeued();
 
-  if ( buffer_info.bytesused > 2048 and not( buffer_info.flags & V4L2_BUF_FLAG_ERROR ) ) {
+  if ( buffer_info.bytesused > 0 and not( buffer_info.flags & V4L2_BUF_FLAG_ERROR ) ) {
     const MMap_Region& mmap_region = kernel_v4l2_buffers_.at( next_buffer_index );
 
-    if ( frame_count_ > 5 ) {
-      try {
-        jpegdec_.begin_decoding( static_cast<string_view>( mmap_region ).substr( 0, buffer_info.bytesused ) );
-        jpegdec_.decode( raster );
-      } catch ( const exception& e ) {
-        cerr << "JPEG exception in Camera::get_next_frame(): " << e.what() << "\n";
-      }
+    switch ( pixel_format_ ) {
+      case V4L2_PIX_FMT_YUYV: {
+        throw runtime_error( "invalid" );
+      } break;
+
+      case V4L2_PIX_FMT_MJPEG:
+        if ( frame_count_ > 5 ) {
+          try {
+            jpegdec_.begin_decoding( static_cast<string_view>( mmap_region ).substr( 0, buffer_info.bytesused ) );
+            jpegdec_.decode( raster );
+          } catch ( const exception& e ) {
+            cerr << "JPEG exception in Camera::get_next_frame(): " << e.what() << "\n";
+          }
+        }
+        break;
     }
 
     frame_count_++;
@@ -173,4 +185,64 @@ void Camera::get_next_frame( RasterYUV422& raster )
     init();
     cerr << "done.\n";
   }
+}
+
+void Camera::get_next_frame( RasterYUV420& raster )
+{
+  if ( raster.width() != width_ or raster.height() != height_ ) {
+    throw runtime_error( "Camera::get_next_frame: mismatched raster size" );
+  }
+
+  v4l2_buffer buffer_info;
+  buffer_info.type = capture_type;
+  buffer_info.memory = V4L2_MEMORY_MMAP;
+  buffer_info.index = next_buffer_index;
+  buffer_info.bytesused = 0;
+
+  CheckSystemCall( "dequeue buffer", ioctl( camera_fd_.fd_num(), VIDIOC_DQBUF, &buffer_info ) );
+  camera_fd_.buffer_dequeued();
+
+  if ( buffer_info.bytesused > 0 and not( buffer_info.flags & V4L2_BUF_FLAG_ERROR ) ) {
+    const MMap_Region& mmap_region = kernel_v4l2_buffers_.at( next_buffer_index );
+
+    switch ( pixel_format_ ) {
+      case V4L2_PIX_FMT_YUYV: {
+        char* src = mmap_region.addr();
+        uint8_t* dst_y_start = raster.Y_row( 0 );
+        uint8_t* dst_cb_start = raster.Cb_row( 0 );
+        uint8_t* dst_cr_start = raster.Cr_row( 0 );
+
+        const size_t y_plane_length = width_ * height_;
+
+        for ( size_t i = 0; i < y_plane_length; i++ ) {
+          dst_y_start[i] = src[i << 1];
+        }
+
+        size_t i = 0;
+
+        for ( size_t row = 0; row < height_; row++ ) {
+          if ( row % 2 == 1 ) {
+            continue;
+          }
+
+          for ( size_t column = 0; column < width_ / 2; column++ ) {
+            dst_cb_start[i] = src[row * width_ * 2 + column * 4 + 1];
+            dst_cr_start[i] = src[row * width_ * 2 + column * 4 + 3];
+            i++;
+          }
+        }
+
+      } break;
+
+      case V4L2_PIX_FMT_MJPEG:
+        throw runtime_error( "invalid" );
+        break;
+    }
+
+    frame_count_++;
+  }
+
+  CheckSystemCall( "enqueue buffer", ioctl( camera_fd_.fd_num(), VIDIOC_QBUF, &buffer_info ) );
+
+  next_buffer_index = ( next_buffer_index + 1 ) % NUM_BUFFERS;
 }

@@ -309,3 +309,33 @@ target_link_libraries ("filmout" ${AVFormat_LDFLAGS})
 target_link_libraries ("filmout" ${AVFormat_LDFLAGS_OTHER})
 target_link_libraries ("filmout" ${X264_LDFLAGS})
 target_link_libraries ("filmout" ${X264_LDFLAGS_OTHER})
+
+add_executable (stagecast-hdmi-client "stagecast-hdmi-client.cc")
+target_link_libraries ("stagecast-hdmi-client" stats)
+target_link_libraries ("stagecast-hdmi-client" video)
+target_link_libraries ("stagecast-hdmi-client" control)
+target_link_libraries ("stagecast-hdmi-client" playback)
+target_link_libraries ("stagecast-hdmi-client" network)
+target_link_libraries ("stagecast-hdmi-client" audio)
+target_link_libraries ("stagecast-hdmi-client" crypto)
+target_link_libraries ("stagecast-hdmi-client" util)
+
+target_link_libraries ("stagecast-hdmi-client" "-no-pie")
+
+target_link_libraries ("stagecast-hdmi-client" "-Wl,--static")
+
+target_link_libraries ("stagecast-hdmi-client" ${V4L_LDFLAGS})
+target_link_libraries ("stagecast-hdmi-client" ${V4L_LDFLAGS_OTHER})
+
+target_link_libraries ("stagecast-hdmi-client" ${AVFormat_LDFLAGS})
+target_link_libraries ("stagecast-hdmi-client" ${AVFormat_LDFLAGS_OTHER})
+
+target_link_libraries ("stagecast-hdmi-client" ${Opus_LDFLAGS})
+target_link_libraries ("stagecast-hdmi-client" ${Opus_LDFLAGS_OTHER})
+
+target_link_libraries ("stagecast-hdmi-client" "-Wl,-Bdynamic")
+
+target_link_libraries ("stagecast-hdmi-client" "-pthread")
+
+target_link_libraries ("stagecast-hdmi-client" ${X264_LDFLAGS})
+target_link_libraries ("stagecast-hdmi-client" ${X264_LDFLAGS_OTHER})
