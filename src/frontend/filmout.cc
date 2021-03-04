@@ -37,7 +37,7 @@ int main( int argc, char* argv[] )
   string video_stream_name = "stagecast-"s + argv[1] + "-video-filmout";
 
   audio_receiver.bind( Address::abstract_unix( "stagecast-program-audio-filmout" ) );
-  video_receiver.bind( Address::abstract_unix( "stagecast-camera-video-filmout" ) );
+  video_receiver.bind( Address::abstract_unix( "stagecast-preview-video-filmout" ) );
 
   EventLoop loop;
   StackBuffer<0, uint32_t, 1048576> buf;
