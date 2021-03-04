@@ -474,7 +474,7 @@ void program_body( const string origin, const string cert_filename, const string
     }
   } );
 
-  shared_ptr<SceneList> scenes;
+  auto scenes = make_shared<SceneList>();
 
   scenes->scenes.push_back( Scene::iso_scene( "Audrey" ) );
   scenes->scenes.push_back( Scene::iso_scene( "Aiyana" ) );
