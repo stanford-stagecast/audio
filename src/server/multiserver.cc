@@ -23,19 +23,17 @@ void NetworkMultiServer::receive_keyrequest( const Address& src, const Ciphertex
   stats_.bad_packets++;
 }
 
-void NetworkMultiServer::add_interconnect( const Address& other_server, const LongLivedKey& key )
-{
-  interconnect_.emplace( other_server, key );
-}
-
-void NetworkMultiServer::add_key( const LongLivedKey& key )
+void NetworkMultiServer::add_key( const LongLivedKey& key, const bool takes_program_audio )
 {
   const uint8_t next_id = clients_.size() + 1;
   const uint8_t ch1 = 2 * clients_.size();
   const uint8_t ch2 = ch1 + 1;
-  clients_.emplace_back( next_id, ch1, ch2, key );
+  clients_.emplace_back( next_id, ch1, ch2, key, takes_program_audio );
   cerr << "Added key #" << int( next_id ) << " for: " << key.name() << " on channels " << int( ch1 ) << ":"
        << int( ch2 ) << "\n";
+  if ( takes_program_audio ) {
+    cerr << "Client " << key.name() << " takes program audio.\n";
+  }
 
   internal_board_.set_channel_name( ch1, string( key.name() ) );
   internal_board_.set_channel_name( ch2, string( key.name() ) + "-CH2" );
@@ -96,7 +94,11 @@ NetworkMultiServer::NetworkMultiServer( const uint8_t num_clients, EventLoop& lo
       /* mix all audio */
       for ( auto& client : clients_ ) {
         if ( client ) {
-          client.client().mix_and_encode( internal_board_, next_cursor_sample_ );
+          if ( client.takes_program_audio() ) {
+            client.client().mix_and_encode( program_board_, next_cursor_sample_ );
+          } else {
+            client.client().mix_and_encode( internal_board_, next_cursor_sample_ );
+          }
         }
       }
 

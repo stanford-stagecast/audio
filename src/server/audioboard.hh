@@ -56,25 +56,3 @@ public:
   AudioWriter( const std::string_view socket_path, const std::string_view socket_path2 );
   void mix_and_write( const AudioBoard& board, const uint64_t cursor_sample );
 };
-
-class ClientWriter
-{
-  ChannelPair mixed_audio_ { 8192 };
-  uint64_t mix_cursor_ {};
-
-  OpusEncoderProcess encoder_ { 96000, 96000, 48000 };
-
-  UDPSocket socket_ {};
-  Address server_;
-  CryptoSession long_lived_crypto_;
-  std::chrono::steady_clock::time_point next_key_request_;
-  std::optional<NetworkClient::NetworkSession> session_ {};
-
-  void process_keyreply( const Ciphertext& ciphertext );
-
-public:
-  ClientWriter( const Address& server, const LongLivedKey& key );
-  void receive_packet( const Ciphertext& ciphertext );
-  void mix_and_encode( const AudioBoard& board, const uint64_t cursor_sample );
-  void send_packet( UDPSocket& socket );
-};

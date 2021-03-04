@@ -27,7 +27,13 @@ void program_body( const vector<string>& keyfiles )
   for ( const auto& filename : keyfiles ) {
     ReadOnlyFile file { filename };
     Parser p { file };
-    server->add_key( LongLivedKey { p } );
+    LongLivedKey key { p };
+    bool takes_program_audio = false;
+    if ( filename.size() > 3 and filename.substr( filename.size() - 3 ) == "prg" ) {
+      takes_program_audio = true;
+    }
+
+    server->add_key( key, takes_program_audio );
   }
 
   /* Controller registers itself in EventLoop */

@@ -31,13 +31,9 @@ class NetworkMultiServer : public Summarizable
   AudioWriter internal_audio_ { "stagecast-internal-audio", "stagecast-internal-audio-filmout" };
   AudioWriter program_audio_ { "stagecast-program-audio", "stagecast-program-audio-filmout" };
 
-  std::optional<ClientWriter> interconnect_ {};
-
 public:
   NetworkMultiServer( const uint8_t num_clients, EventLoop& loop );
-  void add_key( const LongLivedKey& key );
-
-  void add_interconnect( const Address& other_server, const LongLivedKey& key );
+  void add_key( const LongLivedKey& key, const bool takes_program_audio = false );
 
   void set_cursor_lag( const std::string_view name,
                        const std::string_view feed,

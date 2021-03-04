@@ -228,7 +228,8 @@ bool KnownClient::try_keyrequest( const Address& src, const Ciphertext& cipherte
 KnownClient::KnownClient( const uint8_t node_id,
                           const uint8_t ch1_num,
                           const uint8_t ch2_num,
-                          const LongLivedKey& key )
+                          const LongLivedKey& key,
+                          const bool takes_program_audio )
   : id_( node_id )
   , name_( key.name() )
   , long_lived_crypto_( key.key_pair().downlink, key.key_pair().uplink, true )
@@ -236,6 +237,7 @@ KnownClient::KnownClient( const uint8_t node_id,
   , next_session_( CryptoSession { next_keys_.downlink, next_keys_.uplink } )
   , ch1_num_( ch1_num )
   , ch2_num_( ch2_num )
+  , takes_program_audio_( takes_program_audio )
 {}
 
 void KnownClient::receive_packet( const Address& src, const Ciphertext& ciphertext, const uint64_t clock_sample )

@@ -112,8 +112,14 @@ class KnownClient
 
   uint8_t ch1_num_, ch2_num_;
 
+  bool takes_program_audio_ {};
+
 public:
-  KnownClient( const uint8_t node_id, const uint8_t ch1_num, const uint8_t ch2_num, const LongLivedKey& key );
+  KnownClient( const uint8_t node_id,
+               const uint8_t ch1_num,
+               const uint8_t ch2_num,
+               const LongLivedKey& key,
+               const bool takes_program_audio );
   bool try_keyrequest( const Address& src, const Ciphertext& ciphertext, UDPSocket& socket );
   void receive_packet( const Address& src, const Ciphertext& ciphertext, const uint64_t clock_sample );
 
@@ -126,4 +132,6 @@ public:
   void clear_current_session() { current_session_.reset(); }
 
   void summary( std::ostream& out ) const;
+
+  bool takes_program_audio() const { return takes_program_audio_; }
 };
