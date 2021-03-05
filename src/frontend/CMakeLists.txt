@@ -339,3 +339,10 @@ target_link_libraries ("stagecast-hdmi-client" "-pthread")
 
 target_link_libraries ("stagecast-hdmi-client" ${X264_LDFLAGS})
 target_link_libraries ("stagecast-hdmi-client" ${X264_LDFLAGS_OTHER})
+
+add_executable (relay "relay.cc")
+target_link_libraries ("relay" network)
+target_link_libraries ("relay" stats)
+target_link_libraries ("relay" audio)
+target_link_libraries ("relay" crypto)
+target_link_libraries ("relay" util)
