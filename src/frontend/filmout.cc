@@ -48,22 +48,10 @@ int main( int argc, char* argv[] )
   loop.add_rule( "new audio segment", audio_receiver, Direction::In, [&] {
     buf.resize( audio_receiver.recv( buf.mutable_buffer() ) );
     audio_time += muxer.write_audio( buf, big_opus_frame::NUM_SAMPLES );
-
-    while ( ( audio_time > video_time ) and ( audio_time - video_time ) > 45000 ) {
-      cerr << "Inserting blank frame @ time = " << audio_time << "\n";
-      video_time += muxer.write_video( blank_frame_encoder.nal().NAL, video_frame_count, video_frame_count );
-      video_frame_count++;
-    }
   } );
 
   loop.add_rule( "new video segment", video_receiver, Direction::In, [&] {
     buf.resize( video_receiver.recv( buf.mutable_buffer() ) );
-
-    if ( ( video_time > audio_time ) and ( video_time - audio_time ) > 45000 ) {
-      cerr << "Skipping extra video frame @ time = " << video_time << "\n";
-      return;
-    }
-
     video_time += muxer.write_video( buf, video_frame_count, video_frame_count );
     video_frame_count++;
   } );

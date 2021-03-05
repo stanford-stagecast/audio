@@ -53,8 +53,16 @@ struct Scene
 
   static Scene two_shot( const string_view name1, const string_view name2 )
   {
+    return two_shot( name1, name2, string( name1 ) + " | " + string( name2 ), {} );
+  }
+
+  static Scene two_shot( const string_view name1,
+                         const string_view name2,
+                         const string the_name,
+                         const optional<string_view> underlay )
+  {
     Scene ret;
-    ret.name = string( name1 ) + " | " + string( name2 );
+    ret.name = the_name;
 
     {
       insert_layer inst;
@@ -76,13 +84,33 @@ struct Scene
       ret.layers.push_back( inst );
     }
 
+    if ( underlay.has_value() ) {
+      insert_layer inst;
+      inst.name = underlay.value();
+      inst.width = 1280;
+      inst.x = 0;
+      inst.y = 0;
+      inst.z = 60;
+      ret.layers.push_back( inst );
+    }
+
     return ret;
   }
 
   static Scene three_shot( const string_view name1, const string_view name2, const string_view name3 )
   {
+    return three_shot(
+      name1, name2, name3, string( name1 ) + " | " + string( name2 ) + " | " + string( name3 ), {} );
+  }
+
+  static Scene three_shot( const string_view name1,
+                           const string_view name2,
+                           const string_view name3,
+                           const string the_name,
+                           const optional<string_view> underlay )
+  {
     Scene ret;
-    ret.name = string( name1 ) + " | " + string( name2 ) + " | " + string( name3 );
+    ret.name = the_name;
 
     {
       insert_layer inst;
@@ -107,10 +135,20 @@ struct Scene
     {
       insert_layer inst;
       inst.name = name3;
-      inst.width = 640;
+      inst.width = 427;
       inst.x = 853;
       inst.y = 180;
       inst.z = 50;
+      ret.layers.push_back( inst );
+    }
+
+    if ( underlay.has_value() ) {
+      insert_layer inst;
+      inst.name = underlay.value();
+      inst.width = 1280;
+      inst.x = 0;
+      inst.y = 0;
+      inst.z = 60;
       ret.layers.push_back( inst );
     }
 
@@ -555,15 +593,139 @@ void program_body( const string origin, const string cert_filename, const string
   scenes->scenes.push_back( Scene::iso_scene( "Sam" ) );
   scenes->scenes.push_back( Scene::iso_scene( "Michael" ) );
   scenes->scenes.push_back( Scene::iso_scene( "Keith" ) );
-  scenes->scenes.push_back( Scene::iso_scene( "Band" ) );
+
+  scenes->scenes.push_back( Scene::iso_scene( "Gelsey" ) );
+  scenes->scenes.push_back( Scene::iso_scene( "Mariel" ) );
+  scenes->scenes.push_back( Scene::iso_scene( "Josh" ) );
+
   scenes->scenes.push_back( Scene::two_shot( "Michael", "Keith" ) );
-  scenes->scenes.push_back( Scene::two_shot( "Audrey", "Aiyana" ) );
-  scenes->scenes.push_back( Scene::two_shot( "Audrey", "Justine" ) );
-  scenes->scenes.push_back( Scene::two_shot( "Audrey", "Sam" ) );
+
+  scenes->scenes.push_back( Scene::two_shot( "Audrey", "JJ", "TV Pilot 1", "QLab" ) );
+  scenes->scenes.push_back( Scene::two_shot( "Audrey", "Aiyana", "TV Pilot 2", "QLab" ) );
+  scenes->scenes.push_back( Scene::two_shot( "Audrey", "Justine", "TV Pilot 3", "QLab" ) );
+  scenes->scenes.push_back( Scene::two_shot( "Audrey", "Sam", "TV Pilot 4", "QLab" ) );
+
   scenes->scenes.push_back( Scene::two_shot( "JJ", "Aiyana" ) );
+
+  {
+    Scene lawyer = Scene::iso_scene( "JJ" );
+    lawyer.name = "Unboxing: JJ+Aiyana in corner";
+
+    insert_layer overlay;
+    overlay.x = 853;
+    overlay.y = 0;
+    overlay.width = 427;
+    overlay.z = 40;
+    overlay.name = NetString( "Aiyana" );
+
+    lawyer.layers.push_back( overlay );
+
+    scenes->scenes.push_back( lawyer );
+  }
+
   scenes->scenes.push_back( Scene::two_shot( "JJ", "Audrey" ) );
-  scenes->scenes.push_back( Scene::two_shot( "Justine", "Sam" ) );
-  scenes->scenes.push_back( Scene::three_shot( "Sam", "Audrey", "Justine" ) );
+
+  scenes->scenes.push_back( Scene::two_shot( "Justine", "Sam", "Unbox Bros. (Justine+Sam)", "QLab" ) );
+  scenes->scenes.push_back(
+    Scene::three_shot( "Justine", "Audrey", "Sam", "Unbox Bros. (Justine/Audrey/Sam)", "QLab" ) );
+
+  {
+    Scene band;
+    band.name = "Band";
+
+    {
+      insert_layer layer;
+      layer.name = NetString( "Gelsey" );
+      layer.x = 320;
+      layer.y = 0;
+      layer.width = 1280 / 2;
+      layer.z = 50;
+      band.layers.push_back( layer );
+    }
+
+    {
+      insert_layer layer;
+      layer.name = NetString( "Josh" );
+      layer.x = 0;
+      layer.y = 720 / 2;
+      layer.width = 1280 / 2;
+      layer.z = 50;
+      band.layers.push_back( layer );
+    }
+
+    {
+      insert_layer layer;
+      layer.name = NetString( "Mariel" );
+      layer.x = 1280 / 2;
+      layer.y = 720 / 2;
+      layer.width = 1280 / 2;
+      layer.z = 50;
+      band.layers.push_back( layer );
+    }
+
+    scenes->scenes.push_back( band );
+  }
+  {
+    Scene curtain;
+    curtain.name = "Curtain Call";
+    list<string> names = { "Audrey", "Aiyana", "JJ", "Justine", "Sam", "xxx", "Mariel", "Gelsey", "Josh" };
+
+    for ( unsigned int y = 0; y < 3; y++ ) {
+      for ( unsigned int x = 0; x < 3; x++ ) {
+        if ( names.front() != "xxx" ) {
+          insert_layer layer;
+          layer.name = NetString( names.front() );
+          layer.x = x * 427;
+          layer.y = y * 240;
+          layer.width = 427;
+          layer.z = 50;
+          curtain.layers.push_back( layer );
+          names.pop_front();
+        } else {
+          {
+            insert_layer layer;
+            layer.name = NetString( "Michael" );
+            layer.x = x * 427;
+            layer.y = y * 240;
+            layer.width = 427 / 2;
+            layer.z = 50;
+            curtain.layers.push_back( layer );
+          }
+
+          {
+            insert_layer layer;
+            layer.name = NetString( "Michael" );
+            layer.x = x * 427 + ( 427 / 2 );
+            layer.y = y * 240 + ( 240 / 2 );
+            layer.width = 427 / 2;
+            layer.z = 50;
+            curtain.layers.push_back( layer );
+          }
+          {
+            insert_layer layer;
+            layer.name = NetString( "Keith" );
+            layer.x = x * 427 + ( 427 / 2 );
+            layer.y = y * 240;
+            layer.width = 427 / 2;
+            layer.z = 50;
+            curtain.layers.push_back( layer );
+          }
+          {
+            insert_layer layer;
+            layer.name = NetString( "Keith" );
+            layer.x = x * 427;
+            layer.y = y * 240 + ( 240 / 2 );
+            layer.width = 427 / 2;
+            layer.z = 50;
+            curtain.layers.push_back( layer );
+          }
+          names.pop_front();
+        }
+      }
+    }
+
+    scenes->scenes.push_back( curtain );
+  }
 
   loop->add_rule( "new Preview connection", preview_listen_socket, Direction::In, [&] {
     clients->clients.emplace_back(
