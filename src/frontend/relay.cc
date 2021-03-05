@@ -55,6 +55,17 @@ class SimpleConnection : public Summarizable
         MiniSession { char( keys.id ), CryptoSession { keys.key_pair.uplink, keys.key_pair.downlink } } );
       stats_.new_sessions++;
       cerr << name_ << ": started session as id " << keys.id << "\n";
+
+      /* send one packet to initialize server */
+      Packet<AudioFrame> pack {};
+      pack.sender_section.sequence_number = uint32_t( -1 );
+      Serializer s { plaintext.mutable_buffer() };
+      pack.serialize( s );
+      plaintext.resize( s.bytes_written() );
+
+      /* encrypt */
+      send( plaintext );
+
     } else {
       stats_.bad_packets++;
     }
@@ -205,7 +216,7 @@ int main( int argc, char* argv[] )
 
   /* make key requests */
 
-  while ( loop->wait_next_event( -1 ) != EventLoop::Result::Exit ) {
+  while ( loop->wait_next_event( 50 ) != EventLoop::Result::Exit ) {
   }
 
   return EXIT_SUCCESS;

@@ -259,7 +259,7 @@ void EventLoop::summary( ostream& out ) const
     }
 
     out << "   " << name << ": ";
-    out << string( 27 - name.size(), ' ' );
+    out << string( 27 - min( size_t( 27 ), name.size() ), ' ' );
     out << "mean ";
     Timer::pp_ns( out, timer.total_ns / timer.count );
 

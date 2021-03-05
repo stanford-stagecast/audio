@@ -99,6 +99,10 @@ bool NetworkConnection<FrameType, SourceType>::receive_packet( const Ciphertext&
     return false;
   }
 
+  if ( packet.sender_section.sequence_number == uint32_t( -1 ) ) { /* ignore packet, only used for priming */
+    return true;
+  }
+
   /* act on packet contents */
   sender_.receive_receiver_section( packet.receiver_section );
   receiver_.receive_sender_section( packet.sender_section );

@@ -156,7 +156,7 @@ public:
         outbound_.push( s.bytes_written() );
       },
       [&] {
-        return outbound_.writable_region().size() > ( 1 + WebSocketFrame::max_overhead() )
+        return outbound_.writable_region().size() > size_t( 1 + WebSocketFrame::max_overhead() )
                and muxer_.output().readable_region().size() and ws_server_.handshake_complete();
       } ) );
 

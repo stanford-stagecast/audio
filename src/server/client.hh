@@ -63,14 +63,18 @@ class Client
   uint64_t server_mix_cursor() const;
   uint64_t client_mix_cursor() const;
 
-  OpusEncoderProcess encoder_ { 96000, 48000 };
+  OpusEncoderProcess encoder_;
 
   uint8_t ch1_num_, ch2_num_;
 
   client_report last_client_report_ {};
 
 public:
-  Client( const uint8_t node_id, const uint8_t ch1, const uint8_t ch2, CryptoSession&& crypto );
+  Client( const uint8_t node_id,
+          const uint8_t ch1,
+          const uint8_t ch2,
+          CryptoSession&& crypto,
+          const bool send_stereo );
 
   bool receive_packet( const Address& source, const Ciphertext& ciphertext, const uint64_t clock_sample );
   void decode_audio( const uint64_t cursor_sample, AudioBoard& internal_board, AudioBoard& quality_board );

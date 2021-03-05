@@ -31,10 +31,15 @@ AudioFeed::AudioFeed( const string_view name,
   stretcher_.calculateStretch();
 }
 
-Client::Client( const uint8_t node_id, const uint8_t ch1_num, const uint8_t ch2_num, CryptoSession&& crypto )
+Client::Client( const uint8_t node_id,
+                const uint8_t ch1_num,
+                const uint8_t ch2_num,
+                CryptoSession&& crypto,
+                const bool send_stereo )
   : connection_( 0, node_id, move( crypto ) )
   , internal_feed_( "internal", 960, 120, 1920, true )
   , quality_feed_( "quality", 4800, 4800 - 240, 4800 + 240, false )
+  , encoder_( send_stereo ? OpusEncoderProcess { 96000, 48000 } : OpusEncoderProcess { 96000, 96000, 48000 } )
   , ch1_num_( ch1_num )
   , ch2_num_( ch2_num )
 {}
@@ -249,7 +254,7 @@ void KnownClient::receive_packet( const Address& src, const Ciphertext& cipherte
   Plaintext throwaway_plaintext;
   if ( next_session_.value().decrypt( ciphertext, { &id_, 1 }, throwaway_plaintext ) ) {
     /* new session established */
-    current_session_.emplace( id_, ch1_num_, ch2_num_, move( next_session_.value() ) );
+    current_session_.emplace( id_, ch1_num_, ch2_num_, move( next_session_.value() ), takes_program_audio_ );
 
     next_keys_ = KeyPair {};
     next_session_.emplace( next_keys_.downlink, next_keys_.uplink );
