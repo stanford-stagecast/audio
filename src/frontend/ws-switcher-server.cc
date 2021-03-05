@@ -667,6 +667,44 @@ void program_body( const string origin, const string cert_filename, const string
 
     scenes->scenes.push_back( band );
   }
+
+  {
+    Scene loup;
+    loup.name = "Loup Garou";
+
+    {
+      insert_layer layer;
+      layer.name = NetString( "JJ" );
+      layer.x = 5;
+      layer.y = 180;
+      layer.width = 630;
+      layer.z = 50;
+      loup.layers.push_back( layer );
+    }
+
+    {
+      insert_layer layer;
+      layer.name = NetString( "Aiyana" );
+      layer.x = 645;
+      layer.y = 180;
+      layer.width = 630;
+      layer.z = 50;
+      loup.layers.push_back( layer );
+    }
+
+    {
+      insert_layer inst;
+      inst.name = NetString( "QLab" );
+      inst.width = 1280;
+      inst.x = 0;
+      inst.y = 0;
+      inst.z = 60;
+      loup.layers.push_back( inst );
+    }
+
+    scenes->scenes.push_back( loup );
+  }
+
   {
     Scene curtain;
     curtain.name = "Curtain Call";
