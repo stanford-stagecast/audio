@@ -71,7 +71,7 @@ void program_body( const vector<string>& keyfiles )
     [&] { return Timer::timestamp_ns() > next_json_update; } );
 
   /* Start audio device and event loop */
-  while ( loop->wait_next_event( 1 ) != EventLoop::Result::Exit ) {
+  while ( loop->wait_next_event( 0 ) != EventLoop::Result::Exit ) {
   }
 }
 
