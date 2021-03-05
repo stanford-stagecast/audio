@@ -53,13 +53,14 @@ struct Scene
 
   static Scene two_shot( const string_view name1, const string_view name2 )
   {
-    return two_shot( name1, name2, string( name1 ) + " | " + string( name2 ), {} );
+    return two_shot( name1, name2, string( name1 ) + " | " + string( name2 ), {}, false );
   }
 
   static Scene two_shot( const string_view name1,
                          const string_view name2,
                          const string the_name,
-                         const optional<string_view> underlay )
+                         const optional<string_view> underlay,
+                         const bool inset = false )
   {
     Scene ret;
     ret.name = the_name;
@@ -67,8 +68,8 @@ struct Scene
     {
       insert_layer inst;
       inst.name = name1;
-      inst.width = 640;
-      inst.x = 0;
+      inst.width = inset ? 620 : 640;
+      inst.x = inset ? 20 : 0;
       inst.y = 180;
       inst.z = 50;
       ret.layers.push_back( inst );
@@ -77,7 +78,7 @@ struct Scene
     {
       insert_layer inst;
       inst.name = name2;
-      inst.width = 640;
+      inst.width = inset ? 620 : 640;
       inst.x = 640;
       inst.y = 180;
       inst.z = 50;
@@ -107,7 +108,8 @@ struct Scene
                            const string_view name2,
                            const string_view name3,
                            const string the_name,
-                           const optional<string_view> underlay )
+                           const optional<string_view> underlay,
+                           const bool inset = false )
   {
     Scene ret;
     ret.name = the_name;
@@ -115,9 +117,9 @@ struct Scene
     {
       insert_layer inst;
       inst.name = name1;
-      inst.width = 427;
-      inst.x = 0;
-      inst.y = 180;
+      inst.width = inset ? 413 : 427;
+      inst.x = inset ? 20 : 0;
+      inst.y = 240;
       inst.z = 50;
       ret.layers.push_back( inst );
     }
@@ -125,9 +127,9 @@ struct Scene
     {
       insert_layer inst;
       inst.name = name2;
-      inst.width = 427;
-      inst.x = 427;
-      inst.y = 180;
+      inst.width = inset ? 413 : 427;
+      inst.x = inset ? ( 20 + 413 ) : 427;
+      inst.y = 240;
       inst.z = 50;
       ret.layers.push_back( inst );
     }
@@ -135,9 +137,9 @@ struct Scene
     {
       insert_layer inst;
       inst.name = name3;
-      inst.width = 427;
-      inst.x = 853;
-      inst.y = 180;
+      inst.width = inset ? 413 : 427;
+      inst.x = inset ? ( 20 + 413 + 413 ) : 427;
+      inst.y = 240;
       inst.z = 50;
       ret.layers.push_back( inst );
     }
@@ -625,9 +627,9 @@ void program_body( const string origin, const string cert_filename, const string
 
   scenes->scenes.push_back( Scene::two_shot( "JJ", "Audrey" ) );
 
-  scenes->scenes.push_back( Scene::two_shot( "Justine", "Sam", "Unbox Bros. (Justine+Sam)", "QLab" ) );
+  scenes->scenes.push_back( Scene::two_shot( "Justine", "Sam", "Unbox Bros. (Justine+Sam)", "QLab", true ) );
   scenes->scenes.push_back(
-    Scene::three_shot( "Justine", "Audrey", "Sam", "Unbox Bros. (Justine/Audrey/Sam)", "QLab" ) );
+    Scene::three_shot( "Justine", "Audrey", "Sam", "Unbox Bros. (Justine/Audrey/Sam)", "QLab", true ) );
 
   {
     Scene band;
