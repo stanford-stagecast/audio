@@ -58,7 +58,7 @@ class SimpleConnection : public Summarizable
 
       /* send one packet to initialize server */
       Packet<AudioFrame> pack {};
-      pack.sender_section.sequence_number = uint32_t( -1 );
+      pack.sender_section.sequence_number = uint32_t( 0 );
       Serializer s { plaintext.mutable_buffer() };
       pack.serialize( s );
       plaintext.resize( s.bytes_written() );

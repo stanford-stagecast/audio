@@ -35,11 +35,11 @@ Client::Client( const uint8_t node_id,
                 const uint8_t ch1_num,
                 const uint8_t ch2_num,
                 CryptoSession&& crypto,
-                const bool send_stereo )
+                const bool send_mono )
   : connection_( 0, node_id, move( crypto ) )
   , internal_feed_( "internal", 960, 120, 1920, true )
   , quality_feed_( "quality", 4800, 4800 - 240, 4800 + 240, false )
-  , encoder_( send_stereo ? OpusEncoderProcess { 96000, 48000 } : OpusEncoderProcess { 96000, 96000, 48000 } )
+  , encoder_( send_mono ? OpusEncoderProcess { 96000, 96000, 48000 } : OpusEncoderProcess { 96000, 48000 } )
   , ch1_num_( ch1_num )
   , ch2_num_( ch2_num )
 {}
