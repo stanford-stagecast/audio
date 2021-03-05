@@ -104,13 +104,13 @@ EventLoop::Result EventLoop::wait_next_event( const int timeout_ms )
         continue;
       }
 
-      uint8_t iterations = 0;
+      //      uint8_t iterations = 0;
       while ( this_rule.interest() ) {
-        if ( iterations++ >= 128 ) {
-          throw runtime_error( "EventLoop: busy wait detected: rule \""
-                               + _rule_categories.at( this_rule.category_id ).name + "\" is still interested after "
-                               + to_string( iterations ) + " iterations" );
-        }
+        /*        if ( iterations++ >= 128 ) {
+        throw runtime_error( "EventLoop: busy wait detected: rule \""
+                             + _rule_categories.at( this_rule.category_id ).name + "\" is still interested after "
+                             + to_string( iterations ) + " iterations" );
+                             } */
 
         rule_fired = true;
         RecordScopeTimer<Timer::Category::Nonblock> record_timer {
