@@ -1,10 +1,67 @@
-var ws = new WebSocket("wss://stagecast.org:8500");
+var cue_ws = new WebSocket("ws://stagecast.org:9001"); // Where the levels are sent from
+
+// This function gets the levels from the backend when the socket opens
+cue_ws.onopen = function() {
+    var request = {list_id: 0, type: 'get-levels'};
+    cue_ws.send(JSON.stringify(request));
+}
+
+var awaiting_levels = false;
+
+function get_name(n) {
+    var names = ["Aiyana", "Alexa", "Audrey", "Gelsey", "JJ", "Josh", "Justine", "Keith", "KeithBox", "Mariel", "Michael", "Sam"];
+    if (n > names.length) {
+        return "";
+    } else {
+        return names[n];
+    }
+}
+
+// Whenever the levels change, the backend will notify the controller
+cue_ws.onmessage = function( e ) {
+    if (!awaiting_levels) {
+        return;
+    }
+    awaiting_levels = false;
+    doc = JSON.parse( e.data );
+    if (doc.type != "get-levels") {
+        return
+    }
+    var values = doc.cue.values;
+    for (var i = 0; i < values.length; i++) {
+        var name = get_name(values[i].channel);
+        if (values[i].mute) {
+            document.getElementById( `gain:program:${name}` ).value = -99;
+        } else {
+            var preview_gain = document.getElementById( `gain:preview:${name}` ).value;
+            document.getElementById( `gain:program:${name}` ).value = preview_gain;
+        }
+    }
+    // the values attribute is an array with information about every channel
+    // The mute attribute is true when a channel is muted and false otherwise
+    // the value attribute is a float from 0 to 1
+    // with 0 being panned all the way to the left
+    // and 1 being panned all the way to the right
+}
+
+function next_cue() {
+    awaiting_levels = true;
+    cue_ws.send(JSON.stringify( { type: "go-cue", list_id: 0 } ));
+}
+
+function previous_cue() {
+    awaiting_levels = true;
+    cue_ws.send(JSON.stringify( { type: "back-cue", list_id: 0 } ));
+}
+
+
+var ws = new WebSocket("wss://east.stagecast.org:8500");
 ws.binaryType = 'arraybuffer';
 
 var decoder = new TextDecoder("utf-8");
 
 var controls_created = false;
-ws.onmessage = function( e ) {  
+ws.onmessage = function( e ) {
     doc = JSON.parse( decoder.decode( e.data ) );
     if (!controls_created) {
 	for ( x in doc["client"] ) {
@@ -23,7 +80,7 @@ ws.onmessage = function( e ) {
 	    var id = client_name + ":" + "earpiece";
 	    show_info( id, doc["client"][client_name]["client"] )
 	    update_sliders( id, doc["client"][client_name]["client"] );
-	
+
 	    for ( feed_name in doc["client"][client_name]["feed"] ) {
 		var id = client_name + ":" + feed_name;
 		show_info( id, doc["client"][client_name]["feed"][ feed_name ] );
@@ -39,7 +96,7 @@ ws.onmessage = function( e ) {
 	    var amplitude_db = to_dbfs( doc["board"][board_name]["channels"][channel_name][ "amplitude" ] );
 	    document.getElementById( `amplitude:${board_name}:${channel_name}` ).value = amplitude_db;
 
-	    text_elem =	document.getElementById( `text:gain:${board_name}:${channel_name}` ); 
+	    text_elem =	document.getElementById( `text:gain:${board_name}:${channel_name}` );
 
 	    if ( amplitude_db > -3 ) {
 		console.log( "clipping" );
@@ -82,15 +139,15 @@ show_info = function( id, structure ) {
 
 update_sliders = function( id, structure ) {
     //    console.log( structure );
-    update_slider( "lag:" + id, structure[ "actual_lag" ] ); 
-    update_slider( "min_lag:" + id, structure[ "min_lag" ] ); 
-    update_slider( "max_lag:" + id, structure[ "max_lag" ] ); 
-    update_slider( "target_lag:" + id, structure[ "target_lag" ] ); 
+    update_slider( "lag:" + id, structure[ "actual_lag" ] );
+    update_slider( "min_lag:" + id, structure[ "min_lag" ] );
+    update_slider( "max_lag:" + id, structure[ "max_lag" ] );
+    update_slider( "target_lag:" + id, structure[ "target_lag" ] );
 }
 
 update_slider = function( id, val ) {
     document.getElementById( id ).value = val;
-    document.getElementById( "text:" + id ).innerHTML = " " + (val / 48.0).toFixed(0) + " ms";  
+    document.getElementById( "text:" + id ).innerHTML = " " + (val / 48.0).toFixed(0) + " ms";
 }
 
 make_lagdisplay = function( client_name, feed_name )
@@ -104,7 +161,7 @@ make_lagdisplay = function( client_name, feed_name )
     ret += `<span style="float: left; width: 150px;">${feed_name}:info</span><span id=${"info:"+client_name+":"+feed_name}>info</span><br>`;
 
     ret += `<p>`;
-    
+
     return ret;
 }
 
@@ -126,6 +183,9 @@ var make_board = function(name, val) {
     board_area.innerHTML += `<hr><b>${name}</b> mixing board<br>`;
     for ( channel_name in val["channels"] ) {
 	board_area.innerHTML += make_channel( name, channel_name )
+    }
+    if (name === "preview") {
+        board_area.innerHTML += `<button onClick="previous_cue()">Previous Cue</button><button onClick="next_cue()">Next Cue</button>`;
     }
 }
 
@@ -152,4 +212,3 @@ onmousedown="this.ignoring = true;" onmouseup="this.ignoring = false;" oninput="
 </div>`;
     return ret;
 }
-
